@@ -1,38 +1,64 @@
 import React, { useState } from 'react';
-import { Menu, Button, Avatar, Dropdown } from 'antd';
-import { Plane, User, Settings, LogOut, Bell, Globe } from 'lucide-react';
+import { Menu, Button, Dropdown, Avatar } from 'antd';
+import { Plane, Bell, Globe, User, Settings, LogOut } from 'lucide-react';
+import { LoginModal, RegisterModal } from '../features/auth';
+import { useAuth } from '../features/auth/context/AuthProvider';
 
 interface HeaderProps {
   onLogoClick: () => void;
+  onProfileClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onLogoClick }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+const Header: React.FC<HeaderProps> = ({ onLogoClick, onProfileClick }) => {
+  const auth = useAuth();
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
 
+  // Debug logging
+  console.log('Header render - auth:', auth);
+  console.log('Header render - user:', auth.user);
+  console.log('Header render - isAuthenticated:', auth.isAuthenticated);
+
+  // Debug function to check localStorage
+
+
+  // User menu items
   const userMenuItems = [
     {
       key: 'profile',
-      icon: <User size={16} />,
-      label: 'My Profile',
-    },
-    {
-      key: 'bookings',
-      icon: <Plane size={16} />,
-      label: 'My Bookings',
-    },
-    {
-      key: 'settings',
-      icon: <Settings size={16} />,
-      label: 'Settings',
+      icon: <User size={16} />, 
+      label: 'Hồ sơ của tôi',
+      onClick: onProfileClick,
     },
     {
       type: 'divider' as const,
     },
     {
+      key : 'bookings',
+      icon: <Plane size={16} />, 
+      label: 'Đặt chỗ của tôi',
+      onClick: () => window.location.href = '/bookings',
+    },
+    {
+      key: 'settings',
+      icon: <Settings size={16} />, 
+      label: 'Cài đặt',
+      onClick: () => window.location.href = '/settings',
+    },
+    {
       key: 'logout',
-      icon: <LogOut size={16} />,
-      label: 'Sign Out',
-      onClick: () => setIsLoggedIn(false),
+      icon: <LogOut size={16} />, 
+      label: 'Đăng xuất',
+      onClick: async () => {
+        try {
+          await auth.logout();
+          if (typeof onLogoClick === 'function') {
+            onLogoClick();
+          }
+        } catch (error) {
+          console.error('Logout error:', error);
+        }
+      },
     },
   ];
 
@@ -73,8 +99,10 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick }) => {
             />
           </div>
 
-          {/* User Actions */}
+          {/* User Actions - This is the key conditional rendering section */}
           <div className="flex items-center space-x-4">
+  
+
             <Button
               type="text"
               icon={<Globe className="h-4 w-4" />}
@@ -82,42 +110,58 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick }) => {
             >
               EN
             </Button>
-            
-            <Button
-              type="text"
-              icon={<Bell className="h-4 w-4" />}
-              className="text-slate-300 hover:text-white"
-            />
-
-            {isLoggedIn ? (
+           
+           
+            {/* Conditional rendering: User menu OR Login/Register buttons */}
+            {auth.user ? (
+              // User is logged in - Show user menu
               <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                <Avatar 
-                  size={32} 
-                  className="bg-blue-500 cursor-pointer hover:bg-blue-600 transition-colors"
-                  icon={<User size={16} />}
-                />
+                <div className="flex items-center cursor-pointer">
+                  <Avatar size={32} className="bg-blue-500 hover:bg-blue-600 transition-colors" icon={<User size={16} />} />
+                  <span className="ml-2 text-white font-semibold">{auth.user.name}</span>
+                </div>
               </Dropdown>
             ) : (
+              // User is not logged in - Show login/register buttons
               <div className="flex space-x-2">
                 <Button 
                   type="text" 
                   className="text-slate-300 hover:text-white"
-                  onClick={() => setIsLoggedIn(true)}
+                  onClick={() => setIsLoginModalOpen(true)}
                 >
-                  Sign In
+                  Đăng nhập
                 </Button>
                 <Button 
                   type="primary" 
                   className="bg-blue-600 hover:bg-blue-700 border-blue-600"
-                  onClick={() => setIsLoggedIn(true)}
+                  onClick={() => setIsRegisterModalOpen(true)}
                 >
-                  Sign Up
+                  Đăng ký
                 </Button>
               </div>
             )}
           </div>
         </div>
       </div>
+      {/* Login Modal */}
+      {isLoginModalOpen && (
+        <LoginModal 
+          visible={isLoginModalOpen} 
+          onClose={() => setIsLoginModalOpen(false)}
+        />
+      )}
+      
+      {/* Register Modal */}
+      {isRegisterModalOpen && (
+        <RegisterModal 
+          visible={isRegisterModalOpen} 
+          onClose={() => setIsRegisterModalOpen(false)}
+          onSwitchToLogin={() => {
+            setIsRegisterModalOpen(false);
+            setIsLoginModalOpen(true);
+          }}
+        />
+      )}
     </header>
   );
 };
