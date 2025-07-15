@@ -19,6 +19,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
 const [userEmail, setUserEmail] = useState('');
 const [userName, setUserName] = useState('');
 const [userPassword, setUserPassword] = useState('');
+const [userPhone, setUserPhone] = useState('');
 const [currentStep, setCurrentStep] = useState<'register' | 'otp'>('register');
 
 
@@ -63,10 +64,11 @@ const [currentStep, setCurrentStep] = useState<'register' | 'otp'>('register');
     >
       {currentStep === 'register' && (
        <RegisterForm
-      onSuccess={(email: string, name: string, password: string) => {
+      onSuccess={(email: string, name: string, password: string, phone: string) => {
        setUserEmail(email);
       setUserName(name);
       setUserPassword(password);
+      setUserPhone(phone);
      setCurrentStep('otp');
   }}
   onClose={handleClose}
@@ -79,6 +81,7 @@ const [currentStep, setCurrentStep] = useState<'register' | 'otp'>('register');
            email={userEmail}
     name={userName}
     password={userPassword}
+    phone={userPhone}
     onSuccess={handleOtpSuccess}
     onBack={handleBackToRegister}
     onClose={handleClose}

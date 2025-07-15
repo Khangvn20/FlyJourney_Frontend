@@ -96,7 +96,7 @@ function App() {
             <UpdateProfile />
           )}
 
-          <Footer />
+          <Footer showNewsletter={currentView !== 'updateProfile'} />
         </div>
       </ConfigProvider>
     </AuthProvider>

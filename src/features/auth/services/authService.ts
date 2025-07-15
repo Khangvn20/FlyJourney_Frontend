@@ -46,20 +46,20 @@ class AuthService {
 
   async register(credentials: RegisterCredentials): Promise<{ success: boolean; message: string }> {
   try {
-
     const payload = {
-      name: credentials.username, 
+      name: credentials.username,
       email: credentials.email,
-      password: credentials.password
+      password: credentials.password,
+      phone: credentials.phone
     };
     console.log('AuthService register - payload:', payload);
     console.log('AuthService register - API_URL:', this.API_URL);
 
     const response = await fetch(`${this.API_URL}/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-}   );
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
     console.log('AuthService register - response status:', response.status);
 
@@ -87,7 +87,8 @@ class AuthService {
       Name: request.name,
       email: request.email,
       otp: request.otp,
-      password: request.password
+      password: request.password,
+      phone: request.phone
     };
     console.log('AuthService verifyOtp - payload:', payload);
 

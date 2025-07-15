@@ -1,4 +1,5 @@
 import React, { useState, useRef, KeyboardEvent, ChangeEvent } from 'react';
+import { Modal } from 'antd';
 import { Button, Alert } from 'antd';
 import { Mail, RefreshCw } from 'lucide-react';
 import { authService } from '../services/authService'; 
@@ -6,6 +7,7 @@ interface OtpVerificationProps {
   email: string;
   name: string;
   password: string;
+  phone: string;
   onSuccess?: () => void;
   onBack: () => void;
   onClose: () => void;
@@ -15,6 +17,7 @@ export const OtpVerification: React.FC<OtpVerificationProps> = ({
   email,
   name,
   password,
+  phone,
   onSuccess,
   onBack,
   onClose
@@ -23,6 +26,8 @@ export const OtpVerification: React.FC<OtpVerificationProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendLoading, setResendLoading] = useState(false);
+  const [successModal, setSuccessModal] = useState(false);
+  const [registerSuccessModal, setRegisterSuccessModal] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const handleChange = (index: number, value: string) => {
@@ -71,12 +76,14 @@ export const OtpVerification: React.FC<OtpVerificationProps> = ({
         name,
         email,
         otp: otpValue,
-        password
+        password,
+        phone
       });
       console.log('OTP verify response:', response);
       // On success
+      setSuccessModal(true);
       onSuccess?.();
-      onClose();
+      // onClose(); // Đóng sau khi người dùng xác nhận popup
     } catch (err: any) {
       setError(err.message || 'Mã OTP không hợp lệ');
     } finally {
@@ -108,6 +115,24 @@ export const OtpVerification: React.FC<OtpVerificationProps> = ({
 
   return (
     <div className="p-6 text-center">
+      <Modal
+        open={successModal}
+        onOk={() => { setSuccessModal(false); setRegisterSuccessModal(true); }}
+        onCancel={() => { setSuccessModal(false); setRegisterSuccessModal(true); }}
+        title="Xác minh thành công"
+        footer={null}
+      >
+        <p>Bạn đã xác minh tài khoản thành công! Chào mừng bạn đến với FlyJourney.</p>
+      </Modal>
+      <Modal
+        open={registerSuccessModal}
+        onOk={() => { setRegisterSuccessModal(false); onClose(); }}
+        onCancel={() => { setRegisterSuccessModal(false); onClose(); }}
+        title="Đăng ký thành công"
+        footer={null}
+      >
+        <p>Đăng ký thành công! Bạn có thể đăng nhập và sử dụng dịch vụ của FlyJourney.</p>
+      </Modal>
       <div className="mb-6">
         <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
           <Mail className="w-8 h-8 text-blue-600" />

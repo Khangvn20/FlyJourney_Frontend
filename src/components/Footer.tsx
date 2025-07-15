@@ -1,8 +1,13 @@
 import React from 'react';
+
+
+interface FooterProps {
+  showNewsletter?: boolean;
+}
 import { Divider } from 'antd';
 import { Plane, Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin } from 'lucide-react';
 
-const Footer: React.FC = () => {
+const Footer: React.FC<FooterProps> = ({ showNewsletter = true }) => {
   const footerLinks = {
     company: [
       { label: 'About Us', href: '#' },
@@ -166,12 +171,13 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Newsletter Signup */}
+        {showNewsletter && (
         <div className="mt-8 p-6 bg-slate-800/50 rounded-lg">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="mb-4 md:mb-0">
               <h3 className="text-xl font-semibold text-white mb-2">Stay Updated</h3>
               <p className="text-slate-400">Get the latest deals and travel tips delivered to your inbox.</p>
-            </div>
+            </div> 
             <div className="flex space-x-2 w-full md:w-auto">
               <input
                 type="email"
@@ -184,9 +190,11 @@ const Footer: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
       </div>
     </footer>
   );
 };
 
 export default Footer;
+// Để ẩn phần Stay Updated, hãy truyền showNewsletter={false} khi dùng Footer ở các trang không phải trang chủ.

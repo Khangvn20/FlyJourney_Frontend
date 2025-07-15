@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Alert } from 'antd';
+import { Form, Input, Button, Alert, Modal } from 'antd';
 import { User, Mail, Lock } from 'lucide-react';
 import { authService } from '../services/authService';
 interface RegisterCredentials {
   username: string;
   email: string;
   password: string;
+  phone: string;
 }
 
 interface RegisterFormProps {
-  onSuccess?: (email: string, name: string, password: string) => void;
+  onSuccess?: (email: string, name: string, password: string, phone: string) => void;
   onClose: () => void;
   onSwitchToLogin?: () => void;
 }
@@ -21,24 +22,36 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successModal, setSuccessModal] = useState(false);
 
   const onFinish = async (values: RegisterCredentials) => {
-  setLoading(true);
-  setError(null);
-
-  try {
-    const res = await authService.register(values);
-    // Truyền đủ email, username, password
-    onSuccess?.(values.email, values.username, values.password);
-  } catch (err: any) {
-    setError(err.message || 'Đăng ký thất bại');
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await authService.register(values);
+      if (res.success) {
+        setSuccessModal(true);
+      }
+      // Truyền đủ email, username, password, phone
+      onSuccess?.(values.email, values.username, values.password, values.phone);
+    } catch (err: any) {
+      setError(err.message || 'Đăng ký thất bại');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="p-6">
+      <Modal
+        open={successModal}
+        onOk={() => setSuccessModal(false)}
+        onCancel={() => setSuccessModal(false)}
+        title="Đăng ký thành công"
+        footer={null}
+      >
+        <p>Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.</p>
+      </Modal>
       <h2 className="text-2xl font-bold text-center mb-6">Đăng Ký Tài Khoản</h2>
       
       <Form
@@ -73,6 +86,20 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
             prefix={<Mail className="text-gray-400" size={18} />}
             size="large"
             placeholder="Nhập email của bạn"
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="phone"
+          label="Số điện thoại"
+          rules={[
+            { required: true, message: 'Vui lòng nhập số điện thoại' },
+            { pattern: /^\d{9,11}$/, message: 'Số điện thoại không hợp lệ' }
+          ]}
+        >
+          <Input
+            size="large"
+            placeholder="Nhập số điện thoại"
           />
         </Form.Item>
 
