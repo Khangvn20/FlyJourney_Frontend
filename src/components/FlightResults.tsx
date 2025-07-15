@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Card, Button, Tag, Divider, Select, Slider, Checkbox, Empty } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, Button, Tag, Divider, Select, Slider, Checkbox, Empty, Spin } from 'antd';
 import { Plane, Clock, ArrowLeft, Filter, Star, Wifi, Utensils, Luggage } from 'lucide-react';
-import type { Flight } from '../App';
+import { useFlightSearch } from '../features/flight-search/hooks/useFlightSearch';
+import type { Flight } from '../shared/types';
 
 const { Option } = Select;
 
@@ -16,9 +17,11 @@ const FlightResults: React.FC<FlightResultsProps> = ({ searchData, onFlightSelec
   const [priceRange, setPriceRange] = useState<[number, number]>([500000, 5000000]);
   const [selectedStops, setSelectedStops] = useState<number[]>([]);
   const [selectedAirlines, setSelectedAirlines] = useState<string[]>([]);
+  const [flights, setFlights] = useState<Flight[]>([]);
 
-  // Mock flight data
-  // Danh sách chuyến bay mẫu cho Việt Nam
+  const { loading, error, updateFilters } = useFlightSearch();
+
+  // Mock flight data for demo purposes - in production this would come from API
   const mockFlights: Flight[] = [
     {
       id: '1',
@@ -312,13 +315,38 @@ const FlightResults: React.FC<FlightResultsProps> = ({ searchData, onFlightSelec
 
   const airlines = [...new Set(mockFlights.map(flight => flight.airline))];
   
-  const filteredFlights = mockFlights.filter(flight => {
+  // Filter flights based on search data and user filters
+  useEffect(() => {
+    if (searchData) {
+      // Filter flights based on search criteria
+      const matchingFlights = mockFlights.filter(flight => {
+        const departureMatch = !searchData.from || flight.departure.code === searchData.from;
+        const arrivalMatch = !searchData.to || flight.arrival.code === searchData.to;
+        return departureMatch && arrivalMatch;
+      });
+      setFlights(matchingFlights);
+    } else {
+      setFlights(mockFlights);
+    }
+  }, [searchData]);
+
+  // Apply user filters
+  const filteredFlights = flights.filter(flight => {
     const priceFilter = flight.price >= priceRange[0] && flight.price <= priceRange[1];
     const stopsFilter = selectedStops.length === 0 || selectedStops.includes(flight.stops);
     const airlineFilter = selectedAirlines.length === 0 || selectedAirlines.includes(flight.airline);
     
     return priceFilter && stopsFilter && airlineFilter;
   });
+
+  // Update filters in the flight search hook
+  useEffect(() => {
+    updateFilters({
+      priceRange,
+      stops: selectedStops,
+      airlines: selectedAirlines,
+    });
+  }, [priceRange, selectedStops, selectedAirlines, updateFilters]);
 
   const sortedFlights = [...filteredFlights].sort((a, b) => {
     switch (sortBy) {
@@ -381,9 +409,27 @@ const FlightResults: React.FC<FlightResultsProps> = ({ searchData, onFlightSelec
               <h1 className="text-2xl font-bold">
                 {searchData?.from} → {searchData?.to}
               </h1>
-              <p className="text-slate-400">
-                {sortedFlights.length} chuyến bay • {searchData?.passengers} hành khách
-              </p>
+              <div className="text-slate-400 space-y-1">
+                <p>
+                  {loading ? 'Đang tìm kiếm...' : `${sortedFlights.length} chuyến bay`} • {searchData?.passengers} hành khách
+                </p>
+                {searchData?.tripType && (
+                  <p className="text-sm">
+                    {searchData.tripType === 'roundtrip' ? 'Khứ hồi' : 
+                     searchData.tripType === 'oneway' ? 'Một chiều' : 'Nhiều thành phố'} • 
+                    Hạng {searchData.class === 'economy' ? 'Phổ thông' : 
+                           searchData.class === 'business' ? 'Thương gia' : 
+                           searchData.class === 'first' ? 'Hạng nhất' : searchData.class}
+                    {searchData.departureDate && ` • ${searchData.departureDate}`}
+                    {searchData.returnDate && ` - ${searchData.returnDate}`}
+                  </p>
+                )}
+                {error && (
+                  <p className="text-red-400 text-sm">
+                    {error}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
           
@@ -465,8 +511,29 @@ const FlightResults: React.FC<FlightResultsProps> = ({ searchData, onFlightSelec
 
           {/* Flight Results */}
           <div className="lg:col-span-3">
-            <div className="space-y-4">
-              {sortedFlights.length > 0 ? (
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <Spin size="large" />
+                <span className="ml-3 text-slate-300">Đang tìm kiếm chuyến bay...</span>
+              </div>
+            ) : error ? (
+              <Card className="bg-slate-800/90 border-slate-700 text-center py-8">
+                <div className="text-red-400 mb-2">
+                  <Plane size={48} className="mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-semibold mb-2">Có lỗi xảy ra</h3>
+                  <p>{error}</p>
+                </div>
+                <Button 
+                  type="primary" 
+                  onClick={onBackToHome}
+                  className="mt-4"
+                >
+                  Thử lại
+                </Button>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {sortedFlights.length > 0 ? (
                 sortedFlights.map((flight) => (
                   <Card
                     key={flight.id}
@@ -554,7 +621,8 @@ const FlightResults: React.FC<FlightResultsProps> = ({ searchData, onFlightSelec
                   />
                 </Card>
               )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

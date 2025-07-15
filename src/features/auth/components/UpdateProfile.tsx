@@ -53,7 +53,10 @@ export const UpdateProfile: React.FC<{ onLogout?: () => void }> = ({ onLogout })
   const handleSave = async () => {
     const res = await import('../services/userService').then(m => m.updateUserInfo(editForm));
     if (res.status) {
-      setUser(editForm);
+      // Ensure 'id' is included when updating user and context
+      const updatedUser = { ...user, ...editForm, id: (user as any).id };
+      setUser(updatedUser);
+      if (auth.setUser) auth.setUser(updatedUser); // Update context so Header shows new name
       setIsEditing(false);
       alert('Cập nhật thông tin thành công!');
     } else {

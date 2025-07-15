@@ -14,9 +14,9 @@ export const useFlightSearch = () => {
     error: null,
   });
 
-  const searchFlights = useCallback(async (searchData: FlightSearchFormData) => {
+  const searchFlights = useCallback(async (searchData: any) => {
     setState(prev => ({ ...prev, loading: true, error: null }));
-    
+    console.log('Flight search request:', searchData);
     try {
       // In a real app, this would call the API
       await flightSearchService.searchFlights(searchData);

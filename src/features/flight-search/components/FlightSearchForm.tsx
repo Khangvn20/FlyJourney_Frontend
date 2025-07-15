@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useFlightSearch } from '../hooks/useFlightSearch';
 import { Card, Form, Input, DatePicker, Select, Radio, InputNumber } from 'antd';
 import { Search, MapPin, Calendar, Users, ArrowLeftRight } from 'lucide-react';
 import dayjs from 'dayjs';
@@ -21,18 +22,38 @@ interface FlightSearchFormProps {
   loading?: boolean;
 }
 
-export const FlightSearchForm: React.FC<FlightSearchFormProps> = ({ 
-  onSearch, 
-  loading = false 
+export const FlightSearchForm: React.FC<FlightSearchFormProps> = ({
+  onSearch,
+  loading: loadingProp = false
 }) => {
   const [form] = Form.useForm();
   const [tripType, setTripType] = useState('roundtrip');
+  const { searchFlights, loading } = useFlightSearch();
 
   const handleSearch = (values: any) => {
-    onSearch({
-      ...values,
-      tripType,
-    });
+    // Format date theo định dạng DD-MM-YYYY HH:mm
+    const formatDate = (date: any) => {
+      if (!date) return null;
+      return dayjs(date).format('DD-MM-YYYY HH:mm');
+    };
+
+    // Chuẩn hóa dữ liệu gửi về API
+    const apiData = {
+      departure_airport: values.from,
+      arrival_airport: values.to,
+      departure_date: tripType === 'roundtrip' && values.dates 
+        ? formatDate(values.dates[0]) 
+        : formatDate(values.departureDate),
+      return_date: tripType === 'roundtrip' && values.dates 
+        ? formatDate(values.dates[1]) 
+        : formatDate(values.returnDate),
+      flight_class: values.class,
+      passengers: values.passengers,
+    };
+    
+    console.log('API Request Data:', apiData);
+    searchFlights(apiData);
+    if (onSearch) onSearch({ ...values, tripType });
   };
 
   const swapCities = () => {
@@ -198,7 +219,7 @@ export const FlightSearchForm: React.FC<FlightSearchFormProps> = ({
             type="primary"
             htmlType="submit"
             size="large"
-            loading={loading}
+            loading={loading || loadingProp}
             className="h-12 px-8 text-lg font-semibold"
           >
             <Search size={20} className="mr-2" />

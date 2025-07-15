@@ -64,16 +64,16 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick, onProfileClick }) => {
 
   const menuItems = [
     {
-      key: 'flights',
-      label: 'Flights',
-    },
-    {
-      key: 'deals',
-      label: 'Deals',
+      key: 'about',
+      label: 'Về chúng tôi',
     },
     {
       key: 'support',
-      label: 'Support',
+      label: 'Hỗ trợ',
+    },
+    {
+      key: 'promotion',
+      label: 'Khuyến mãi',
     },
   ];
 
@@ -103,13 +103,7 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick, onProfileClick }) => {
           <div className="flex items-center space-x-4">
   
 
-            <Button
-              type="text"
-              icon={<Globe className="h-4 w-4" />}
-              className="text-slate-300 hover:text-white"
-            >
-              EN
-            </Button>
+        
            
            
             {/* Conditional rendering: User menu OR Login/Register buttons */}
@@ -118,7 +112,7 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick, onProfileClick }) => {
               <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
                 <div className="flex items-center cursor-pointer">
                   <Avatar size={32} className="bg-blue-500 hover:bg-blue-600 transition-colors" icon={<User size={16} />} />
-                  <span className="ml-2 text-white font-semibold">{auth.user.name}</span>
+                  <span className="ml-2 text-white font-semibold">{auth.user.name || auth.user.email}</span>
                 </div>
               </Dropdown>
             ) : (
