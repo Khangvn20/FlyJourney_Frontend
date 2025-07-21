@@ -1,113 +1,33 @@
-import React, { useState } from 'react';
-import { ConfigProvider, theme } from 'antd';
-import Header from './components/Header';
-import Hero from './components/Hero';
-import FlightSearch from './components/FlightSearch';
-import PopularDestinations from './components/PopularDestinations';
-import Features from './components/Features';
-import Footer from './components/Footer';
-import FlightResults from './components/FlightResults';
-import BookingFlow from './components/BookingFlow';
+import type React from "react";
+import { Route, Routes } from "react-router-dom";
+import "./App.css";
 
-const { darkAlgorithm } = theme;
+import Home from "./pages/Home";
+import Search from "./pages/Search";
+import Booking from "./pages/Booking";
+import DebugApi from "./pages/DebugApi";
 
-export interface Flight {
-  id: string;
-  airline: string;
-  flightNumber: string;
-  departure: {
-    city: string;
-    airport: string;
-    code: string;
-    time: string;
-    date: string;
-  };
-  arrival: {
-    city: string;
-    airport: string;
-    code: string;
-    time: string;
-    date: string;
-  };
-  duration: string;
-  price: number;
-  stops: number;
-  aircraft: string;
-  amenities: string[];
-}
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+import { useScrollToTop } from "./hooks/useScrollToTop";
 
-function App() {
-  const [currentView, setCurrentView] = useState<'home' | 'results' | 'booking'>('home');
-  const [searchData, setSearchData] = useState<any>(null);
-  const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
-
-  const handleSearch = (data: any) => {
-    setSearchData(data);
-    setCurrentView('results');
-  };
-
-  const handleFlightSelect = (flight: Flight) => {
-    setSelectedFlight(flight);
-    setCurrentView('booking');
-  };
-
-  const handleBackToHome = () => {
-    setCurrentView('home');
-    setSearchData(null);
-    setSelectedFlight(null);
-  };
-
-  const handleBackToResults = () => {
-    setCurrentView('results');
-    setSelectedFlight(null);
-  };
+const App: React.FC = () => {
+  useScrollToTop();
 
   return (
-    <ConfigProvider
-      theme={{
-        algorithm: darkAlgorithm,
-        token: {
-          colorPrimary: '#3b82f6',
-          colorBgBase: '#0f172a',
-          colorBgContainer: '#1e293b',
-          colorBorder: '#334155',
-          colorText: '#f1f5f9',
-          colorTextSecondary: '#cbd5e1',
-          borderRadius: 12,
-        },
-      }}
-    >
-      <div className="min-h-screen bg-slate-900">
-        <Header onLogoClick={handleBackToHome} />
-        
-        {currentView === 'home' && (
-          <>
-            <Hero />
-            <FlightSearch onSearch={handleSearch} />
-            <PopularDestinations />
-            <Features />
-          </>
-        )}
-        
-        {currentView === 'results' && (
-          <FlightResults 
-            searchData={searchData} 
-            onFlightSelect={handleFlightSelect}
-            onBackToHome={handleBackToHome}
-          />
-        )}
-        
-        {currentView === 'booking' && selectedFlight && (
-          <BookingFlow 
-            flight={selectedFlight}
-            onBack={handleBackToResults}
-          />
-        )}
-        
-        <Footer />
-      </div>
-    </ConfigProvider>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <Header />
+      <main className="container mx-auto px-4 py-8 min-h-[calc(100vh-140px)]">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/booking" element={<Booking />} />
+          <Route path="/debug" element={<DebugApi />} />
+        </Routes>
+      </main>
+      <Footer />
+    </div>
   );
-}
+};
 
 export default App;
