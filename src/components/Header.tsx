@@ -1,7 +1,7 @@
 import type React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "../components/ui/button";
-import { Plane, Menu, X } from "lucide-react";
+import { Plane, Menu, X, Globe } from "lucide-react";
 import { useState } from "react";
 
 const Header: React.FC = () => {
@@ -46,6 +46,15 @@ const Header: React.FC = () => {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center space-x-3">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              disabled
+              className="opacity-50 cursor-not-allowed"
+            >
+              <Globe className="h-4 w-4 mr-2" />
+              EN
+            </Button>
             <Button variant="ghost" size="sm">
               Đăng Nhập
             </Button>
