@@ -1,161 +1,115 @@
-import React, { useState } from 'react';
-import { Menu, Button, Dropdown, Avatar } from 'antd';
-import { Plane, Bell, Globe, User, Settings, LogOut } from 'lucide-react';
-import { LoginModal, RegisterModal } from '../features/auth';
-import { useAuth } from '../features/auth/context/AuthProvider';
+import type React from "react";
+import { Link, useLocation } from "react-router-dom";
+import { Button } from "../components/ui/button";
+import { Plane, Menu, X, Globe } from "lucide-react";
+import { useState } from "react";
 
-interface HeaderProps {
-  onLogoClick: () => void;
-  onProfileClick?: () => void;
-}
+const Header: React.FC = () => {
+  const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-const Header: React.FC<HeaderProps> = ({ onLogoClick, onProfileClick }) => {
-  const auth = useAuth();
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
-
-  // Debug logging
-  console.log('Header render - auth:', auth);
-  console.log('Header render - user:', auth.user);
-  console.log('Header render - isAuthenticated:', auth.isAuthenticated);
-
-  // Debug function to check localStorage
-
-
-  // User menu items
-  const userMenuItems = [
-    {
-      key: 'profile',
-      icon: <User size={16} />, 
-      label: 'Hồ sơ của tôi',
-      onClick: onProfileClick,
-    },
-    {
-      type: 'divider' as const,
-    },
-    {
-      key : 'bookings',
-      icon: <Plane size={16} />, 
-      label: 'Đặt chỗ của tôi',
-      onClick: () => window.location.href = '/bookings',
-    },
-    {
-      key: 'settings',
-      icon: <Settings size={16} />, 
-      label: 'Cài đặt',
-      onClick: () => window.location.href = '/settings',
-    },
-    {
-      key: 'logout',
-      icon: <LogOut size={16} />, 
-      label: 'Đăng xuất',
-      onClick: async () => {
-        try {
-          await auth.logout();
-          if (typeof onLogoClick === 'function') {
-            onLogoClick();
-          }
-        } catch (error) {
-          console.error('Logout error:', error);
-        }
-      },
-    },
-  ];
-
-  const menuItems = [
-    {
-      key: 'about',
-      label: 'Về chúng tôi',
-    },
-    {
-      key: 'support',
-      label: 'Hỗ trợ',
-    },
-    {
-      key: 'promotion',
-      label: 'Khuyến mãi',
-    },
+  const navItems = [
+    { path: "/", label: "Trang Chủ" },
+    { path: "/search", label: "Tìm Chuyến Bay" },
+    { path: "/booking", label: "Đặt Chỗ Của Tôi" },
   ];
 
   return (
-    <header className="bg-slate-800/95 backdrop-blur-md border-b border-slate-700 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="bg-white shadow-soft border-b border-gray-100 sticky top-0 z-50">
+      <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center cursor-pointer" onClick={onLogoClick}>
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-2 rounded-lg mr-3">
+          <Link to="/" className="flex items-center space-x-2 group">
+            <div className="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg group-hover:from-blue-700 group-hover:to-indigo-700 transition-all duration-200">
               <Plane className="h-6 w-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-white">FlyJourney</span>
+            <span className="text-xl font-display font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Bay Việt
+            </span>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center space-x-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  location.pathname === item.path
+                    ? "bg-blue-50 text-blue-700 shadow-sm"
+                    : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+                }`}>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Desktop CTA */}
+          <div className="hidden md:flex items-center space-x-3">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              disabled
+              className="opacity-50 cursor-not-allowed"
+            >
+              <Globe className="h-4 w-4 mr-2" />
+              EN
+            </Button>
+            <Button variant="ghost" size="sm">
+              Đăng Nhập
+            </Button>
+            <Button
+              size="sm"
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+              Đăng Ký
+            </Button>
           </div>
 
-          {/* Navigation Menu */}
-          <div className="hidden md:block">
-            <Menu
-              mode="horizontal"
-              items={menuItems}
-              className="bg-transparent border-none"
-              style={{ lineHeight: '64px' }}
-            />
-          </div>
-
-          {/* User Actions - This is the key conditional rendering section */}
-          <div className="flex items-center space-x-4">
-  
-
-        
-           
-           
-            {/* Conditional rendering: User menu OR Login/Register buttons */}
-            {auth.user ? (
-              // User is logged in - Show user menu
-              <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                <div className="flex items-center cursor-pointer">
-                  <Avatar size={32} className="bg-blue-500 hover:bg-blue-600 transition-colors" icon={<User size={16} />} />
-                  <span className="ml-2 text-white font-semibold">{auth.user.name || auth.user.email}</span>
-                </div>
-              </Dropdown>
+          {/* Mobile Menu Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="md:hidden"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            {isMobileMenuOpen ? (
+              <X className="h-5 w-5" />
             ) : (
-              // User is not logged in - Show login/register buttons
-              <div className="flex space-x-2">
-                <Button 
-                  type="text" 
-                  className="text-slate-300 hover:text-white"
-                  onClick={() => setIsLoginModalOpen(true)}
-                >
-                  Đăng nhập
+              <Menu className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
+
+        {/* Mobile Navigation */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden py-4 border-t border-gray-100 animate-fade-in">
+            <nav className="flex flex-col space-y-2">
+              {navItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    location.pathname === item.path
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}>
+                  {item.label}
+                </Link>
+              ))}
+              <div className="flex flex-col space-y-2 pt-4 border-t border-gray-100">
+                <Button variant="ghost" size="sm" className="justify-start">
+                  Đăng Nhập
                 </Button>
-                <Button 
-                  type="primary" 
-                  className="bg-blue-600 hover:bg-blue-700 border-blue-600"
-                  onClick={() => setIsRegisterModalOpen(true)}
-                >
-                  Đăng ký
+                <Button
+                  size="sm"
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                  Đăng Ký
                 </Button>
               </div>
-            )}
+            </nav>
           </div>
-        </div>
+        )}
       </div>
-      {/* Login Modal */}
-      {isLoginModalOpen && (
-        <LoginModal 
-          visible={isLoginModalOpen} 
-          onClose={() => setIsLoginModalOpen(false)}
-        />
-      )}
-      
-      {/* Register Modal */}
-      {isRegisterModalOpen && (
-        <RegisterModal 
-          visible={isRegisterModalOpen} 
-          onClose={() => setIsRegisterModalOpen(false)}
-          onSwitchToLogin={() => {
-            setIsRegisterModalOpen(false);
-            setIsLoginModalOpen(true);
-          }}
-        />
-      )}
     </header>
   );
 };
