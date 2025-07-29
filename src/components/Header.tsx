@@ -1,20 +1,45 @@
 import type React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "../components/ui/button";
-import { Plane, Menu, X, Globe } from "lucide-react";
-import { useState } from "react";
+import { Plane, Menu, X, Globe, User, LogOut, Calendar } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import LoginModalNew from "./LoginModalNew";
+import { useAuth } from "../hooks/useAuth";
 
 const Header: React.FC = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    setIsUserMenuOpen(false);
+  };
 
   const navItems = [
     { path: "/", label: "Trang Chủ" },
     { path: "/search", label: "Tìm Chuyến Bay" },
     { path: "/blog", label: "Blog Du Lịch" },
     { path: "/news", label: "Tin Tức" },
-    { path: "/booking", label: "Đặt Chỗ Của Tôi" },
   ];
 
   return (
@@ -58,19 +83,52 @@ const Header: React.FC = () => {
               VN
             </Button>
 
-            <LoginModalNew>
-              <Button variant="ghost" size="sm">
-                Đăng Nhập
-              </Button>
-            </LoginModalNew>
+            {user ? (
+              <div className="relative" ref={userMenuRef}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center space-x-2">
+                  <User className="h-4 w-4" />
+                  <span>Xin chào, {user.name}</span>
+                </Button>
 
-            <Link to="/register">
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                Đăng Ký
-              </Button>
-            </Link>
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <Link
+                      to="/booking"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setIsUserMenuOpen(false)}>
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Đặt chỗ của tôi
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <LoginModalNew>
+                  <Button variant="ghost" size="sm">
+                    Đăng Nhập
+                  </Button>
+                </LoginModalNew>
+
+                <Link to="/register">
+                  <Button
+                    size="sm"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                    Đăng Ký
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -105,19 +163,49 @@ const Header: React.FC = () => {
                 </Link>
               ))}
               <div className="flex flex-col space-y-2 pt-4 border-t border-gray-100">
-                <LoginModalNew>
-                  <Button variant="ghost" size="sm" className="justify-start">
-                    Đăng Nhập
-                  </Button>
-                </LoginModalNew>
+                {user ? (
+                  <>
+                    <div className="px-4 py-2 text-sm text-gray-600">
+                      Xin chào,{" "}
+                      <span className="font-semibold">{user.name}</span>
+                    </div>
+                    <Link
+                      to="/booking"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                      onClick={() => setIsMobileMenuOpen(false)}>
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Đặt chỗ của tôi
+                    </Link>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg w-full text-left">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Đăng xuất
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <LoginModalNew>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="justify-start">
+                        Đăng Nhập
+                      </Button>
+                    </LoginModalNew>
 
-                <Link to="/register">
-                  <Button
-                    size="sm"
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                    Đăng Ký
-                  </Button>
-                </Link>
+                    <Link to="/register">
+                      <Button
+                        size="sm"
+                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                        Đăng Ký
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </nav>
           </div>

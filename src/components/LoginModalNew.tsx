@@ -8,6 +8,7 @@ import {
 } from "./ui/dialog";
 import { useNavigate } from "react-router-dom";
 import LoginForm from "./LoginForm";
+import { useAuth } from "../hooks/useAuth";
 import type { LoginFormData } from "../shared/types";
 
 interface LoginModalProps {
@@ -16,19 +17,21 @@ interface LoginModalProps {
 
 const LoginModalNew: React.FC<LoginModalProps> = ({ children }) => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLoginSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      // Simulate API call for login
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Call the actual login function from useAuth
+      await login(data.email, data.password);
 
       console.log("Login submitted:", data);
 
-      // Close modal and navigate to home
+      // Close modal after successful login
       setIsOpen(false);
+      // Navigate to home or stay on current page
       navigate("/");
     } catch (error) {
       console.error("Login failed:", error);

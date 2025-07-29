@@ -45,6 +45,7 @@ export interface ApiEndpoints {
   auth: {
     login: string;
     register: string;
+    confirmRegister: string;
     refresh: string;
     logout: string;
     verifyOtp: string;

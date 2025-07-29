@@ -1,11 +1,11 @@
 // Authentication related interfaces and types
 
 export interface RegisterFormData {
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
   password: string;
   confirmPassword: string;
+  phone: string;
 }
 
 export interface LoginFormData {

@@ -2,7 +2,7 @@ import type { ApiConfig, ApiEndpoints } from "../types";
 
 // API Configuration from environment variables
 export const apiConfig: ApiConfig = {
-  baseUrl: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api",
+  baseUrl: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1",
   timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 10000,
   retries: Number(import.meta.env.VITE_API_RETRIES) || 3,
 };
@@ -12,6 +12,7 @@ export const apiEndpoints: ApiEndpoints = {
   auth: {
     login: "/auth/login",
     register: "/auth/register",
+    confirmRegister: "/auth/confirm-register",
     refresh: "/auth/refresh",
     logout: "/auth/logout",
     verifyOtp: "/auth/verify-otp",
@@ -24,7 +25,7 @@ export const apiEndpoints: ApiEndpoints = {
     airports: "/flights/airports",
   },
   user: {
-    profile: "/user/profile",
+    profile: "/users/",
     bookings: "/user/bookings",
     preferences: "/user/preferences",
   },

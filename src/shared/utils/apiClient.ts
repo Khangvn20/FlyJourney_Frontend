@@ -27,6 +27,8 @@ class ApiClient {
 
     const config: RequestInit = {
       ...options,
+      mode: "cors",
+      credentials: "include",
       headers: {
         ...this.defaultHeaders,
         ...options.headers,
@@ -40,13 +42,23 @@ class ApiClient {
 
     try {
       if (apiSettings.enableLogging && apiSettings.isDevelopment) {
-        console.log(`🚀 API Request: ${config.method || "GET"} ${url}`, config);
+        console.log(`🚀 API Request: ${config.method || "GET"} ${url}`);
+        console.log(`📋 Request Config:`, config);
       }
 
       const response = await fetch(url, config);
       clearTimeout(timeoutId);
 
-      const data = await response.json();
+      // Handle 204 No Content response
+      let data = null;
+      if (response.status !== 204) {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          data = await response.json();
+        } else {
+          data = await response.text();
+        }
+      }
 
       if (apiSettings.enableLogging && apiSettings.isDevelopment) {
         console.log(`✅ API Response: ${response.status}`, data);
@@ -54,7 +66,8 @@ class ApiClient {
 
       if (!response.ok) {
         const error: ApiError = {
-          message: data.message || "API request failed",
+          message:
+            data?.message || `HTTP ${response.status}: ${response.statusText}`,
           code: response.status,
           details: data,
         };
@@ -63,8 +76,8 @@ class ApiClient {
 
       return {
         success: true,
-        data: data.data || data,
-        message: data.message,
+        data: data, // Return full backend response
+        message: data?.message || data?.errorMessage || "Success",
         code: response.status,
       };
     } catch (error) {

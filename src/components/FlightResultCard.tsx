@@ -3,72 +3,16 @@ import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Plane, Clock, Users, Wifi } from "lucide-react";
-
-interface FlightResultData {
-  id: string;
-  airline: string;
-  airlineCode: string;
-  flightNumber: string;
-  aircraft: string;
-  departure: {
-    airport: string;
-    code: string;
-    time: string;
-    date: string;
-  };
-  arrival: {
-    airport: string;
-    code: string;
-    time: string;
-    date: string;
-  };
-  duration: string;
-  price: {
-    amount: number;
-    currency: string;
-    formatted: string;
-  };
-  class: string;
-  amenities: string[];
-  stops: number;
-  availableSeats: number;
-}
+import type { FlightResultData } from "../shared/types";
+import { flightResults } from "../assets/mock";
 
 interface FlightResultCardProps {
   flight?: FlightResultData;
   onSelect?: (flight: FlightResultData) => void;
 }
 
-// Mock data mặc định
-const defaultFlight: FlightResultData = {
-  id: "VN123",
-  airline: "Vietnam Airlines",
-  airlineCode: "VN",
-  flightNumber: "VN123",
-  aircraft: "Boeing 787",
-  departure: {
-    airport: "Nội Bài",
-    code: "HAN",
-    time: "08:00",
-    date: "29/07/2025",
-  },
-  arrival: {
-    airport: "Tân Sơn Nhất",
-    code: "SGN",
-    time: "10:30",
-    date: "29/07/2025",
-  },
-  duration: "2h 30m",
-  price: {
-    amount: 1299000,
-    currency: "VND",
-    formatted: "1.299.000đ",
-  },
-  class: "Economy",
-  amenities: ["Wifi", "Meals", "Entertainment"],
-  stops: 0,
-  availableSeats: 24,
-};
+// Lấy flight đầu tiên làm default
+const defaultFlight = flightResults[0];
 
 const FlightResultCard: React.FC<FlightResultCardProps> = ({
   flight = defaultFlight,

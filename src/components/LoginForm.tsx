@@ -35,7 +35,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
   };
 
   return (
-    <div className="h-[420px] flex flex-col">
+    <div className="h-[450px] flex flex-col">
       <form onSubmit={handleSubmit} className="flex-1 space-y-4">
         {/* Email */}
         <div className="space-y-2">

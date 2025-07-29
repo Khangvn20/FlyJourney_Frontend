@@ -9,10 +9,12 @@ import Register from "./pages/Register";
 import Blog from "./pages/Blog";
 import News from "./pages/News";
 import DebugApi from "./pages/DebugApi";
+import ApiTest from "./pages/ApiTest";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { useScrollToTop } from "./hooks/useScrollToTop";
 
 const App: React.FC = () => {
@@ -36,8 +38,16 @@ const App: React.FC = () => {
                   <Route path="/search" element={<Search />} />
                   <Route path="/blog" element={<Blog />} />
                   <Route path="/news" element={<News />} />
-                  <Route path="/booking" element={<Booking />} />
+                  <Route
+                    path="/booking"
+                    element={
+                      <ProtectedRoute>
+                        <Booking />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route path="/debug" element={<DebugApi />} />
+                  <Route path="/api-test" element={<ApiTest />} />
                 </Routes>
               </main>
               <Footer />

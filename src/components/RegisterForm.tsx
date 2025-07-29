@@ -5,8 +5,9 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Mail, Lock, User, Eye, EyeOff, Shield } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, Shield, Phone } from "lucide-react";
 import type { RegisterFormData } from "../shared/types";
+import { validateRegisterForm } from "../utils/registerFormHelpers";
 
 interface RegisterFormProps {
   onSubmit: (data: RegisterFormData) => Promise<void>;
@@ -23,11 +24,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [formData, setFormData] = useState<RegisterFormData>({
-    firstName: initialData.firstName || "",
-    lastName: initialData.lastName || "",
+    name: initialData.name || "",
     email: initialData.email || "",
     password: initialData.password || "",
     confirmPassword: initialData.confirmPassword || "",
+    phone: initialData.phone || "",
   });
 
   const checkPasswordStrength = (password: string) => {
@@ -42,13 +43,10 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (formData.password !== formData.confirmPassword) {
-      alert("Mật khẩu xác nhận không khớp");
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      alert("Mật khẩu phải có ít nhất 6 ký tự");
+    // Validate form using helper function
+    const validation = validateRegisterForm(formData);
+    if (!validation.isValid) {
+      alert(validation.errors.join("\n"));
       return;
     }
 
@@ -95,48 +93,49 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
   };
 
   return (
-    <div className="h-[420px] flex flex-col">
+    <div className="h-[450px] flex flex-col">
       <form onSubmit={handleSubmit} className="flex-1 space-y-3">
-        {/* Name Fields */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label
-              htmlFor="firstName"
-              className="text-sm font-semibold text-slate-700">
-              Tên
-            </Label>
-            <div className="relative group">
-              <User className="absolute left-3 top-3 h-4 w-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
-              <Input
-                id="firstName"
-                type="text"
-                value={formData.firstName}
-                onChange={(e) => updateField("firstName", e.target.value)}
-                placeholder="Nhập tên của bạn"
-                className="pl-10 h-10 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                disabled={isLoading}
-                required
-              />
-            </div>
+        {/* Full Name */}
+        <div className="space-y-1.5">
+          <Label
+            htmlFor="name"
+            className="text-sm font-semibold text-slate-700">
+            Họ và tên
+          </Label>
+          <div className="relative group">
+            <User className="absolute left-3 top-3 h-4 w-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+            <Input
+              id="name"
+              type="text"
+              value={formData.name}
+              onChange={(e) => updateField("name", e.target.value)}
+              placeholder="Nhập họ và tên của bạn"
+              className="pl-10 h-10 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+              disabled={isLoading}
+              required
+            />
           </div>
-          <div className="space-y-1.5">
-            <Label
-              htmlFor="lastName"
-              className="text-sm font-semibold text-slate-700">
-              Họ
-            </Label>
-            <div className="relative group">
-              <Input
-                id="lastName"
-                type="text"
-                value={formData.lastName}
-                onChange={(e) => updateField("lastName", e.target.value)}
-                placeholder="Nhập họ của bạn"
-                className="h-10 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                disabled={isLoading}
-                required
-              />
-            </div>
+        </div>
+
+        {/* Phone */}
+        <div className="space-y-1.5">
+          <Label
+            htmlFor="phone"
+            className="text-sm font-semibold text-slate-700">
+            Số điện thoại
+          </Label>
+          <div className="relative group">
+            <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+            <Input
+              id="phone"
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => updateField("phone", e.target.value)}
+              placeholder="Nhập số điện thoại"
+              className="pl-10 h-10 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+              disabled={isLoading}
+              required
+            />
           </div>
         </div>
 
@@ -281,8 +280,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
           )}
         </div>
 
-        {/* Flexible spacer - giảm thêm */}
-        <div className="flex-1 min-h-[5px]" />
+        {/* Flexible spacer - increase space */}
+        <div className="flex-1 min-h-[10px]" />
 
         {/* Submit Button */}
         <div className="space-y-2">
