@@ -55,4 +55,13 @@ export const popularDestinations: PopularDestination[] = [
       "https://images.pexels.com/photos/2161467/pexels-photo-2161467.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
     badge: "LỊCH BAY HÀ NỘI - ĐÀ NẴNG",
   },
+  {
+    id: 6,
+    title: "Hồ Chí Minh ✈ Nha Trang",
+    subtitle: "Thời gian khởi hành: 06/01/2025 - 03/01/2025",
+    price: "599.000 đ/chiều",
+    image:
+      "https://images.pexels.com/photos/3355788/pexels-photo-3355788.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop",
+    badge: "LỊCH BAY SÀI GÒN - NHA TRANG",
+  },
 ];

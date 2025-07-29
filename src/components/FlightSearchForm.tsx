@@ -41,7 +41,7 @@ import {
   flightClasses,
   specialRequirements,
 } from "../assets/mock/flightData";
-import type { Airport } from "../shared/types/flight.types";
+import type { Airport } from "../shared/types";
 
 const FlightSearchForm: React.FC = () => {
   const {

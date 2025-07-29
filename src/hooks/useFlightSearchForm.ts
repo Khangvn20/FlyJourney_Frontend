@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type {
-  SearchFormData,
-  PassengerCounts,
-} from "../shared/types/flight.types";
+import type { SearchFormData, PassengerCounts } from "../shared/types";
 
 export const useFlightSearchForm = () => {
   const [formData, setFormData] = useState<SearchFormData>({

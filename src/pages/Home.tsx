@@ -2,25 +2,18 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
 import FlightSearchForm from "../components/FlightSearchForm";
+import PopularDestinations from "../components/PopularDestinations";
+import TravelNews from "../components/TravelNews";
 import {
   ChevronLeft,
   ChevronRight,
   MapPin,
-  Calendar,
   DollarSign,
-  Plane,
   Shield,
   Clock,
 } from "lucide-react";
-import {
-  heroSlides,
-  popularDestinations,
-  whyChooseUs,
-  travelNews,
-  airlines,
-} from "../assets/mock";
+import { heroSlides, whyChooseUs, airlines } from "../assets/mock";
 
 const Home: React.FC = () => {
   // State cho slideshow hero
@@ -117,18 +110,16 @@ const Home: React.FC = () => {
           </div>
         </div>
       </section>
-
       {/* Search Form */}
       <section className="relative -mt-20 z-20">
         <FlightSearchForm />
       </section>
-
       {/* Tại sao chọn chúng tôi */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-display font-bold text-gray-900 mb-4">
-              Vì sao chọn Bay Việt?
+              Vì sao chọn Fly Journey?
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Chúng tôi cam kết mang đến trải nghiệm đặt vé tốt nhất cho khách
@@ -166,123 +157,10 @@ const Home: React.FC = () => {
           </div>
         </div>
       </section>
-
       {/* Điểm đến hấp dẫn */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-2">
-                <Plane className="h-6 w-6 text-orange-500" />
-                <span className="text-orange-500 font-medium">
-                  Bay Việt cung cấp các chủ đề du lịch mà bạn sẽ thích
-                </span>
-              </div>
-              <h2 className="text-3xl md:text-4xl font-display font-bold text-gray-900">
-                Điểm đến hấp dẫn
-              </h2>
-            </div>
-            <Button variant="outline" className="hidden md:flex">
-              Xem thêm
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {popularDestinations.map((destination, index) => (
-              <Card
-                key={destination.id}
-                className={`border-0 shadow-soft hover:shadow-large transition-all duration-300 group overflow-hidden ${
-                  index === 0 ? "md:col-span-2 md:row-span-2" : ""
-                }`}>
-                <div className="relative">
-                  <img
-                    src={destination.image}
-                    alt={destination.title}
-                    className={`w-full object-cover group-hover:scale-105 transition-transform duration-300 ${
-                      index === 0 ? "h-80" : "h-48"
-                    }`}
-                  />
-                  <div className="absolute top-4 left-4">
-                    <Badge className="bg-red-600 text-white hover:bg-red-700 text-xs font-bold px-3 py-1">
-                      {destination.badge}
-                    </Badge>
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                  <div className="absolute bottom-4 left-4 text-white">
-                    <h3
-                      className={`font-bold ${
-                        index === 0 ? "text-2xl" : "text-lg"
-                      } mb-1`}>
-                      {destination.title}
-                    </h3>
-                    <p className="text-sm opacity-90 mb-2">
-                      {destination.subtitle}
-                    </p>
-                    <div className="flex items-center space-x-2">
-                      <span
-                        className={`font-bold text-orange-400 ${
-                          index === 0 ? "text-xl" : "text-lg"
-                        }`}>
-                        {destination.price}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
+      <PopularDestinations />
       {/* Tin tức nổi bật */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-gray-900 mb-4">
-              Tin tức nổi bật
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Cập nhật tin tức mới nhất về các chương trình khuyến mãi và điểm
-              đến
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {travelNews.map((news) => (
-              <Card
-                key={news.id}
-                className="border-0 shadow-soft hover:shadow-large transition-all duration-300 group overflow-hidden">
-                <div className="relative">
-                  <img
-                    src={news.image}
-                    alt={news.title}
-                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-2 text-sm text-gray-500 mb-3">
-                    <Calendar className="h-4 w-4" />
-                    <span>{news.date}</span>
-                  </div>
-                  <h3 className="font-semibold text-gray-900 text-lg mb-3 line-clamp-2">
-                    {news.title}
-                  </h3>
-                  <p className="text-gray-600 text-sm line-clamp-3 leading-relaxed">
-                    {news.description}
-                  </p>
-                  <Button
-                    variant="link"
-                    className="p-0 h-auto mt-3 text-blue-600">
-                    Xem thêm →
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Các hãng bay nổi bật */}
+      <TravelNews /> {/* Các hãng bay nổi bật */}
       <section className="py-16">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
@@ -312,7 +190,6 @@ const Home: React.FC = () => {
           </div>
         </div>
       </section>
-
       {/* Newsletter Section */}
       <section className="py-16">
         <div className="container mx-auto px-4">
