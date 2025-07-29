@@ -14,7 +14,7 @@ const Footer: React.FC = () => {
                 <Plane className="h-5 w-5 text-white" />
               </div>
               <span className="text-xl font-display font-bold text-white">
-                Bay Việt
+                Fly Journey
               </span>
             </div>
             <p className="text-sm text-gray-400 leading-relaxed">
@@ -113,7 +113,7 @@ const Footer: React.FC = () => {
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
           <p>
-            &copy; 2025 Bay Việt. Dự án học tập - Không sử dụng cho mục đích
+            &copy; 2025 Fly Journey. Dự án học tập - Không sử dụng cho mục đích
             thương mại.
           </p>
         </div>

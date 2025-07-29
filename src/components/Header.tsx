@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Plane, Menu, X, Globe } from "lucide-react";
 import { useState } from "react";
+import LoginModalNew from "./LoginModalNew";
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -11,6 +12,8 @@ const Header: React.FC = () => {
   const navItems = [
     { path: "/", label: "Trang Chủ" },
     { path: "/search", label: "Tìm Chuyến Bay" },
+    { path: "/blog", label: "Blog Du Lịch" },
+    { path: "/news", label: "Tin Tức" },
     { path: "/booking", label: "Đặt Chỗ Của Tôi" },
   ];
 
@@ -24,7 +27,7 @@ const Header: React.FC = () => {
               <Plane className="h-6 w-6 text-white" />
             </div>
             <span className="text-xl font-display font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Bay Việt
+              Fly Journey
             </span>
           </Link>
 
@@ -46,23 +49,28 @@ const Header: React.FC = () => {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center space-x-3">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              disabled
-              className="opacity-50 cursor-not-allowed"
-            >
-              <Globe className="h-4 w-4 mr-2" />
-              EN
-            </Button>
-            <Button variant="ghost" size="sm">
-              Đăng Nhập
-            </Button>
             <Button
+              variant="ghost"
               size="sm"
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-              Đăng Ký
+              disabled
+              className="opacity-50 cursor-not-allowed">
+              <Globe className="h-4 w-4 mr-2" />
+              VN
             </Button>
+
+            <LoginModalNew>
+              <Button variant="ghost" size="sm">
+                Đăng Nhập
+              </Button>
+            </LoginModalNew>
+
+            <Link to="/register">
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                Đăng Ký
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -97,14 +105,19 @@ const Header: React.FC = () => {
                 </Link>
               ))}
               <div className="flex flex-col space-y-2 pt-4 border-t border-gray-100">
-                <Button variant="ghost" size="sm" className="justify-start">
-                  Đăng Nhập
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                  Đăng Ký
-                </Button>
+                <LoginModalNew>
+                  <Button variant="ghost" size="sm" className="justify-start">
+                    Đăng Nhập
+                  </Button>
+                </LoginModalNew>
+
+                <Link to="/register">
+                  <Button
+                    size="sm"
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                    Đăng Ký
+                  </Button>
+                </Link>
               </div>
             </nav>
           </div>

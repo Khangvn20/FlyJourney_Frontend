@@ -2,7 +2,7 @@ import type {
   Airport,
   FlightClass,
   SpecialRequirement,
-} from "../../shared/types/flight.types";
+} from "../../shared/types";
 
 export const airports: Airport[] = [
   // Việt Nam

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { FlightResult } from "../shared/types/api.types";
+import type { FlightResult } from "../shared/types";
 
 export const useFlightSearch = () => {
   const [loading, setLoading] = useState(false);
