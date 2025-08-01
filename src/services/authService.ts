@@ -109,6 +109,32 @@ class AuthService {
   }
 
   /**
+   * Reset password - send OTP to email
+   */
+  async resetPassword(email: string): Promise<BackendResponse<null>> {
+    const response = await apiClient.post<BackendResponse<null>>(
+      apiClient.endpoints.auth.resetPassword,
+      { email }
+    );
+    return response.data!;
+  }
+
+  /**
+   * Confirm reset password with OTP
+   */
+  async confirmResetPassword(data: {
+    email: string;
+    new_password: string;
+    otp: string;
+  }): Promise<BackendResponse<null>> {
+    const response = await apiClient.post<BackendResponse<null>>(
+      apiClient.endpoints.auth.confirmResetPassword,
+      data
+    );
+    return response.data!;
+  }
+
+  /**
    * Set authentication token for API requests
    */
   setAuthToken(token: string): void {

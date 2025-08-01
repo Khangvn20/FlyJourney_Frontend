@@ -46,10 +46,11 @@ export interface ApiEndpoints {
     login: string;
     register: string;
     confirmRegister: string;
-    refresh: string;
     logout: string;
     verifyOtp: string;
     resendOtp: string;
+    resetPassword: string;
+    confirmResetPassword: string;
   };
   flights: {
     search: string;

@@ -1,16 +1,17 @@
 import type React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "../components/ui/button";
-import { Plane, Menu, X, Globe, User, LogOut, Calendar } from "lucide-react";
+import { Plane, Menu, X, Globe, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import LoginModalNew from "./LoginModalNew";
 import { useAuth } from "../hooks/useAuth";
+import { UserMenu } from "./UserMenu";
 
 const Header: React.FC = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Close user menu when clicking outside
@@ -29,11 +30,6 @@ const Header: React.FC = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  const handleLogout = () => {
-    logout();
-    setIsUserMenuOpen(false);
-  };
 
   const navItems = [
     { path: "/", label: "Trang Chủ" },
@@ -94,23 +90,10 @@ const Header: React.FC = () => {
                   <span>Xin chào, {user.name}</span>
                 </Button>
 
-                {isUserMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                    <Link
-                      to="/booking"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      onClick={() => setIsUserMenuOpen(false)}>
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Đặt chỗ của tôi
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Đăng xuất
-                    </button>
-                  </div>
-                )}
+                <UserMenu
+                  isOpen={isUserMenuOpen}
+                  onClose={() => setIsUserMenuOpen(false)}
+                />
               </div>
             ) : (
               <>
@@ -164,28 +147,16 @@ const Header: React.FC = () => {
               ))}
               <div className="flex flex-col space-y-2 pt-4 border-t border-gray-100">
                 {user ? (
-                  <>
-                    <div className="px-4 py-2 text-sm text-gray-600">
+                  <div className="space-y-2">
+                    <div className="px-4 py-2 text-sm text-gray-600 border-b">
                       Xin chào,{" "}
                       <span className="font-semibold">{user.name}</span>
                     </div>
-                    <Link
-                      to="/booking"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
-                      onClick={() => setIsMobileMenuOpen(false)}>
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Đặt chỗ của tôi
-                    </Link>
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg w-full text-left">
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Đăng xuất
-                    </button>
-                  </>
+                    <UserMenu
+                      isOpen={true}
+                      onClose={() => setIsMobileMenuOpen(false)}
+                    />
+                  </div>
                 ) : (
                   <>
                     <LoginModalNew>

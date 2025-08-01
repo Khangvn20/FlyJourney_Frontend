@@ -25,13 +25,6 @@ export interface UserProfile {
   updatedAt: string;
 }
 
-export interface AuthResponse {
-  user: UserProfile;
-  token: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
 export interface OTPVerificationData {
   email: string;
   otp: string;

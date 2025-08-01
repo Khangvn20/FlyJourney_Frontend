@@ -2,9 +2,9 @@ import type { ApiConfig, ApiEndpoints } from "../types";
 
 // API Configuration from environment variables
 export const apiConfig: ApiConfig = {
-  baseUrl: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1",
+  baseUrl: import.meta.env.VITE_API_BASE_URL,
   timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 10000,
-  retries: Number(import.meta.env.VITE_API_RETRIES) || 3,
+  retries: Number(import.meta.env.VITE_API_RETRIES),
 };
 
 // API Endpoints Configuration
@@ -13,10 +13,11 @@ export const apiEndpoints: ApiEndpoints = {
     login: "/auth/login",
     register: "/auth/register",
     confirmRegister: "/auth/confirm-register",
-    refresh: "/auth/refresh",
     logout: "/auth/logout",
     verifyOtp: "/auth/verify-otp",
     resendOtp: "/auth/resend-otp",
+    resetPassword: "/auth/reset-password",
+    confirmResetPassword: "/auth/confirm-reset-password",
   },
   flights: {
     search: "/flights/search",
@@ -38,4 +39,8 @@ export const apiSettings = {
   apiKey: import.meta.env.VITE_API_KEY,
   enableLogging: import.meta.env.VITE_ENABLE_API_LOGGING === "true",
   enableRetries: import.meta.env.VITE_ENABLE_RETRIES !== "false",
+  enableRequestDeduplication:
+    import.meta.env.VITE_DISABLE_REQUEST_DEDUPLICATION !== "true",
+  // Cài đặt để tránh CORS preflight
+  avoidCORSPreflight: import.meta.env.VITE_AVOID_CORS_PREFLIGHT === "true",
 };

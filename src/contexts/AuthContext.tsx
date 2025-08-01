@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const response = await authService.confirmRegister(confirmData);
         if (response.status && response.data) {
           console.log("✅ Registration confirmed successfully");
-          
+
           return {
             success: true,
             message: response.errorMessage,
@@ -176,14 +176,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const logout = useCallback(async () => {
+    // Prevent multiple logout calls
+    if (loading) {
+      console.log("⚠️ Logout already in progress, skipping...");
+      return;
+    }
+
     setLoading(true);
     try {
       // Call logout API if token exists
       if (token) {
+        console.log("🚪 Calling logout API...");
         await authService.logout();
+        console.log("✅ Logout API call successful");
       }
     } catch (error) {
-      console.error("Logout API call failed:", error);
+      console.error("❌ Logout API call failed:", error);
     } finally {
       // Clear local state regardless of API call result
       setToken(null);
@@ -192,8 +200,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.removeItem("auth_token");
       authService.removeAuthToken();
       setLoading(false);
+      console.log("🧹 Local auth state cleared");
     }
-  }, [token]);
+  }, [token, loading]);
 
   const value: AuthContextType = {
     token,

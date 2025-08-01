@@ -63,7 +63,10 @@ const MultiStepRegistration: React.FC<MultiStepRegistrationProps> = ({
       if (result.success) {
         // OTP confirmation successful, now auto login
         try {
-          const loginResult = await login(registrationData.email, registrationData.password);
+          const loginResult = await login(
+            registrationData.email,
+            registrationData.password
+          );
           if (loginResult.success) {
             console.log("✅ Auto login successful after registration");
             setCurrentStep("success");

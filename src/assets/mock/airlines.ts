@@ -6,26 +6,26 @@ export interface Airline {
 export const airlines: Airline[] = [
   {
     name: "Vietnam Airlines",
-    logo: "https://images.pexels.com/photos/912110/pexels-photo-912110.jpeg?auto=compress&cs=tinysrgb&w=120&h=60&fit=crop",
+    logo: "/airlines/Vietnam-Airlines.png",
   },
   {
     name: "VietJet Air",
-    logo: "https://images.pexels.com/photos/912110/pexels-photo-912110.jpeg?auto=compress&cs=tinysrgb&w=120&h=60&fit=crop",
+    logo: "/airlines/Vietjet_Airlines.png",
   },
   {
-    name: "Jetstar Pacific",
-    logo: "https://images.pexels.com/photos/912110/pexels-photo-912110.jpeg?auto=compress&cs=tinysrgb&w=120&h=60&fit=crop",
+    name: "Pacific Airlines",
+    logo: "/airlines/Pacific_Arlines.png",
   },
   {
     name: "Bamboo Airways",
-    logo: "https://images.pexels.com/photos/912110/pexels-photo-912110.jpeg?auto=compress&cs=tinysrgb&w=120&h=60&fit=crop",
+    logo: "/airlines/Bamboo-Airlines.png",
   },
   {
-    name: "VASCO",
-    logo: "https://images.pexels.com/photos/912110/pexels-photo-912110.jpeg?auto=compress&cs=tinysrgb&w=120&h=60&fit=crop",
+    name: "Vietravel Airlines",
+    logo: "/airlines/Vietravel_Airlines.png",
   },
   {
-    name: "Air Mekong",
-    logo: "https://images.pexels.com/photos/912110/pexels-photo-912110.jpeg?auto=compress&cs=tinysrgb&w=120&h=60&fit=crop",
+    name: "AirAsia",
+    logo: "/airlines/AirAsia_Airlines.png",
   },
 ];
