@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Plane, Menu, X, Globe, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import LoginModalNew from "./LoginModalNew";
+import LoginModal from "./LoginModal";
 import { useAuth } from "../hooks/useAuth";
 import { UserMenu } from "./UserMenu";
 
@@ -97,11 +97,11 @@ const Header: React.FC = () => {
               </div>
             ) : (
               <>
-                <LoginModalNew>
+                <LoginModal>
                   <Button variant="ghost" size="sm">
                     Đăng Nhập
                   </Button>
-                </LoginModalNew>
+                </LoginModal>
 
                 <Link to="/register">
                   <Button
@@ -159,14 +159,14 @@ const Header: React.FC = () => {
                   </div>
                 ) : (
                   <>
-                    <LoginModalNew>
+                    <LoginModal>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="justify-start">
                         Đăng Nhập
                       </Button>
-                    </LoginModalNew>
+                    </LoginModal>
 
                     <Link to="/register">
                       <Button

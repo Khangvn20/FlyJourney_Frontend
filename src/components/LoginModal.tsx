@@ -6,142 +6,90 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./ui/dialog";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import LoginForm from "./LoginForm";
+import { useAuth } from "../hooks/useAuth";
+import type { LoginFormData } from "../shared/types";
 
 interface LoginModalProps {
   children: React.ReactNode;
 }
 
-const LoginModal: React.FC<LoginModalProps> = ({ children }) => {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
-  const [showPassword, setShowPassword] = useState(false);
+const LoginModalNew: React.FC<LoginModalProps> = ({ children }) => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLoginSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
-
     try {
-      // TODO: Implement login logic
-      console.log("Login data:", formData);
+      // Call the actual login function from useAuth
+      await login(data.email, data.password);
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.log("Login submitted:", data);
 
-      // Close modal on success
-      // You can add actual login logic here
+      // Close modal after successful login
+      setIsOpen(false);
+      // Navigate to home or stay on current page
+      navigate("/");
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Login failed:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[450px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="space-y-3">
+          <div className="flex justify-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
+              <svg
+                className="w-8 h-8 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                />
+              </svg>
+            </div>
+          </div>
           <DialogTitle className="text-2xl font-bold text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Đăng Nhập
+            Chào mừng trở lại
           </DialogTitle>
+          <p className="text-center text-gray-600">
+            Tiếp tục hành trình của bạn với Fly Journey
+          </p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Email */}
-          <div className="space-y-2">
-            <Label
-              htmlFor="email"
-              className="text-sm font-medium text-gray-700">
-              Email
-            </Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, email: e.target.value }))
-                }
-                placeholder="example@email.com"
-                className="pl-10 h-12"
-                required
-              />
-            </div>
-          </div>
+        <div className="py-4">
+          <LoginForm onSubmit={handleLoginSubmit} isLoading={isLoading} />
+        </div>
 
-          {/* Password */}
-          <div className="space-y-2">
-            <Label
-              htmlFor="password"
-              className="text-sm font-medium text-gray-700">
-              Mật khẩu
-            </Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, password: e.target.value }))
-                }
-                placeholder="••••••••"
-                className="pl-10 pr-10 h-12"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Forgot Password */}
-          <div className="text-right">
+        {/* Register Link */}
+        <div className="text-center pt-4 border-t border-gray-100">
+          <p className="text-sm text-gray-600">
+            Chưa có tài khoản?{" "}
             <button
-              type="button"
-              className="text-sm text-blue-600 hover:text-blue-700 hover:underline">
-              Quên mật khẩu?
+              onClick={() => {
+                setIsOpen(false);
+                navigate("/register");
+              }}
+              className="text-blue-600 hover:text-blue-700 font-medium hover:underline">
+              Đăng ký ngay
             </button>
-          </div>
-
-          {/* Submit Button */}
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium">
-            {isLoading ? "Đang đăng nhập..." : "Đăng Nhập"}
-          </Button>
-
-          {/* Register Link */}
-          <div className="text-center pt-4 border-t border-gray-100">
-            <p className="text-sm text-gray-600">
-              Chưa có tài khoản?{" "}
-              <a
-                href="/register"
-                className="text-blue-600 hover:text-blue-700 font-medium hover:underline">
-                Đăng ký ngay
-              </a>
-            </p>
-          </div>
-        </form>
+          </p>
+        </div>
       </DialogContent>
     </Dialog>
   );
 };
 
-export default LoginModal;
+export default LoginModalNew;

@@ -1,5 +1,3 @@
-"use client";
-
 import type React from "react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -18,7 +16,7 @@ const Register: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AuthTab>("register");
   const [isLoading, setIsLoading] = useState(false);
   const [isTabChanging, setIsTabChanging] = useState(false);
-  
+
   const { login } = useAuthContext();
 
   const handleTabChange = (newTab: AuthTab) => {
@@ -35,7 +33,7 @@ const Register: React.FC = () => {
     setIsLoading(true);
     try {
       const result = await login(data.email, data.password);
-      
+
       if (result.success) {
         console.log("Login successful:", data);
         navigate("/");
