@@ -1,5 +1,4 @@
 import type {
-  RegisterRequest,
   ConfirmRegisterRequest,
   UpdateUserRequest,
 } from "../shared/types/backend-api.types";
@@ -29,5 +28,11 @@ export interface AuthContextType {
   register: (userData: RegisterFormData) => Promise<AuthResult>;
   confirmRegister: (confirmData: ConfirmRegisterRequest) => Promise<AuthResult>;
   updateProfile: (updateData: UpdateUserRequest) => Promise<AuthResult>;
+  resetPassword: (email: string) => Promise<AuthResult>;
+  confirmResetPassword: (data: {
+    email: string;
+    new_password: string;
+    otp: string;
+  }) => Promise<AuthResult>;
   isAuthenticated: boolean;
 }

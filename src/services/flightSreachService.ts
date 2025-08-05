@@ -1,9 +1,12 @@
 import type { FlightResult } from "../shared/types";
+import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
 
 export const flightSearchService = async (
   _payload: Record<string, unknown>
 ): Promise<FlightResult[]> => {
-  console.log("Mock search payload:", _payload);
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+    console.log("Mock search payload:", _payload);
+  }
   return [
     {
       id: 1,

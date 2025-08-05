@@ -1,31 +1,56 @@
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Mail, Lock, Eye, EyeOff, LogIn } from "lucide-react";
 import type { LoginFormData } from "../shared/types";
+import { credentialsUtils } from "../utils/registerFormHelpers";
 
 interface LoginFormProps {
-  onSubmit: (data: LoginFormData) => Promise<void>;
+  onSubmit: (data: LoginFormData & { rememberMe: boolean }) => Promise<void>;
+  onForgotPassword: () => void;
   isLoading?: boolean;
   initialData?: Partial<LoginFormData>;
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({
   onSubmit,
+  onForgotPassword,
   isLoading = false,
   initialData = {},
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [formData, setFormData] = useState<LoginFormData>({
     email: initialData.email || "",
     password: initialData.password || "",
   });
 
+  // Load saved credentials and remember me state on component mount
+  useEffect(() => {
+    const { credentials, rememberMe } = credentialsUtils.loadCredentials();
+
+    if (credentials && rememberMe) {
+      setFormData({
+        email: credentials.email,
+        password: credentials.password,
+      });
+      setRememberMe(true);
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit(formData);
+
+    // Save or clear credentials based on remember me
+    if (rememberMe) {
+      credentialsUtils.saveCredentials(formData.email, formData.password);
+    } else {
+      credentialsUtils.clearCredentials();
+    }
+
+    await onSubmit({ ...formData, rememberMe });
   };
 
   const updateField = (field: keyof LoginFormData, value: string) => {
@@ -95,6 +120,8 @@ const LoginForm: React.FC<LoginFormProps> = ({
           <label className="flex items-center space-x-2 cursor-pointer">
             <input
               type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
               className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 focus:ring-2"
             />
             <span className="text-sm text-slate-600">Ghi nhớ đăng nhập</span>
@@ -102,6 +129,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
 
           <button
             type="button"
+            onClick={onForgotPassword}
             className="text-sm text-blue-600 hover:text-blue-700 hover:underline font-medium"
             disabled={isLoading}>
             Quên mật khẩu?

@@ -1,5 +1,12 @@
 import type { ApiConfig, ApiEndpoints } from "../types";
 
+// Flight API Configuration for Backend Integration
+export const flightApiConfig = {
+  baseUrl: "http://localhost:3000/api/v1",
+  timeout: 10000,
+  retries: 3,
+};
+
 // API Configuration from environment variables
 export const apiConfig: ApiConfig = {
   baseUrl: import.meta.env.VITE_API_BASE_URL,
@@ -21,6 +28,10 @@ export const apiEndpoints: ApiEndpoints = {
   },
   flights: {
     search: "/flights/search",
+    searchRoundTrip: "/flights/search/roundtrip",
+    getById: "/flights/{id}",
+    getByAirline: "/flights/airline/{airline_id}",
+    getByStatus: "/flights/status/{status}",
     booking: "/flights/booking",
     airlines: "/flights/airlines",
     airports: "/flights/airports",

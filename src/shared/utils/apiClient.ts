@@ -1,5 +1,6 @@
 import type { ApiResponse, ApiError, ApiHeaders } from "../types";
 import { apiConfig, apiEndpoints, apiSettings } from "../constants/apiConfig";
+import { DEV_CONFIG, shouldShowDevControls } from "../config/devConfig";
 
 class ApiClient {
   private baseUrl: string;
@@ -39,7 +40,12 @@ class ApiClient {
       apiSettings.enableRequestDeduplication &&
       this.pendingRequests.has(requestKey)
     ) {
-      if (apiSettings.enableLogging && apiSettings.isDevelopment) {
+      if (
+        DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+        shouldShowDevControls() &&
+        apiSettings.enableLogging &&
+        apiSettings.isDevelopment
+      ) {
         console.log(
           `⚡ API Request deduplicated: ${options.method || "GET"} ${endpoint}`
         );
@@ -67,7 +73,12 @@ class ApiClient {
 
     const requestPromise = (async () => {
       try {
-        if (apiSettings.enableLogging && apiSettings.isDevelopment) {
+        if (
+          DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+          shouldShowDevControls() &&
+          apiSettings.enableLogging &&
+          apiSettings.isDevelopment
+        ) {
           console.log(`🚀 API Request: ${config.method || "GET"} ${url}`);
           console.log(`📋 Request Config:`, config);
         }

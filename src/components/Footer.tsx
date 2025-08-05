@@ -1,6 +1,7 @@
 import type React from "react";
 import { Link } from "react-router-dom";
 import { Plane, Mail, Phone, MapPin, Code } from "lucide-react";
+import { shouldShowDevControls } from "../shared/config/devConfig";
 
 const Footer: React.FC = () => {
   return (
@@ -100,14 +101,16 @@ const Footer: React.FC = () => {
             </div>
 
             {/* Debug Link */}
-            <div className="pt-4 border-t border-gray-800">
-              <Link
-                to="/debug"
-                className="flex items-center space-x-2 text-xs text-gray-500 hover:text-blue-400 transition-colors">
-                <Code className="h-3 w-3" />
-                <span>API Debug (Dev)</span>
-              </Link>
-            </div>
+            {shouldShowDevControls() && (
+              <div className="pt-4 border-t border-gray-800">
+                <Link
+                  to="/debug"
+                  className="flex items-center space-x-2 text-xs text-gray-500 hover:text-blue-400 transition-colors">
+                  <Code className="h-3 w-3" />
+                  <span>API Debug (Dev)</span>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 

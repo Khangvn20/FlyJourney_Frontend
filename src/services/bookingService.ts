@@ -1,4 +1,8 @@
+import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
+
 export const bookingService = async (_details: Record<string, unknown>) => {
-  console.log("Mock booking with:", _details);
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+    console.log("Mock booking with:", _details);
+  }
   return { status: "success", bookingId: "XYZ987" };
 };

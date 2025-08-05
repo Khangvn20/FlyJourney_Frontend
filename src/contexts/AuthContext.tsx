@@ -175,6 +175,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
+  const resetPassword = useCallback(async (email: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await authService.resetPassword(email);
+      if (response.status) {
+        return { success: true, message: response.errorMessage };
+      } else {
+        throw new Error(response.errorMessage);
+      }
+    } catch (error: unknown) {
+      const errorMessage = (error as Error).message || "Reset password failed";
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const confirmResetPassword = useCallback(
+    async (data: { email: string; new_password: string; otp: string }) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await authService.confirmResetPassword(data);
+        if (response.status) {
+          return { success: true, message: response.errorMessage };
+        } else {
+          throw new Error(response.errorMessage);
+        }
+      } catch (error: unknown) {
+        const errorMessage =
+          (error as Error).message || "Reset password confirmation failed";
+        setError(errorMessage);
+        return { success: false, error: errorMessage };
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
   const logout = useCallback(async () => {
     // Prevent multiple logout calls
     if (loading) {
@@ -214,6 +256,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     confirmRegister,
     updateProfile,
+    resetPassword,
+    confirmResetPassword,
     isAuthenticated: !!token && !!user,
   };
 

@@ -54,6 +54,10 @@ export interface ApiEndpoints {
   };
   flights: {
     search: string;
+    searchRoundTrip: string;
+    getById: string;
+    getByAirline: string;
+    getByStatus: string;
     booking: string;
     airlines: string;
     airports: string;

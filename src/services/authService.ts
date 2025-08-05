@@ -1,4 +1,5 @@
 import { apiClient } from "../shared/utils/apiClient";
+import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
 import type {
   BackendResponse,
   RegisterRequest,
@@ -46,18 +47,24 @@ class AuthService {
         credentials
       );
 
-      console.log("🔍 AuthService - Raw API response:", response);
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.log("🔍 AuthService - Raw API response:", response);
+      }
 
       // Handle successful response
       if (response.data) {
-        console.log("🔍 AuthService - Response data:", response.data);
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+          console.log("🔍 AuthService - Response data:", response.data);
+        }
 
         // Set token for future requests if login successful
         if (response.data.status && response.data.data?.token) {
-          console.log(
-            "✅ AuthService - Setting token:",
-            response.data.data.token
-          );
+          if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+            console.log(
+              "✅ AuthService - Setting token:",
+              response.data.data.token
+            );
+          }
           apiClient.setAuthToken(response.data.data.token);
         }
         return response.data;

@@ -10,6 +10,7 @@ import TabNavigation from "../components/TabNavigation";
 import type { LoginFormData, AuthTab } from "../shared/types";
 import MobileHeader from "../components/MobileHeader";
 import { useAuthContext } from "../hooks/useAuthContext";
+import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -29,23 +30,41 @@ const Register: React.FC = () => {
     }
   };
 
-  const handleLoginSubmit = async (data: LoginFormData) => {
+  const handleLoginSubmit = async (
+    data: LoginFormData & { rememberMe: boolean }
+  ) => {
     setIsLoading(true);
     try {
       const result = await login(data.email, data.password);
 
       if (result.success) {
-        console.log("Login successful:", data);
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+          console.log("Login successful:", data);
+        }
         navigate("/");
       } else {
-        console.error("Login failed:", result.error);
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+          console.error("Login failed:", result.error);
+        }
         // You might want to show an error message here
       }
     } catch (error) {
-      console.error("Login failed:", error);
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.error("Login failed:", error);
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleForgotPassword = () => {
+    // For now, we can either navigate to a forgot password page
+    // or show a message that forgot password should be done from the header login
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+      console.log("Forgot password clicked from register page");
+    }
+    // You could navigate to home and open the login modal
+    navigate("/");
   };
 
   const renderContent = () => {
@@ -95,6 +114,7 @@ const Register: React.FC = () => {
                     }}>
                     <LoginForm
                       onSubmit={handleLoginSubmit}
+                      onForgotPassword={handleForgotPassword}
                       isLoading={isLoading}
                     />
                   </div>

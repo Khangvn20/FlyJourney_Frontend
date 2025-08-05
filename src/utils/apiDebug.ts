@@ -1,3 +1,5 @@
+import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
+
 // Test utility to debug API calls
 export const testDirectAPI = async () => {
   const url = "http://localhost:3000/api/v1/auth/login";
@@ -6,9 +8,11 @@ export const testDirectAPI = async () => {
     password: "abcd1234",
   };
 
-  console.log("🔍 Testing direct fetch to:", url);
-  console.log("📋 Payload:", data);
-  console.log("🌐 Current Origin:", window.location.origin);
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+    console.log("🔍 Testing direct fetch to:", url);
+    console.log("📋 Payload:", data);
+    console.log("🌐 Current Origin:", window.location.origin);
+  }
 
   try {
     const response = await fetch(url, {
@@ -21,27 +25,39 @@ export const testDirectAPI = async () => {
       credentials: "include",
     });
 
-    console.log("📡 Response Status:", response.status);
-    console.log("📡 Response Headers:", [...response.headers.entries()]);
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+      console.log("📡 Response Status:", response.status);
+      console.log("📡 Response Headers:", [...response.headers.entries()]);
+    }
 
     if (response.status === 204) {
-      console.log("⚠️ Got 204 No Content");
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.log("⚠️ Got 204 No Content");
+      }
       return { status: 204, data: null };
     }
 
     const responseData = await response.text();
-    console.log("📄 Raw Response:", responseData);
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+      console.log("📄 Raw Response:", responseData);
+    }
 
     try {
       const jsonData = JSON.parse(responseData);
-      console.log("✅ Parsed JSON:", jsonData);
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.log("✅ Parsed JSON:", jsonData);
+      }
       return { status: response.status, data: jsonData };
     } catch (e) {
-      console.log("❌ Failed to parse JSON:", e);
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.log("❌ Failed to parse JSON:", e);
+      }
       return { status: response.status, data: responseData };
     }
   } catch (error) {
-    console.error("❌ Network Error:", error);
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+      console.error("❌ Network Error:", error);
+    }
     throw error;
   }
 };
@@ -50,8 +66,10 @@ export const testDirectAPI = async () => {
 export const testCORS = async () => {
   const url = "http://localhost:3000/api/v1/auth/login";
 
-  console.log("🔍 Testing CORS preflight to:", url);
-  console.log("🌐 Current Origin:", window.location.origin);
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+    console.log("🔍 Testing CORS preflight to:", url);
+    console.log("🌐 Current Origin:", window.location.origin);
+  }
 
   try {
     const response = await fetch(url, {
@@ -64,22 +82,26 @@ export const testCORS = async () => {
       credentials: "include",
     });
 
-    console.log("📡 OPTIONS Response Status:", response.status);
-    console.log("📡 CORS Headers:", {
-      "Access-Control-Allow-Origin": response.headers.get(
-        "Access-Control-Allow-Origin"
-      ),
-      "Access-Control-Allow-Methods": response.headers.get(
-        "Access-Control-Allow-Methods"
-      ),
-      "Access-Control-Allow-Headers": response.headers.get(
-        "Access-Control-Allow-Headers"
-      ),
-    });
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+      console.log("📡 OPTIONS Response Status:", response.status);
+      console.log("📡 CORS Headers:", {
+        "Access-Control-Allow-Origin": response.headers.get(
+          "Access-Control-Allow-Origin"
+        ),
+        "Access-Control-Allow-Methods": response.headers.get(
+          "Access-Control-Allow-Methods"
+        ),
+        "Access-Control-Allow-Headers": response.headers.get(
+          "Access-Control-Allow-Headers"
+        ),
+      });
+    }
 
     return response.status;
   } catch (error) {
-    console.error("❌ CORS Error:", error);
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+      console.error("❌ CORS Error:", error);
+    }
     throw error;
   }
 };
