@@ -20,6 +20,24 @@ interface SimpleSearchRequest {
   sort_order: string;
 }
 
+// Round-trip search request interface
+interface RoundTripSearchRequest {
+  departure_airport_code: string;
+  arrival_airport_code: string;
+  departure_date: string; // dd/mm/yyyy format
+  return_date: string; // dd/mm/yyyy format for round-trip
+  flight_class: "all";
+  passengers: {
+    adults: number;
+    children?: number;
+    infants?: number;
+  };
+  page: number;
+  limit: number;
+  sort_by: string;
+  sort_order: string;
+}
+
 // Function to load saved search data from localStorage
 const loadSavedSearchData = (): Partial<SearchFormData> => {
   try {
@@ -51,12 +69,17 @@ const saveSearchData = (formData: SearchFormData) => {
 };
 
 // Direct API call matching Postman exactly (migrated from SimpleFlightSearchForm)
-const callApiDirectly = async (params: SimpleSearchRequest) => {
-  const url = "http://localhost:3000/api/v1/flights/search";
+const callApiDirectly = async (
+  params: SimpleSearchRequest | RoundTripSearchRequest,
+  isRoundTrip: boolean = false
+) => {
+  const baseUrl = "http://localhost:3000/api/v1/flights/search";
+  const url = isRoundTrip ? `${baseUrl}/roundtrip` : baseUrl;
 
   if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
     console.log("🚀 Calling API directly:", url);
     console.log("📤 Request body:", JSON.stringify(params, null, 2));
+    console.log("🔄 Trip type:", isRoundTrip ? "Round-trip" : "One-way");
   }
 
   try {
@@ -191,6 +214,11 @@ export const useFlightSearchForm = () => {
       return;
     }
 
+    if (formData.tripType === "round-trip" && !formData.returnDate) {
+      setSearchError("Please select return date for round-trip");
+      return;
+    }
+
     if (!formData.from || !formData.to) {
       setSearchError("Please select departure and arrival airports");
       return;
@@ -210,38 +238,72 @@ export const useFlightSearchForm = () => {
         return match ? match[1] : locationString;
       };
 
-      // Create request exactly like Postman (migrated from SimpleFlightSearchForm)
-      const apiRequest: SimpleSearchRequest = {
-        departure_airport_code: getAirportCode(formData.from),
-        arrival_airport_code: getAirportCode(formData.to),
-        departure_date: formatDateForApiRequest(formData.departureDate),
-        flight_class: "all",
-        passenger: {
-          adults: formData.passengers.adults,
-          children:
-            formData.passengers.children > 0
-              ? formData.passengers.children
-              : undefined,
-          infants:
-            formData.passengers.infants > 0
-              ? formData.passengers.infants
-              : undefined,
-        },
-        page: 1,
-        limit: 50,
-        sort_by: "price",
-        sort_order: "asc",
-      };
+      const isRoundTrip = formData.tripType === "round-trip";
+
+      let apiRequest: SimpleSearchRequest | RoundTripSearchRequest;
+
+      if (isRoundTrip && formData.returnDate) {
+        // Create round-trip request
+        const roundTripRequest: RoundTripSearchRequest = {
+          departure_airport_code: getAirportCode(formData.from),
+          arrival_airport_code: getAirportCode(formData.to),
+          departure_date: formatDateForApiRequest(formData.departureDate),
+          return_date: formatDateForApiRequest(formData.returnDate),
+          flight_class: "all",
+          passengers: {
+            adults: formData.passengers.adults,
+            children:
+              formData.passengers.children > 0
+                ? formData.passengers.children
+                : undefined,
+            infants:
+              formData.passengers.infants > 0
+                ? formData.passengers.infants
+                : undefined,
+          },
+          page: 1,
+          limit: 50,
+          sort_by: "price",
+          sort_order: "asc",
+        };
+        apiRequest = roundTripRequest;
+      } else {
+        // Create one-way request (existing logic)
+        const oneWayRequest: SimpleSearchRequest = {
+          departure_airport_code: getAirportCode(formData.from),
+          arrival_airport_code: getAirportCode(formData.to),
+          departure_date: formatDateForApiRequest(formData.departureDate),
+          flight_class: "all",
+          passenger: {
+            adults: formData.passengers.adults,
+            children:
+              formData.passengers.children > 0
+                ? formData.passengers.children
+                : undefined,
+            infants:
+              formData.passengers.infants > 0
+                ? formData.passengers.infants
+                : undefined,
+          },
+          page: 1,
+          limit: 50,
+          sort_by: "price",
+          sort_order: "asc",
+        };
+        apiRequest = oneWayRequest;
+      }
 
       if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
         console.log("🔍 API search request:", apiRequest);
+        console.log("🔄 Trip type:", isRoundTrip ? "Round-trip" : "One-way");
       }
 
-      // Call API directly (using migrated function)
-      const results = await callApiDirectly(apiRequest);
+      // Call API directly
+      const results = await callApiDirectly(apiRequest, isRoundTrip);
 
       // Store search results in sessionStorage for the Search page
       sessionStorage.setItem("flightSearchResults", JSON.stringify(results));
+      sessionStorage.setItem("tripType", formData.tripType);
 
       // Trigger custom event to notify Search page about the update
       window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));

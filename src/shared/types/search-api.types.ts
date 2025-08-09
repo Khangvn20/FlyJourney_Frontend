@@ -47,6 +47,7 @@ export interface FlightSearchApiResult {
   tax_and_fees: number;
 }
 
+// One-way flight search response
 export interface FlightSearchApiResponse {
   arrival_airport: string;
   arrival_date: string;
@@ -67,9 +68,51 @@ export interface FlightSearchApiResponse {
   total_pages: number;
 }
 
+// Round-trip flight search response
+export interface RoundTripFlightSearchApiResponse {
+  arrival_airport: string;
+  departure_airport: string;
+  departure_date: string;
+  return_date?: string;
+  flight_class: string;
+  limit: number;
+  page: number;
+  passengers: {
+    adults: number;
+    children?: number;
+    infants?: number;
+  };
+  outbound_search_results: FlightSearchApiResult[];
+  outbound_total_count: number;
+  outbound_total_pages: number;
+  inbound_search_results: FlightSearchApiResult[];
+  inbound_total_count: number;
+  inbound_total_pages: number;
+  sort_by: string;
+  sort_order: string;
+}
+
+// Union type for both one-way and round-trip responses
+export type FlightSearchResponseData =
+  | FlightSearchApiResponse
+  | RoundTripFlightSearchApiResponse;
+
 export interface FlightSearchApiWrapper {
   status: boolean;
-  data: FlightSearchApiResponse;
+  data: FlightSearchResponseData;
   errorCode?: string;
   errorMessage?: string;
+}
+
+// Helper type guards
+export function isRoundTripResponse(
+  data: FlightSearchResponseData
+): data is RoundTripFlightSearchApiResponse {
+  return "outbound_search_results" in data && "inbound_search_results" in data;
+}
+
+export function isOneWayResponse(
+  data: FlightSearchResponseData
+): data is FlightSearchApiResponse {
+  return "search_results" in data;
 }
