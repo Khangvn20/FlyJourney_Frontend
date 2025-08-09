@@ -12,11 +12,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Calendar } from "../ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "../ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import {
   CalendarIcon,
   Search,
@@ -42,10 +38,13 @@ import {
   airports,
   flightClasses,
   specialRequirements,
-} from "../../assets/mock/flightData";
-import { airlines } from "../../assets/mock";
+} from "../../mocks/flightData";
+import { airlines } from "../../mocks";
 import type { Airport } from "../../shared/types";
-import { DEV_CONFIG, shouldShowDevControls } from "../../shared/config/devConfig";
+import {
+  DEV_CONFIG,
+  shouldShowDevControls,
+} from "../../shared/config/devConfig";
 
 const FlightSearchForm: React.FC = () => {
   const {

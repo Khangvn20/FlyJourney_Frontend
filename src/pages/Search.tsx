@@ -5,8 +5,8 @@ import FilterSidebar from "../components/flight/FilterSidebar";
 import OneWayFlightList from "../components/flight/OneWayFlightList";
 import RoundTripFlightList from "../components/flight/RoundTripFlightList";
 import SearchResultsHeader from "../components/flight/SearchResultsHeader";
-import LoadMoreButton from "../components/LoadMoreButton";
-import { airlines } from "../assets/mock";
+import LoadMoreButton from "../components/common/LoadMoreButton";
+import { airlines } from "../mocks";
 import { formatPrice } from "../services/flightApiService";
 import { useFlightFilters } from "../hooks/useFlightFilters";
 import type {

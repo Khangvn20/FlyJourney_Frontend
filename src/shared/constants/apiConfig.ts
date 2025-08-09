@@ -1,4 +1,5 @@
 import type { ApiConfig, ApiEndpoints } from "../types";
+import { ENV } from "../config/env";
 
 // Flight API Configuration for Backend Integration
 export const flightApiConfig = {
@@ -9,9 +10,9 @@ export const flightApiConfig = {
 
 // API Configuration from environment variables
 export const apiConfig: ApiConfig = {
-  baseUrl: import.meta.env.VITE_API_BASE_URL,
-  timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 10000,
-  retries: Number(import.meta.env.VITE_API_RETRIES),
+  baseUrl: ENV.API_BASE_URL,
+  timeout: ENV.API_TIMEOUT,
+  retries: ENV.API_RETRIES,
 };
 
 // API Endpoints Configuration
@@ -45,13 +46,12 @@ export const apiEndpoints: ApiEndpoints = {
 
 // Environment-based settings
 export const apiSettings = {
-  isDevelopment: import.meta.env.MODE === "development",
-  isProduction: import.meta.env.MODE === "production",
-  apiKey: import.meta.env.VITE_API_KEY,
-  enableLogging: import.meta.env.VITE_ENABLE_API_LOGGING === "true",
-  enableRetries: import.meta.env.VITE_ENABLE_RETRIES !== "false",
-  enableRequestDeduplication:
-    import.meta.env.VITE_DISABLE_REQUEST_DEDUPLICATION !== "true",
+  isDevelopment: ENV.DEV,
+  isProduction: ENV.PROD,
+  apiKey: ENV.API_KEY,
+  enableLogging: ENV.ENABLE_API_LOGGING,
+  enableRetries: ENV.ENABLE_RETRIES,
+  enableRequestDeduplication: !ENV.DISABLE_REQUEST_DEDUP,
   // Cài đặt để tránh CORS preflight
-  avoidCORSPreflight: import.meta.env.VITE_AVOID_CORS_PREFLIGHT === "true",
+  avoidCORSPreflight: ENV.AVOID_CORS_PREFLIGHT,
 };

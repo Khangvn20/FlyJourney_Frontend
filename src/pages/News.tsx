@@ -11,7 +11,7 @@ import {
   Bookmark,
   TrendingUp,
 } from "lucide-react";
-import { getFeaturedNews, getNewsList } from "../assets/mock";
+import { getFeaturedNews, getNewsList } from "../mocks";
 
 const News: React.FC = () => {
   const featuredNews = getFeaturedNews();

@@ -4,7 +4,8 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { MapPin, Clock, Users, Star, Coffee } from "lucide-react";
-import { getTravelItineraryById } from "../assets/mock";
+import { getTravelItineraryById } from "../mocks";
+import type { TravelItineraryItem } from "../shared/types";
 
 const Blog: React.FC = () => {
   // Sử dụng itinerary đầu tiên làm mặc định
@@ -109,54 +110,62 @@ const Blog: React.FC = () => {
               </h2>
 
               <div className="space-y-8">
-                {itinerary.itinerary.map((day, index) => (
-                  <div key={index} className="flex gap-6">
-                    <div className="flex-shrink-0">
-                      <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold">{day.day}</span>
+                {itinerary.itinerary.map(
+                  (day: TravelItineraryItem, index: number) => (
+                    <div key={index} className="flex gap-6">
+                      <div className="flex-shrink-0">
+                        <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center">
+                          <span className="text-white font-bold">
+                            {day.day}
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex-1">
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="flex flex-col md:flex-row gap-6">
-                          <div className="flex-1">
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">
-                              Ngày {day.day}: {day.title}
-                            </h3>
-                            <p className="text-gray-600 mb-4">
-                              {day.description}
-                            </p>
-                            <ul className="space-y-2">
-                              {day.activities.map((activity, actIndex) => (
-                                <li key={actIndex} className="flex items-start">
-                                  <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0" />
-                                  <span className="text-gray-700">
-                                    {activity}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                            {day.tips && (
-                              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                                <p className="text-sm text-blue-800">
-                                  <strong>💡 Gợi ý:</strong> {day.tips}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                          <div className="md:w-48">
-                            <img
-                              src="https://images.pexels.com/photos/2161467/pexels-photo-2161467.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop"
-                              alt={day.title}
-                              className="w-full h-32 object-cover rounded-lg"
-                            />
+                      <div className="flex-1">
+                        <div className="bg-gray-50 rounded-xl p-6">
+                          <div className="flex flex-col md:flex-row gap-6">
+                            <div className="flex-1">
+                              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                Ngày {day.day}: {day.title}
+                              </h3>
+                              <p className="text-gray-600 mb-4">
+                                {day.description}
+                              </p>
+                              <ul className="space-y-2">
+                                {day.activities.map(
+                                  (activity: string, actIndex: number) => (
+                                    <li
+                                      key={actIndex}
+                                      className="flex items-start">
+                                      <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+                                      <span className="text-gray-700">
+                                        {activity}
+                                      </span>
+                                    </li>
+                                  )
+                                )}
+                              </ul>
+                              {day.tips && (
+                                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                                  <p className="text-sm text-blue-800">
+                                    <strong>💡 Gợi ý:</strong> {day.tips}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            <div className="md:w-48">
+                              <img
+                                src="https://images.pexels.com/photos/2161467/pexels-photo-2161467.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop"
+                                alt={day.title}
+                                className="w-full h-32 object-cover rounded-lg"
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
             </div>
 
@@ -167,7 +176,7 @@ const Blog: React.FC = () => {
               </h2>
 
               <div className="grid md:grid-cols-2 gap-6">
-                {itinerary.tips.map((tip, index) => (
+                {itinerary.tips.map((tip: string, index: number) => (
                   <div
                     key={index}
                     className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">

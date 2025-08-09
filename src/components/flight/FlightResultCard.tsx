@@ -4,7 +4,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Plane, Clock, Users, Wifi } from "lucide-react";
 import type { FlightResultData } from "../../shared/types";
-import { flightResults } from "../../assets/mock";
+import { flightResults } from "../../mocks";
 
 interface FlightResultCardProps {
   flight?: FlightResultData;

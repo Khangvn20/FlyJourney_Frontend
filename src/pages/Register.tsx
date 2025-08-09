@@ -4,11 +4,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Home, Plane, CheckCircle, Shield, Zap, Heart } from "lucide-react";
-import MultiStepRegistration from "../components/MultiStepRegistration";
-import LoginForm from "../components/LoginForm";
-import TabNavigation from "../components/TabNavigation";
+import MultiStepRegistration from "../components/auth/MultiStepRegistration";
+import LoginForm from "../components/auth/LoginForm";
+import TabNavigation from "../components/layout/TabNavigation";
 import type { LoginFormData, AuthTab } from "../shared/types";
-import MobileHeader from "../components/MobileHeader";
+import MobileHeader from "../components/layout/MobileHeader";
 import { useAuthContext } from "../hooks/useAuthContext";
 import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
 

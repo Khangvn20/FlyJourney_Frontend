@@ -1,19 +1,3 @@
-import React from "react";
-import { Typography } from "antd";
-
-type Props = {
-  token: string | null;
-};
-
-const TokenViewer: React.FC<Props> = ({ token }) => {
-  return (
-    <div>
-      <Typography.Text strong>Access Token:</Typography.Text>
-      <pre style={{ background: "#f5f5f5", padding: "0.5rem" }}>
-        {token || "No token available"}
-      </pre>
-    </div>
-  );
-};
-
-export default TokenViewer;
+// Deprecated location. Use import from 'src/devtools/TokenViewer' instead.
+// Left as stub to avoid breaking stale imports; will be removed in final cleanup.
+export { default } from "../../devtools/TokenViewer";

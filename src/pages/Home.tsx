@@ -2,10 +2,10 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
-import FlightSearchForm from "../components/FlightSearchForm";
-import PopularDestinations from "../components/PopularDestinations";
-import TravelNews from "../components/TravelNews";
-import AirlinesSection from "../components/AirlinesSection";
+import FlightSearchForm from "../components/flight/FlightSearchForm";
+import PopularDestinations from "../components/sections/PopularDestinations";
+import TravelNews from "../components/sections/TravelNews";
+import AirlinesSection from "../components/sections/AirlinesSection";
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,7 +14,7 @@ import {
   Shield,
   Clock,
 } from "lucide-react";
-import { heroSlides, whyChooseUs } from "../assets/mock";
+import { heroSlides, whyChooseUs } from "../mocks";
 
 const Home: React.FC = () => {
   // State cho slideshow hero

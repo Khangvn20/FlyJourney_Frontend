@@ -7,3 +7,4 @@ export * from "./flight-result.types";
 export * from "./news.types";
 export * from "./travel-itinerary.types";
 export * from "./popular-destination.types";
+export * from "./auth-context.types";
