@@ -474,7 +474,6 @@ const FlightSearchForm: React.FC = () => {
               </div>
             </div>
           </div>
-
           {/* Full month search toggle - Compact */}
           <div className="flex items-center space-x-3 mb-4">
             <div className="flex items-center">
@@ -482,166 +481,59 @@ const FlightSearchForm: React.FC = () => {
                 type="checkbox"
                 id="full-month"
                 checked={formData.searchFullMonth}
-                onChange={(e) =>
+                onChange={(e) => {
                   setFormData((prev) => ({
                     ...prev,
                     searchFullMonth: e.target.checked,
-                  }))
-                }
+                  }));
+                }}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <Label
                 htmlFor="full-month"
-                className="ml-2 text-xs text-gray-700 font-medium">
+                className="ml-2 text-xs text-gray-700 font-medium flex items-center gap-2">
                 Tìm kiếm cả tháng để có giá tốt nhất
+                {formData.searchFullMonth && formData.departureDate && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-300">
+                    Tháng {format(formData.departureDate, "MM/yyyy")}
+                  </span>
+                )}
               </Label>
             </div>
           </div>
-
-          {/* Airlines Selection Section - Optimized for Search Page */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-900">
-                Chọn hãng hàng không
-              </h3>
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                Tùy chọn
-              </span>
-            </div>
-
-            <div className="bg-gray-50 rounded-2xl p-4">
-              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                {/* Select All Option */}
+          {/* Airline selection grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            {vietnameseAirlines.map((airline) => {
+              const active = selectedAirlines.includes(airline.id);
+              return (
                 <label
-                  className={`group cursor-pointer block transition-all duration-200 ${
-                    selectedAirlines.length === 0
-                      ? "transform scale-105"
-                      : "hover:transform hover:scale-105"
+                  key={airline.id}
+                  title={airline.name}
+                  className={`group relative cursor-pointer flex items-center justify-center rounded-xl transition-all duration-200 h-24 w-full shadow-sm border overflow-hidden ${
+                    active
+                      ? "border-blue-400 bg-gradient-to-br from-blue-50 to-blue-100 ring-2 ring-blue-300"
+                      : "border-gray-200 bg-gray-50 hover:bg-white hover:border-gray-300"
                   }`}>
                   <input
                     type="checkbox"
-                    checked={selectedAirlines.length === 0}
-                    onChange={() => setSelectedAirlines([])}
+                    checked={active}
+                    onChange={() => handleAirlineToggle(airline.id)}
                     className="sr-only"
                   />
-                  <div
-                    className={`relative border-2 rounded-xl p-4 text-center transition-all duration-200 ${
-                      selectedAirlines.length === 0
-                        ? "border-blue-500 bg-blue-50 shadow-lg"
-                        : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-md"
-                    }`}>
-                    <div className="flex flex-col items-center justify-center">
-                      <div
-                        className={`w-16 h-16 rounded-xl flex items-center justify-center ${
-                          selectedAirlines.length === 0
-                            ? "bg-blue-100"
-                            : "bg-gray-100 group-hover:bg-gray-200"
-                        }`}>
-                        <span className="text-2xl">✈️</span>
-                      </div>
-                      <span
-                        className={`text-xs font-medium mt-2 ${
-                          selectedAirlines.length === 0
-                            ? "text-blue-700"
-                            : "text-gray-700"
-                        }`}>
-                        Tất cả
-                      </span>
-                    </div>
-                    {selectedAirlines.length === 0 && (
-                      <div className="absolute top-2 right-2 w-3 h-3 bg-blue-500 rounded-full"></div>
-                    )}
-                  </div>
+                  <img
+                    src={airline.logo}
+                    alt={airline.name}
+                    className={`object-contain w-full h-full p-4 transition-transform ${
+                      active ? "scale-90" : "group-hover:scale-105"
+                    }`}
+                    loading="lazy"
+                  />
+                  {active && (
+                    <span className="absolute top-1 right-1 inline-block w-3 h-3 bg-blue-500 rounded-full ring-2 ring-white" />
+                  )}
                 </label>
-
-                {/* Individual Airlines */}
-                {vietnameseAirlines.map((airline) => (
-                  <label
-                    key={airline.id}
-                    className={`group cursor-pointer block transition-all duration-200 ${
-                      selectedAirlines.includes(airline.id)
-                        ? "transform scale-105"
-                        : "hover:transform hover:scale-105"
-                    }`}>
-                    <input
-                      type="checkbox"
-                      checked={selectedAirlines.includes(airline.id)}
-                      onChange={() => handleAirlineToggle(airline.id)}
-                      className="sr-only"
-                    />
-                    <div
-                      className={`relative border-2 rounded-xl p-4 text-center transition-all duration-200 ${
-                        selectedAirlines.includes(airline.id)
-                          ? "border-blue-500 bg-blue-50 shadow-lg"
-                          : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-md"
-                      }`}>
-                      <div className="flex items-center justify-center">
-                        <div
-                          className={`w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden ${
-                            selectedAirlines.includes(airline.id)
-                              ? "bg-white ring-2 ring-blue-200"
-                              : "bg-gray-50 group-hover:bg-gray-100"
-                          }`}>
-                          <img
-                            src={airline.logo}
-                            alt={airline.name}
-                            className="w-12 h-12 object-contain filter transition-all duration-200 group-hover:scale-110"
-                            loading="lazy"
-                          />
-                        </div>
-                      </div>
-                      {selectedAirlines.includes(airline.id) && (
-                        <div className="absolute top-2 right-2 w-3 h-3 bg-blue-500 rounded-full"></div>
-                      )}
-                    </div>
-                  </label>
-                ))}
-              </div>
-
-              {/* Selected Airlines Summary - Redesigned */}
-              {selectedAirlines.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-gray-700">
-                      Đã chọn {selectedAirlines.length} hãng hàng không
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedAirlines([])}
-                      className="text-xs h-7 px-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
-                      Xóa tất cả
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedAirlines.map((airlineId) => {
-                      const airline = vietnameseAirlines.find(
-                        (a) => a.id === airlineId
-                      );
-                      return airline ? (
-                        <div
-                          key={airlineId}
-                          className="flex items-center gap-2 bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 transition-colors rounded-lg px-3 py-2">
-                          <img
-                            src={airline.logo}
-                            alt={airline.name}
-                            className="w-5 h-5 object-contain"
-                          />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAirlineToggle(airlineId);
-                            }}
-                            className="text-blue-500 hover:text-blue-700 hover:bg-blue-200 rounded-full w-5 h-5 flex items-center justify-center text-sm font-medium">
-                            ×
-                          </button>
-                        </div>
-                      ) : null;
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
+              );
+            })}
           </div>
         </div>
 
@@ -833,9 +725,9 @@ const FlightSearchForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Second row - Dates, Passengers, Search */}
+          {/* Second row - Dates (day or month), Passengers, Search */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-            {/* Departure Date */}
+            {/* Departure (day mode or month mode) */}
             <div className="md:col-span-3 space-y-2">
               <Label
                 className={`text-sm font-semibold flex items-center ${
@@ -850,78 +742,73 @@ const FlightSearchForm: React.FC = () => {
                       : "text-blue-600"
                   }`}
                 />
-                Khởi hành
+                {formData.searchFullMonth ? "Tháng khởi hành" : "Khởi hành"}
                 {validationErrors.departureDate && (
                   <span className="text-red-500 ml-1">*</span>
                 )}
               </Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={`w-full h-12 justify-start text-left font-normal border-2 ${
-                      validationErrors.departureDate
-                        ? "border-red-500 hover:border-red-500"
-                        : "border-gray-200 hover:border-blue-400"
-                    } bg-gray-50/50 rounded-lg`}>
-                    <CalendarIcon
-                      className={`mr-3 h-4 w-4 ${
-                        validationErrors.departureDate
-                          ? "text-red-600"
-                          : "text-blue-600"
-                      }`}
-                    />
-                    <span className="text-base">
-                      {formData.departureDate
-                        ? format(formData.departureDate, "dd/MM/yyyy")
-                        : "Chọn ngày"}
-                    </span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.departureDate}
-                    onSelect={(date) => {
-                      setFormData((prev) => ({ ...prev, departureDate: date }));
-                      // Clear validation error when user selects a date
-                      if (validationErrors.departureDate) {
-                        setValidationErrors((prev) => ({
-                          ...prev,
-                          departureDate: false,
-                        }));
-                      }
-                    }}
-                    disabled={(date) => {
-                      // Allow past dates in development mode when HIDE_DEV_CONTROLS is false
-                      if (!DEV_CONFIG.HIDE_DEV_CONTROLS) {
-                        return false; // Allow all dates in dev mode
-                      }
-                      const today = new Date(new Date().setHours(0, 0, 0, 0));
-                      return date < today;
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Return Date */}
-            {formData.tripType === "round-trip" && (
-              <div className="md:col-span-3 space-y-2">
-                <Label className="text-sm font-semibold text-gray-700 flex items-center">
-                  <CalendarIcon className="h-4 w-4 mr-1 text-blue-600" />
-                  Về
-                </Label>
+              {formData.searchFullMonth ? (
+                <input
+                  type="month"
+                  className={`w-full h-12 px-4 border-2 rounded-lg bg-gray-50/50 text-base focus:outline-none focus:ring-2 ${
+                    validationErrors.departureDate
+                      ? "border-red-500 focus:ring-red-200"
+                      : "border-gray-200 focus:border-blue-500 focus:ring-blue-200"
+                  }`}
+                  value={
+                    formData.departureDate
+                      ? `${formData.departureDate.getFullYear()}-${String(
+                          formData.departureDate.getMonth() + 1
+                        ).padStart(2, "0")}`
+                      : ""
+                  }
+                  min={(() => {
+                    if (!DEV_CONFIG.HIDE_DEV_CONTROLS) return undefined;
+                    const now = new Date();
+                    return `${now.getFullYear()}-${String(
+                      now.getMonth() + 1
+                    ).padStart(2, "0")}`;
+                  })()}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    const [y, m] = e.target.value.split("-").map(Number);
+                    const d = new Date(y, m - 1, 1);
+                    setFormData((prev) => ({ ...prev, departureDate: d }));
+                    if (validationErrors.departureDate) {
+                      setValidationErrors((prev) => ({
+                        ...prev,
+                        departureDate: false,
+                      }));
+                    }
+                    if (
+                      formData.tripType === "round-trip" &&
+                      formData.returnDate &&
+                      formData.returnDate < d
+                    ) {
+                      setFormData((prev) => ({ ...prev, returnDate: d }));
+                    }
+                  }}
+                />
+              ) : (
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full h-14 justify-start text-left font-normal border-2 border-gray-200 hover:border-blue-400 bg-gray-50/50 rounded-xl">
-                      <CalendarIcon className="mr-3 h-5 w-5 text-blue-600" />
-                      <span className="text-lg">
-                        {formData.returnDate
-                          ? format(formData.returnDate, "dd/MM/yyyy")
+                      className={`w-full h-12 justify-start text-left font-normal border-2 ${
+                        validationErrors.departureDate
+                          ? "border-red-500 hover:border-red-500"
+                          : "border-gray-200 hover:border-blue-400"
+                      } bg-gray-50/50 rounded-lg`}>
+                      <CalendarIcon
+                        className={`mr-3 h-4 w-4 ${
+                          validationErrors.departureDate
+                            ? "text-red-600"
+                            : "text-blue-600"
+                        }`}
+                      />
+                      <span className="text-base">
+                        {formData.departureDate
+                          ? format(formData.departureDate, "dd/MM/yyyy")
                           : "Chọn ngày"}
                       </span>
                     </Button>
@@ -929,31 +816,148 @@ const FlightSearchForm: React.FC = () => {
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={formData.returnDate}
-                      onSelect={(date) =>
-                        setFormData((prev) => ({ ...prev, returnDate: date }))
-                      }
+                      selected={formData.departureDate}
+                      onSelect={(date) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          departureDate: date,
+                        }));
+                        if (validationErrors.departureDate) {
+                          setValidationErrors((prev) => ({
+                            ...prev,
+                            departureDate: false,
+                          }));
+                        }
+                      }}
                       disabled={(date) => {
-                        // Allow past dates in development mode when HIDE_DEV_CONTROLS is false
-                        if (!DEV_CONFIG.HIDE_DEV_CONTROLS) {
-                          // In dev mode, only check if return date is after departure date
+                        if (!DEV_CONFIG.HIDE_DEV_CONTROLS) return false;
+                        const today = new Date(new Date().setHours(0, 0, 0, 0));
+                        return date < today;
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+
+            {/* Return (day or month) */}
+            {formData.tripType === "round-trip" && (
+              <div className="md:col-span-3 space-y-2">
+                <Label className="text-sm font-semibold flex items-center text-gray-700">
+                  <CalendarIcon className="h-4 w-4 mr-1 text-blue-600" />
+                  {formData.searchFullMonth ? "Tháng về" : "Về"}
+                </Label>
+                {formData.searchFullMonth ? (
+                  <input
+                    type="month"
+                    className="w-full h-12 px-4 border-2 rounded-lg bg-gray-50/50 text-base focus:outline-none focus:ring-2 border-gray-200 focus:border-blue-500 focus:ring-blue-200"
+                    value={
+                      formData.returnDate
+                        ? `${formData.returnDate.getFullYear()}-${String(
+                            formData.returnDate.getMonth() + 1
+                          ).padStart(2, "0")}`
+                        : ""
+                    }
+                    min={(() => {
+                      const base = formData.departureDate || new Date();
+                      if (!DEV_CONFIG.HIDE_DEV_CONTROLS) return undefined;
+                      return `${base.getFullYear()}-${String(
+                        base.getMonth() + 1
+                      ).padStart(2, "0")}`;
+                    })()}
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const [y, m] = e.target.value.split("-").map(Number);
+                      const d = new Date(y, m - 1, 1);
+                      if (formData.departureDate && d < formData.departureDate)
+                        return; // ignore invalid
+                      setFormData((prev) => ({ ...prev, returnDate: d }));
+                    }}
+                  />
+                ) : (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full h-12 justify-start text-left font-normal border-2 border-gray-200 hover:border-blue-400 bg-gray-50/50 rounded-lg">
+                        <CalendarIcon className="mr-3 h-4 w-4 text-blue-600" />
+                        <span className="text-base">
+                          {formData.returnDate
+                            ? format(formData.returnDate, "dd/MM/yyyy")
+                            : "Chọn ngày"}
+                        </span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.returnDate}
+                        onSelect={(date) =>
+                          setFormData((prev) => ({ ...prev, returnDate: date }))
+                        }
+                        disabled={(date) => {
+                          if (!DEV_CONFIG.HIDE_DEV_CONTROLS) {
+                            if (
+                              formData.departureDate &&
+                              date <= formData.departureDate
+                            )
+                              return true;
+                            return false;
+                          }
+                          const today = new Date(
+                            new Date().setHours(0, 0, 0, 0)
+                          );
+                          if (date < today) return true;
                           if (
                             formData.departureDate &&
                             date <= formData.departureDate
                           )
                             return true;
                           return false;
-                        }
-                        const today = new Date(new Date().setHours(0, 0, 0, 0));
-                        const departureDate = formData.departureDate;
-                        if (date < today) return true;
-                        if (departureDate && date <= departureDate) return true;
-                        return false;
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
+            )}
+
+            {/* Months count (only in month mode) */}
+            {formData.searchFullMonth && (
+              <div
+                className={`$${
+                  formData.tripType === "round-trip"
+                    ? "md:col-span-2"
+                    : "md:col-span-3"
+                } space-y-2`}>
+                <Label className="text-sm font-semibold text-gray-700 flex items-center">
+                  <CalendarMonth className="h-4 w-4 mr-1 text-blue-600" /> Số
+                  tháng
+                </Label>
+                <Select
+                  value={String(
+                    (formData as unknown as { monthsCount?: number })
+                      .monthsCount || 1
+                  )}
+                  onValueChange={(val) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      monthsCount: Number(val),
+                    }))
+                  }>
+                  <SelectTrigger className="w-full h-12">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6].map((m) => (
+                      <SelectItem key={m} value={String(m)}>
+                        {m} tháng
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
@@ -961,7 +965,11 @@ const FlightSearchForm: React.FC = () => {
             <div
               className={`${
                 formData.tripType === "round-trip"
-                  ? "md:col-span-4"
+                  ? formData.searchFullMonth
+                    ? "md:col-span-4"
+                    : "md:col-span-4"
+                  : formData.searchFullMonth
+                  ? "md:col-span-6"
                   : "md:col-span-7"
               } space-y-2`}>
               <Label className="text-sm font-semibold text-gray-700 flex items-center">

@@ -3,6 +3,7 @@ import {
   User,
   LogOut,
   Calendar,
+  Plane,
   ChevronRight,
   RefreshCw,
   Lock,
@@ -194,9 +195,17 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isOpen, onClose }) => {
 
       {/* Menu Actions */}
       <div className="py-2">
-        {/* My Bookings - Navigate to booking page */}
+        {/* New Booking Flow */}
         <Link
-          to="/booking"
+          to="/search"
+          onClick={onClose}
+          className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center space-x-3 transition-colors">
+          <Plane className="h-4 w-4 text-gray-400" />
+          <span className="text-gray-700">Đặt Vé Mới</span>
+        </Link>
+        {/* My Bookings (paid / confirmed) */}
+        <Link
+          to="/my-bookings"
           onClick={onClose}
           className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center space-x-3 transition-colors">
           <Calendar className="h-4 w-4 text-gray-400" />

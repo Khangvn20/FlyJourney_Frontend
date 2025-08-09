@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SearchFormData, PassengerCounts } from "../shared/types";
 import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
+import type { FlightSearchApiResponse } from "../shared/types/search-api.types";
 
 // Simple interface matching Postman exactly (from SimpleFlightSearchForm)
 interface SimpleSearchRequest {
@@ -71,7 +72,8 @@ const saveSearchData = (formData: SearchFormData) => {
 // Direct API call matching Postman exactly (migrated from SimpleFlightSearchForm)
 const callApiDirectly = async (
   params: SimpleSearchRequest | RoundTripSearchRequest,
-  isRoundTrip: boolean = false
+  isRoundTrip: boolean = false,
+  signal?: AbortSignal
 ) => {
   const baseUrl = "http://localhost:3000/api/v1/flights/search";
   const url = isRoundTrip ? `${baseUrl}/roundtrip` : baseUrl;
@@ -89,6 +91,7 @@ const callApiDirectly = async (
         "Content-Type": "application/json",
       },
       body: JSON.stringify(params),
+      signal,
     });
 
     if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
@@ -129,6 +132,55 @@ const formatDateForApiRequest = (date: Date): string => {
 
 export const useFlightSearchForm = () => {
   const navigate = useNavigate();
+  // Ref để quản lý vòng lặp tìm kiếm tháng & hủy
+  const currentMonthSearchId = useRef<number | null>(null);
+  const currentAbortController = useRef<AbortController | null>(null);
+  interface PerDayFlightsAggr {
+    day: string;
+    flights: FlightSearchApiResponse["search_results"];
+  }
+  interface MonthAggregatedWrapperOneWayInternal {
+    status: boolean;
+    data: FlightSearchApiResponse & { per_day_results: PerDayFlightsAggr[] } & {
+      mode: "one-way";
+    };
+    meta: {
+      month: number;
+      year: number;
+      days: number;
+      loading: boolean;
+      phase: "done";
+    };
+  }
+  interface RoundTripMonthWrapperInternal {
+    status: boolean;
+    data: {
+      mode: "round-trip-month";
+      outbound: {
+        per_day_results: PerDayFlightsAggr[];
+        search_results: FlightSearchApiResponse["search_results"];
+        departure_airport: string;
+        arrival_airport: string;
+      };
+      inbound: {
+        per_day_results: PerDayFlightsAggr[];
+        search_results: FlightSearchApiResponse["search_results"];
+        departure_airport: string;
+        arrival_airport: string;
+      };
+    };
+    meta: {
+      month: number;
+      year: number;
+      days: number;
+      loading: boolean;
+      phase: "outbound" | "inbound" | "done";
+    };
+  }
+  type AggregatedMonthUnion =
+    | MonthAggregatedWrapperOneWayInternal
+    | RoundTripMonthWrapperInternal;
+  const aggregatedMonthRef = useRef<AggregatedMonthUnion | null>(null);
 
   const [formData, setFormData] = useState<SearchFormData>(() => {
     const savedData = loadSavedSearchData();
@@ -266,6 +318,20 @@ export const useFlightSearchForm = () => {
           sort_by: "price",
           sort_order: "asc",
         };
+        // Backend compatibility: some implementations expect singular 'passenger'
+        // Clone and attach if needed without altering type
+        (roundTripRequest as unknown as Record<string, unknown>)["passenger"] =
+          {
+            adults: formData.passengers.adults,
+            children:
+              formData.passengers.children > 0
+                ? formData.passengers.children
+                : undefined,
+            infants:
+              formData.passengers.infants > 0
+                ? formData.passengers.infants
+                : undefined,
+          };
         apiRequest = roundTripRequest;
       } else {
         // Create one-way request (existing logic)
@@ -298,17 +364,301 @@ export const useFlightSearchForm = () => {
         console.log("🔄 Trip type:", isRoundTrip ? "Round-trip" : "One-way");
       }
 
-      // Call API directly
-      const results = await callApiDirectly(apiRequest, isRoundTrip);
+      // If user requested full month search
+      if (formData.searchFullMonth) {
+        const departureDate = formData.departureDate!;
+        const year = departureDate.getFullYear();
+        const month = departureDate.getMonth(); // 0 index
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const searchId = Date.now();
+        currentMonthSearchId.current = searchId;
+        // Reset cancel flag
+        sessionStorage.removeItem("cancelMonthSearch");
 
-      // Store search results in sessionStorage for the Search page
+        // ONE-WAY MONTH (original path)
+        if (!isRoundTrip) {
+          // (inline type removed)
+          const baseOneWay: FlightSearchApiResponse = {
+            arrival_airport: (apiRequest as SimpleSearchRequest)
+              .arrival_airport_code,
+            arrival_date: "",
+            departure_airport: (apiRequest as SimpleSearchRequest)
+              .departure_airport_code,
+            departure_date: "",
+            flight_class: (apiRequest as SimpleSearchRequest).flight_class,
+            limit: (apiRequest as SimpleSearchRequest).limit,
+            page: 1,
+            passengers: {
+              adults: formData.passengers.adults,
+              children: formData.passengers.children,
+              infants: formData.passengers.infants,
+            },
+            search_results: [],
+            sort_by: (apiRequest as SimpleSearchRequest).sort_by,
+            sort_order: (apiRequest as SimpleSearchRequest).sort_order,
+            total_count: 0,
+            total_pages: 1,
+          };
+          const aggregatedResults: MonthAggregatedWrapperOneWayInternal = {
+            status: true,
+            data: { ...baseOneWay, per_day_results: [], mode: "one-way" },
+            meta: {
+              month: month + 1,
+              year,
+              days: daysInMonth,
+              loading: true,
+              phase: "done",
+            },
+          };
+          aggregatedMonthRef.current = aggregatedResults;
+          sessionStorage.setItem(
+            "flightSearchResults",
+            JSON.stringify(aggregatedResults)
+          );
+          sessionStorage.setItem("tripType", formData.tripType);
+          window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+          navigate("/search");
+          for (let day = 1; day <= daysInMonth; day++) {
+            if (
+              currentMonthSearchId.current !== searchId ||
+              sessionStorage.getItem("cancelMonthSearch") === "1"
+            )
+              break;
+            const currentDate = new Date(year, month, day);
+            const todayMidnight = new Date(new Date().setHours(0, 0, 0, 0));
+            if (DEV_CONFIG.HIDE_DEV_CONTROLS && currentDate < todayMidnight)
+              continue;
+            const dayRequest: SimpleSearchRequest = {
+              ...(apiRequest as SimpleSearchRequest),
+              departure_date: formatDateForApiRequest(currentDate),
+              page: 1,
+            };
+            try {
+              currentAbortController.current?.abort();
+              currentAbortController.current = new AbortController();
+              const dayResult = await callApiDirectly(
+                dayRequest,
+                false,
+                currentAbortController.current.signal
+              );
+              const flightsForDay = (dayResult?.data?.search_results ||
+                dayResult?.data?.outbound_search_results ||
+                []) as FlightSearchApiResponse["search_results"];
+              aggregatedResults.data.per_day_results.push({
+                day: formatDateForApiRequest(currentDate),
+                flights: flightsForDay,
+              });
+              aggregatedResults.data.search_results.push(...flightsForDay);
+              aggregatedResults.data.total_count =
+                aggregatedResults.data.search_results.length;
+              const updated = {
+                ...aggregatedResults,
+                meta: {
+                  ...aggregatedResults.meta,
+                  loading: day < daysInMonth,
+                  phase: "done",
+                },
+              };
+              aggregatedMonthRef.current = updated as AggregatedMonthUnion;
+              sessionStorage.setItem(
+                "flightSearchResults",
+                JSON.stringify(updated)
+              );
+              window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+            } catch (err) {
+              if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls())
+                console.error("Month day fetch failed", dayRequest, err);
+            }
+            await new Promise((r) => setTimeout(r, 160));
+          }
+          if (aggregatedMonthRef.current) {
+            aggregatedMonthRef.current = {
+              ...aggregatedMonthRef.current,
+              meta: {
+                ...aggregatedMonthRef.current.meta,
+                loading: false,
+                phase: "done",
+              },
+            };
+            sessionStorage.setItem(
+              "flightSearchResults",
+              JSON.stringify(aggregatedMonthRef.current)
+            );
+            window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+            sessionStorage.removeItem("cancelMonthSearch");
+          }
+          return;
+        }
+
+        // ROUND-TRIP MONTH (A: same month for both outbound & inbound, C: matrix later)
+        // (inline types removed)
+        const outboundCodeFrom =
+          (apiRequest as RoundTripSearchRequest).departure_airport_code ||
+          (apiRequest as SimpleSearchRequest).departure_airport_code;
+        const outboundCodeTo =
+          (apiRequest as RoundTripSearchRequest).arrival_airport_code ||
+          (apiRequest as SimpleSearchRequest).arrival_airport_code;
+        const wrapper: RoundTripMonthWrapperInternal = {
+          status: true,
+          data: {
+            mode: "round-trip-month",
+            outbound: {
+              per_day_results: [],
+              search_results: [],
+              departure_airport: outboundCodeFrom,
+              arrival_airport: outboundCodeTo,
+            },
+            inbound: {
+              per_day_results: [],
+              search_results: [],
+              departure_airport: outboundCodeTo,
+              arrival_airport: outboundCodeFrom,
+            },
+          },
+          meta: {
+            month: month + 1,
+            year,
+            days: daysInMonth,
+            loading: true,
+            phase: "outbound",
+          },
+        };
+        aggregatedMonthRef.current = wrapper;
+        sessionStorage.setItem("flightSearchResults", JSON.stringify(wrapper));
+        sessionStorage.setItem("tripType", formData.tripType); // still round-trip
+        window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+        navigate("/search");
+
+        // Helper fetch one day one-way
+        const fetchOneWayDay = async (from: string, to: string, d: Date) => {
+          const req: SimpleSearchRequest = {
+            departure_airport_code: from,
+            arrival_airport_code: to,
+            departure_date: formatDateForApiRequest(d),
+            flight_class: "all",
+            passenger: {
+              adults: formData.passengers.adults,
+              children: formData.passengers.children || undefined,
+              infants: formData.passengers.infants || undefined,
+            },
+            page: 1,
+            limit: 50,
+            sort_by: "price",
+            sort_order: "asc",
+          };
+          currentAbortController.current?.abort();
+          currentAbortController.current = new AbortController();
+          const res = await callApiDirectly(
+            req,
+            false,
+            currentAbortController.current.signal
+          );
+          return (res?.data?.search_results ||
+            []) as FlightSearchApiResponse["search_results"];
+        };
+        // Phase 1: outbound
+        for (let day = 1; day <= daysInMonth; day++) {
+          if (
+            currentMonthSearchId.current !== searchId ||
+            sessionStorage.getItem("cancelMonthSearch") === "1"
+          )
+            break;
+          const d = new Date(year, month, day);
+          const todayMid = new Date(new Date().setHours(0, 0, 0, 0));
+          if (DEV_CONFIG.HIDE_DEV_CONTROLS && d < todayMid) continue;
+          try {
+            const flights = await fetchOneWayDay(
+              outboundCodeFrom,
+              outboundCodeTo,
+              d
+            );
+            wrapper.data.outbound.per_day_results.push({
+              day: formatDateForApiRequest(d),
+              flights,
+            });
+            wrapper.data.outbound.search_results.push(...flights);
+            wrapper.meta = {
+              ...wrapper.meta,
+              phase: "outbound",
+              loading: true,
+            };
+            aggregatedMonthRef.current = wrapper;
+            sessionStorage.setItem(
+              "flightSearchResults",
+              JSON.stringify(wrapper)
+            );
+            window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+          } catch (err) {
+            if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls())
+              console.error("Outbound month day failed", day, err);
+          }
+          await new Promise((r) => setTimeout(r, 140));
+        }
+        if (
+          currentMonthSearchId.current !== searchId ||
+          sessionStorage.getItem("cancelMonthSearch") === "1"
+        ) {
+          wrapper.meta = { ...wrapper.meta, loading: false };
+          aggregatedMonthRef.current = wrapper;
+          sessionStorage.setItem(
+            "flightSearchResults",
+            JSON.stringify(wrapper)
+          );
+          window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+          sessionStorage.removeItem("cancelMonthSearch");
+          return;
+        }
+        // Phase 2: inbound
+        wrapper.meta = { ...wrapper.meta, phase: "inbound", loading: true };
+        aggregatedMonthRef.current = wrapper;
+        sessionStorage.setItem("flightSearchResults", JSON.stringify(wrapper));
+        window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+        for (let day = 1; day <= daysInMonth; day++) {
+          if (
+            currentMonthSearchId.current !== searchId ||
+            sessionStorage.getItem("cancelMonthSearch") === "1"
+          )
+            break;
+          const d = new Date(year, month, day);
+          const todayMid = new Date(new Date().setHours(0, 0, 0, 0));
+          if (DEV_CONFIG.HIDE_DEV_CONTROLS && d < todayMid) continue;
+          try {
+            const flights = await fetchOneWayDay(
+              outboundCodeTo,
+              outboundCodeFrom,
+              d
+            );
+            wrapper.data.inbound.per_day_results.push({
+              day: formatDateForApiRequest(d),
+              flights,
+            });
+            wrapper.data.inbound.search_results.push(...flights);
+            wrapper.meta = { ...wrapper.meta, phase: "inbound", loading: true };
+            aggregatedMonthRef.current = wrapper;
+            sessionStorage.setItem(
+              "flightSearchResults",
+              JSON.stringify(wrapper)
+            );
+            window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+          } catch (err) {
+            if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls())
+              console.error("Inbound month day failed", day, err);
+          }
+          await new Promise((r) => setTimeout(r, 140));
+        }
+        wrapper.meta = { ...wrapper.meta, phase: "done", loading: false };
+        aggregatedMonthRef.current = wrapper;
+        sessionStorage.setItem("flightSearchResults", JSON.stringify(wrapper));
+        window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+        sessionStorage.removeItem("cancelMonthSearch");
+        return;
+      }
+
+      // Normal single search call
+      const results = await callApiDirectly(apiRequest, isRoundTrip);
       sessionStorage.setItem("flightSearchResults", JSON.stringify(results));
       sessionStorage.setItem("tripType", formData.tripType);
-
-      // Trigger custom event to notify Search page about the update
       window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
-
-      // Navigate to search results page
       navigate("/search");
     } catch (error) {
       if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
@@ -334,6 +684,40 @@ export const useFlightSearchForm = () => {
     getClassText,
     swapLocations,
     handleSearch,
+    cancelMonthSearch: () => {
+      // Đánh dấu hủy và cập nhật storage nếu đang chạy
+      currentMonthSearchId.current = null; // sẽ khiến vòng lặp break ở lần kiểm tra tiếp theo
+      sessionStorage.setItem("cancelMonthSearch", "1");
+      currentAbortController.current?.abort();
+      if (aggregatedMonthRef.current) {
+        if (aggregatedMonthRef.current) {
+          if (aggregatedMonthRef.current.data.mode === "one-way") {
+            const one =
+              aggregatedMonthRef.current as MonthAggregatedWrapperOneWayInternal;
+            aggregatedMonthRef.current = {
+              ...one,
+              meta: { ...one.meta, loading: false, phase: "done" },
+            };
+          } else {
+            const rt =
+              aggregatedMonthRef.current as RoundTripMonthWrapperInternal;
+            aggregatedMonthRef.current = {
+              ...rt,
+              meta: {
+                ...rt.meta,
+                loading: false,
+                phase: rt.meta.phase ?? "done",
+              },
+            };
+          }
+        }
+        sessionStorage.setItem(
+          "flightSearchResults",
+          JSON.stringify(aggregatedMonthRef.current)
+        );
+        window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+      }
+    },
     isLoading,
     searchError,
   };

@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Home, Plane, CheckCircle, Shield, Zap, Heart } from "lucide-react";
@@ -14,7 +14,15 @@ import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<AuthTab>("register");
+  const location = useLocation();
+  const redirectState = location.state as {
+    redirectTo?: string;
+    intent?: string;
+    selection?: unknown;
+  } | null;
+  const [activeTab, setActiveTab] = useState<AuthTab>(
+    redirectState?.intent ? "login" : "register"
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [isTabChanging, setIsTabChanging] = useState(false);
 
@@ -41,7 +49,18 @@ const Register: React.FC = () => {
         if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
           console.log("Login successful:", data);
         }
-        navigate("/");
+        if (redirectState?.redirectTo) {
+          // restore selection if exists
+          if (redirectState.selection) {
+            sessionStorage.setItem(
+              "bookingSelection",
+              JSON.stringify(redirectState.selection)
+            );
+          }
+          navigate(redirectState.redirectTo, { replace: true });
+        } else {
+          navigate("/");
+        }
       } else {
         if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
           console.error("Login failed:", result.error);

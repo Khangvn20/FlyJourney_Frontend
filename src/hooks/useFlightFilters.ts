@@ -21,7 +21,10 @@ export const useFlightFilters = ({
   filters,
 }: UseFlightFiltersProps) => {
   const filteredFlights = useMemo(() => {
-    return flights
+    const safeFlights: FlightSearchApiResult[] = Array.isArray(flights)
+      ? flights
+      : (flights as unknown as FlightSearchApiResult[]) || [];
+    return safeFlights
       .filter((flight) => {
         // Airline filter
         if (selectedAirlines.length > 0) {

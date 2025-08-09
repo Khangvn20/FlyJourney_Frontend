@@ -9,6 +9,7 @@ import Register from "./pages/Register";
 import Blog from "./pages/Blog";
 import News from "./pages/News";
 import DebugApi from "./pages/DebugApi";
+import MyBookings from "./pages/MyBookings";
 import ApiTest from "./pages/ApiTest";
 
 import Header from "./components/layout/Header";
@@ -38,16 +39,17 @@ const App: React.FC = () => {
                   <Route path="/search" element={<Search />} />
                   <Route path="/blog" element={<Blog />} />
                   <Route path="/news" element={<News />} />
+                  <Route path="/booking" element={<Booking />} />
+                  <Route path="/debug" element={<DebugApi />} />
+                  <Route path="/api-test" element={<ApiTest />} />
                   <Route
-                    path="/booking"
+                    path="/my-bookings"
                     element={
                       <ProtectedRoute>
-                        <Booking />
+                        <MyBookings />
                       </ProtectedRoute>
                     }
                   />
-                  <Route path="/debug" element={<DebugApi />} />
-                  <Route path="/api-test" element={<ApiTest />} />
                 </Routes>
               </main>
               <Footer />
