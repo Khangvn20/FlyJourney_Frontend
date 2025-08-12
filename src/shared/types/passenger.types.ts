@@ -20,6 +20,8 @@ export interface ContactInfo {
 
 export type PaymentMethod = "vnpay" | "card" | "office";
 
+import type { FlightSearchApiResult } from "./search-api.types";
+
 export interface BookingPayload {
   tripType: "one-way" | "round-trip";
   outboundFlightId: number;
@@ -29,10 +31,24 @@ export interface BookingPayload {
   totalPrice: number;
   currency: string;
   paymentMethod: PaymentMethod;
+  /** Optional future expansion: selected extra baggage/services */
+  addons?: {
+    extraBaggageKg?: number; // additional baggage purchased
+    services?: string[]; // list of ancillary service codes
+  };
+  /** Monetary total of addons to allow reconstruction of base fare */
+  addonExtraPrice?: number;
+  /** Snapshot của dữ liệu chuyến bay lúc đặt (tránh lệ thuộc cache tìm kiếm) */
+  selectedFlights?: {
+    outbound: FlightSearchApiResult;
+    inbound?: FlightSearchApiResult;
+  };
 }
 
 export interface BookingRecord extends BookingPayload {
   bookingId: string;
   status: "PENDING" | "CONFIRMED" | "CANCELLED";
   createdAt: string;
+  /** If status=PENDING this indicates when the hold expires (ISO). */
+  holdExpiresAt?: string;
 }

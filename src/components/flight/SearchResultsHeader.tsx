@@ -1,7 +1,5 @@
 import React from "react";
 import { Card, CardContent } from "../ui/card";
-import { Button } from "../ui/button";
-import { SlidersHorizontal } from "lucide-react";
 import type {
   FlightSearchResponseData,
   FlightSearchApiResult,
@@ -30,6 +28,8 @@ interface SearchResultsHeaderProps {
       sortBy: string;
     }>
   >;
+  progressiveCount?: number; // how many flights revealed so far (one-way)
+  skeletonActive?: boolean;
 }
 
 const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
@@ -41,6 +41,8 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
   activeTab,
   filters,
   setFilters,
+  progressiveCount,
+  skeletonActive,
 }) => {
   return (
     <div className="space-y-6">
@@ -80,28 +82,47 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
                 </>
               ) : (
                 <>
-                  Tìm thấy{" "}
-                  <span className="font-semibold text-blue-600">
-                    {isOneWayResponse(searchInfo)
-                      ? searchInfo.total_count
-                      : filteredFlights.length}
-                  </span>{" "}
-                  chuyến bay • Hiển thị{" "}
-                  <span className="font-semibold">
-                    {filteredFlights.length}
-                  </span>{" "}
-                  kết quả
+                  {(skeletonActive || progressiveCount !== undefined) && (
+                    <>
+                      Đang tìm thấy{" "}
+                      <span className="font-semibold text-blue-600">
+                        {progressiveCount ?? 0}
+                      </span>{" "}
+                      /{" "}
+                      <span className="font-semibold">
+                        {isOneWayResponse(searchInfo)
+                          ? searchInfo.total_count
+                          : filteredFlights.length}
+                      </span>{" "}
+                      chuyến bay
+                    </>
+                  )}
+                  {!skeletonActive && progressiveCount === undefined && (
+                    <>
+                      Tìm thấy{" "}
+                      <span className="font-semibold text-blue-600">
+                        {isOneWayResponse(searchInfo)
+                          ? searchInfo.total_count
+                          : filteredFlights.length}
+                      </span>{" "}
+                      chuyến bay • Hiển thị{" "}
+                      <span className="font-semibold">
+                        {filteredFlights.length}
+                      </span>{" "}
+                      kết quả
+                    </>
+                  )}
                 </>
               )}
               {searchInfo.passengers && (
                 <span className="ml-2">
-                  • {searchInfo.passengers.adults} người lớn
+                  • {searchInfo.passengers.adults} Người lớn
                   {searchInfo.passengers.children &&
                     searchInfo.passengers.children > 0 &&
-                    `, ${searchInfo.passengers.children} trẻ em`}
+                    `, ${searchInfo.passengers.children} Trẻ em`}
                   {searchInfo.passengers.infants &&
                     searchInfo.passengers.infants > 0 &&
-                    `, ${searchInfo.passengers.infants} em bé`}
+                    `, ${searchInfo.passengers.infants} Em bé`}
                 </span>
               )}
             </div>
@@ -120,9 +141,6 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
                   : "Chọn chiều đi"
                 : "Chọn chuyến bay"}
             </span>
-            <Button variant="ghost" size="sm">
-              <SlidersHorizontal className="h-4 w-4" />
-            </Button>
           </h2>
           <p className="text-gray-600 text-sm">
             {currentFlights.length} Kết quả

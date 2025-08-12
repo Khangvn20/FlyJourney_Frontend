@@ -51,7 +51,7 @@ const FlightCard: React.FC<FlightCardProps> = ({
         <div className="p-4">
           <div className="flex items-center justify-between">
             {/* Flight Info */}
-            <div className="flex items-center space-x-6 flex-1">
+            <div className="flex items-center flex-1 gap-8">
               {/* Airline */}
               <div className="flex flex-col items-center min-w-[80px]">
                 <div className="h-10 w-16 flex items-center justify-center mb-1">
@@ -74,57 +74,59 @@ const FlightCard: React.FC<FlightCardProps> = ({
               </div>
 
               {/* Flight Times */}
-              <div className="flex items-center space-x-4 flex-1">
-                <div className="text-center">
-                  <div
-                    className={`text-xl font-bold ${
-                      sortBy === "departure"
-                        ? "text-green-600 bg-green-50 px-2 py-1 rounded"
-                        : ""
-                    }`}>
-                    {departureTime.time}
-                    {sortBy === "departure" && (
-                      <span className="text-xs ml-1">🕐</span>
-                    )}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-center flex-1 gap-4">
+                <div className="flex items-center justify-center gap-8">
+                  <div className="text-center">
+                    <div
+                      className={`text-xl font-bold ${
+                        sortBy === "departure"
+                          ? "text-green-600 bg-green-50 px-2 py-1 rounded"
+                          : ""
+                      }`}>
+                      {departureTime.time}
+                      {sortBy === "departure" && (
+                        <span className="text-xs ml-1">🕐</span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {flight.departure_airport_code}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {flight.departure_airport}
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    {flight.departure_airport_code}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {flight.departure_airport}
-                  </div>
-                </div>
 
-                <div className="flex flex-col items-center px-4">
-                  <div
-                    className={`text-xs text-gray-500 mb-1 ${
-                      sortBy === "duration"
-                        ? "font-bold text-green-600 bg-green-50 px-2 py-1 rounded"
-                        : ""
-                    }`}>
-                    {duration}
-                    {sortBy === "duration" && (
-                      <span className="text-xs ml-1">⏱️</span>
-                    )}
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`text-xs text-gray-500 mb-1 ${
+                        sortBy === "duration"
+                          ? "font-bold text-green-600 bg-green-50 px-2 py-1 rounded"
+                          : ""
+                      }`}>
+                      {duration}
+                      {sortBy === "duration" && (
+                        <span className="text-xs ml-1">⏱️</span>
+                      )}
+                    </div>
+                    <div className="flex items-center">
+                      <div className="h-px bg-gray-300 w-16"></div>
+                      <ArrowRight className="h-4 w-4 text-gray-400 mx-1" />
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {flight.stops_count === 0
+                        ? "Bay thẳng"
+                        : `${flight.stops_count} điểm dừng`}
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <div className="h-px bg-gray-300 w-16"></div>
-                    <ArrowRight className="h-4 w-4 text-gray-400 mx-1" />
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {flight.stops_count === 0
-                      ? "Bay thẳng"
-                      : `${flight.stops_count} điểm dừng`}
-                  </div>
-                </div>
 
-                <div className="text-center">
-                  <div className="text-xl font-bold">{arrivalTime.time}</div>
-                  <div className="text-sm text-gray-600">
-                    {flight.arrival_airport_code}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {flight.arrival_airport}
+                  <div className="text-center">
+                    <div className="text-xl font-bold">{arrivalTime.time}</div>
+                    <div className="text-sm text-gray-600">
+                      {flight.arrival_airport_code}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {flight.arrival_airport}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -170,7 +172,7 @@ const FlightCard: React.FC<FlightCardProps> = ({
                   size="sm"
                   onClick={onSelect}
                   className="bg-blue-600 hover:bg-blue-700 px-6">
-                  Chọn
+                  Đặt chỗ
                 </Button>
               </div>
             </div>
@@ -504,8 +506,10 @@ const FlightCard: React.FC<FlightCardProps> = ({
                   <Button variant="outline" onClick={onToggleDetails}>
                     Thu gọn
                   </Button>
-                  <Button className="bg-orange-600 hover:bg-orange-700 px-8">
-                    Đặt ngay - {formatPrice(flight.pricing.grand_total)}
+                  <Button
+                    className="bg-orange-600 hover:bg-orange-700 px-8"
+                    onClick={onSelect}>
+                    Đặt chỗ ngay - {formatPrice(flight.pricing.grand_total)}
                   </Button>
                 </div>
               </div>

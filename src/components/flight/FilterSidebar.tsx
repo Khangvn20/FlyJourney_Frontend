@@ -2,7 +2,6 @@ import React from "react";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Filter, ChevronDown, ChevronUp, Plane } from "lucide-react";
-import { formatPrice } from "../../services/flightApiService";
 import type { FlightSearchApiResult } from "../../shared/types/search-api.types";
 
 interface FilterSidebarProps {
@@ -35,6 +34,8 @@ interface FilterSidebarProps {
     code: string;
   }>;
   onAirlineToggle: (airlineId: string) => void;
+  skeletonActive?: boolean;
+  progressiveCount?: number;
 }
 
 const FilterSidebar: React.FC<FilterSidebarProps> = ({
@@ -45,7 +46,6 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   filters,
   setFilters,
   flightResults,
-  filteredFlights,
   vietnameseAirlines,
   onAirlineToggle,
 }) => {
@@ -71,31 +71,6 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
 
       {/* Filter Panel */}
       <div className={`space-y-4 ${showFilters ? "block" : "hidden lg:block"}`}>
-        {/* Filter Summary */}
-        {flightResults.length > 0 && (
-          <Card className="bg-blue-50 border-blue-200">
-            <CardContent>
-              <h3 className="font-semibold text-blue-900 mb-2 text-sm">
-                📊 Tổng quan
-              </h3>
-              <div className="text-xs text-blue-700 space-y-1">
-                <div>🛫 Tổng: {flightResults.length} chuyến bay</div>
-                <div>✅ Phù hợp: {filteredFlights.length} chuyến bay</div>
-                <div>
-                  💰 Giá từ{" "}
-                  {formatPrice(
-                    Math.min(...flightResults.map((f) => f.pricing.grand_total))
-                  )}
-                  -{" "}
-                  {formatPrice(
-                    Math.max(...flightResults.map((f) => f.pricing.grand_total))
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Time Filter */}
         <Card>
           <CardContent>

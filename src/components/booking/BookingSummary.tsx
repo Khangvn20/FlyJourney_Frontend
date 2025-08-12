@@ -147,12 +147,12 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h3 className="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent flex items-center gap-2">
-              <TimerReset className="w-5 h-5 text-blue-600" /> Xác nhận chuyến
-              bay
+              <TimerReset className="w-5 h-5 text-blue-600" /> Xác nhận giữ chỗ
+              chuyến bay
             </h3>
             <p className="mt-1 text-sm text-gray-600 max-w-xl">
-              Kiểm tra kỹ thông tin trước khi điền hành khách & thanh toán. Bạn
-              vẫn có thể quay lại thay đổi ở bước sau.
+              Kiểm tra kỹ thông tin trước khi điền hành khách & chọn phương thức
+              giữ chỗ / thanh toán. Bạn vẫn có thể quay lại thay đổi ở bước sau.
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs">

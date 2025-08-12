@@ -1,18 +1,5 @@
-import type React from "react";
 import { useState, useEffect } from "react";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { Card, CardContent } from "../ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import { Calendar } from "../ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { format } from "date-fns";
 import {
   CalendarIcon,
   Search,
@@ -27,13 +14,21 @@ import {
   Baby,
   UserCheck,
   ChevronDown,
-  X,
-  Navigation,
-  AlertCircle,
+  // AlertCircle removed (not used)
 } from "lucide-react";
-import { format } from "date-fns";
-import { Badge } from "../ui/badge";
-import { useFlightSearchForm } from "../../hooks/useFlightSearchForm";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Card, CardContent } from "../ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Calendar } from "../ui/calendar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import {
   airports,
   flightClasses,
@@ -41,12 +36,9 @@ import {
 } from "../../mocks/flightData";
 import { airlines } from "../../mocks";
 import type { Airport } from "../../shared/types";
-import {
-  DEV_CONFIG,
-  shouldShowDevControls,
-} from "../../shared/config/devConfig";
+import { useFlightSearchForm } from "../../hooks/useFlightSearchForm";
 
-const FlightSearchForm: React.FC = () => {
+export default function FlightSearchForm() {
   const {
     formData,
     setFormData,
@@ -61,17 +53,15 @@ const FlightSearchForm: React.FC = () => {
     getClassText,
     swapLocations,
     handleSearch,
+    clearStoredResults,
     isLoading,
     searchError,
   } = useFlightSearchForm();
 
   const [fromSearch, setFromSearch] = useState("");
   const [toSearch, setToSearch] = useState("");
-  const [removingAirportCode, setRemovingAirportCode] = useState<string | null>(
-    null
-  );
+  // removed removingAirportCode (animation not essential in restored version)
 
-  // Load saved selected airlines from localStorage
   const [selectedAirlines, setSelectedAirlines] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem("selectedAirlines");
@@ -81,310 +71,96 @@ const FlightSearchForm: React.FC = () => {
     }
   });
 
-  // New states for validation and geolocation
-  const [validationErrors, setValidationErrors] = useState<{
-    from: boolean;
-    to: boolean;
-    departureDate: boolean;
-  }>({
+  const [validationErrors, setValidationErrors] = useState({
     from: false,
     to: false,
     departureDate: false,
   });
 
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
-
-  // Save selected airlines to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("selectedAirlines", JSON.stringify(selectedAirlines));
   }, [selectedAirlines]);
 
-  // Get user's location on component mount
+  // Coerce legacy multi-city
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          // Auto-detect nearest airport
-          autoDetectNearestAirport(
-            position.coords.latitude,
-            position.coords.longitude
-          );
-        },
-        (error) => {
-          if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
-            console.log("Could not get user location:", error);
-          }
-        }
-      );
+    if (formData.tripType === "multi-city") {
+      setFormData((p) => ({ ...p, tripType: "one-way" }));
+      sessionStorage.setItem("tripType", "one-way");
+      window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
     }
-  }, []);
+  }, [formData.tripType, setFormData]);
 
-  // Transform airlines data for use in this component
-  const vietnameseAirlines = airlines.map((airline) => ({
-    id: airline.name.toLowerCase().replace(/\s+/g, "-"),
-    name: airline.name,
-    logo: airline.logo,
-    code: airline.name.substring(0, 2).toUpperCase(),
+  const vietnameseAirlines = airlines.map((a) => ({
+    id: a.name.toLowerCase().replace(/\s+/g, "-"),
+    name: a.name,
+    logo: a.logo,
+    code: a.name.substring(0, 2).toUpperCase(),
   }));
 
-  // Helper function để extract airport code từ string
-  const getAirportCodeFromString = (locationString: string): string => {
-    const match = locationString.match(/\(([^)]+)\)$/);
-    return match ? match[1] : "";
+  const getAirportCodeFromString = (s: string) => {
+    const m = s.match(/\(([^)]+)\)$/);
+    return m ? m[1] : "";
   };
-
-  // Get all selected airport codes
-  const getAllSelectedAirportCodes = (): string[] => {
-    const codes: string[] = [];
-
-    // Add from and to codes
-    const fromCode = getAirportCodeFromString(formData.from);
-    const toCode = getAirportCodeFromString(formData.to);
-
-    if (fromCode) codes.push(fromCode);
-    if (toCode) codes.push(toCode);
-
-    // Add multi-city codes if in multi-city mode
-    if (formData.tripType === "multi-city" && formData.multiCitySegments) {
-      formData.multiCitySegments.forEach((segment) => {
-        const segmentFromCode = getAirportCodeFromString(segment.from);
-        const segmentToCode = getAirportCodeFromString(segment.to);
-        if (segmentFromCode) codes.push(segmentFromCode);
-        if (segmentToCode) codes.push(segmentToCode);
-      });
-    }
-
-    return codes;
-  };
-
-  // Lọc sân bay và loại bỏ sân bay đã chọn
   const filterAirports = (
-    searchTerm: string,
+    term: string,
     excludeCodes: string[] = []
   ): Airport[] => {
-    const filteredAirports = airports.filter(
-      (airport) => !excludeCodes.includes(airport.code)
-    );
-
-    if (!searchTerm) return filteredAirports.slice(0, 6);
-
-    return filteredAirports
-      .filter(
-        (airport) =>
-          airport.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          airport.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          airport.code.toLowerCase().includes(searchTerm.toLowerCase())
+    const base = airports.filter((a) => !excludeCodes.includes(a.code));
+    if (!term) return base.slice(0, 6);
+    return base
+      .filter((a) =>
+        [a.city, a.name, a.code].some((v) =>
+          v.toLowerCase().includes(term.toLowerCase())
+        )
       )
       .slice(0, 6);
   };
 
-  // Get popular destinations excluding selected airports
-  const getPopularDestinations = (): Airport[] => {
-    const selectedCodes = getAllSelectedAirportCodes();
-    return airports
-      .filter((airport) => !selectedCodes.includes(airport.code))
-      .slice(0, 6);
-  };
-
-  // Calculate distance between two coordinates (Haversine formula)
-  const calculateDistance = (
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number
-  ): number => {
-    const R = 6371; // Earth's radius in kilometers
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  // Auto-detect nearest airport based on user location
-  const autoDetectNearestAirport = (latitude: number, longitude: number) => {
-    if (!formData.from) {
-      // Only auto-fill if "from" is empty
-      let nearestAirport: Airport | null = null;
-      let minDistance = Infinity;
-
-      airports.forEach((airport) => {
-        // For Vietnamese airports, we'll use approximate coordinates
-        // This is a simplified approach - in real app you'd have actual coordinates
-        const airportCoords = getAirportCoordinates(airport.code);
-        if (airportCoords) {
-          const distance = calculateDistance(
-            latitude,
-            longitude,
-            airportCoords.lat,
-            airportCoords.lng
-          );
-          if (distance < minDistance) {
-            minDistance = distance;
-            nearestAirport = airport;
-          }
-        }
-      });
-
-      if (nearestAirport && minDistance < 200) {
-        // Within 200km
-        setFormData((prev) => ({
-          ...prev,
-          from: `${nearestAirport!.city} (${nearestAirport!.code})`,
-        }));
-      }
+  const selectAirport = (airport: Airport, type: "from" | "to") => {
+    if (type === "from") {
+      setFormData((p) => ({ ...p, from: `${airport.city} (${airport.code})` }));
+      setFromSearch("");
+      setShowFromDropdown(false);
+    } else {
+      setFormData((p) => ({ ...p, to: `${airport.city} (${airport.code})` }));
+      setToSearch("");
+      setShowToDropdown(false);
     }
   };
 
-  // Get approximate coordinates for major Vietnamese airports
-  const getAirportCoordinates = (
-    code: string
-  ): { lat: number; lng: number } | null => {
-    const coords: { [key: string]: { lat: number; lng: number } } = {
-      SGN: { lat: 10.8231, lng: 106.6297 }, // Ho Chi Minh City
-      HAN: { lat: 21.2187, lng: 105.804 }, // Hanoi
-      DAD: { lat: 16.0439, lng: 108.1995 }, // Da Nang
-      CXR: { lat: 12.0045, lng: 109.2193 }, // Nha Trang
-      PQC: { lat: 10.227, lng: 103.9673 }, // Phu Quoc
-      VCA: { lat: 10.0851, lng: 105.7117 }, // Can Tho
-      HPH: { lat: 20.8194, lng: 106.7256 }, // Hai Phong
-      HUI: { lat: 16.4015, lng: 107.703 }, // Hue
-    };
-    return coords[code] || null;
-  };
+  const handleAirlineToggle = (id: string) =>
+    setSelectedAirlines((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
 
-  // Validation function
-  const validateForm = (): boolean => {
-    const errors = {
-      from: !formData.from || formData.from.trim() === "",
-      to: !formData.to || formData.to.trim() === "",
+  const validateForm = () => {
+    const errs = {
+      from: !formData.from || !formData.from.trim(),
+      to: !formData.to || !formData.to.trim(),
       departureDate: !formData.departureDate,
     };
-
-    setValidationErrors(errors);
-    return !errors.from && !errors.to && !errors.departureDate;
+    setValidationErrors(errs);
+    return !errs.from && !errs.to && !errs.departureDate;
   };
-
-  // Enhanced handleSearch with validation
   const handleSearchWithValidation = () => {
-    if (validateForm()) {
-      handleSearch();
-    }
+    if (validateForm()) handleSearch();
   };
 
-  // Get user location manually
-  const getUserLocation = () => {
-    setIsGettingLocation(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          autoDetectNearestAirport(
-            position.coords.latitude,
-            position.coords.longitude
-          );
-          setIsGettingLocation(false);
-        },
-        (error) => {
-          if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
-            console.log("Could not get user location:", error);
-          }
-          setIsGettingLocation(false);
-        }
-      );
-    } else {
-      setIsGettingLocation(false);
-    }
-  };
-
-  const selectAirport = (airport: Airport, type: "from" | "to") => {
-    // Add animation effect
-    setRemovingAirportCode(airport.code);
-
-    setTimeout(() => {
-      if (type === "from") {
-        setFormData((prev) => ({
-          ...prev,
-          from: `${airport.city} (${airport.code})`,
-        }));
-        setFromSearch("");
-        setShowFromDropdown(false);
-      } else {
-        setFormData((prev) => ({
-          ...prev,
-          to: `${airport.city} (${airport.code})`,
-        }));
-        setToSearch("");
-        setShowToDropdown(false);
-      }
-      setRemovingAirportCode(null);
-    }, 300);
-  };
-
-  const selectPopularDestination = (airport: Airport) => {
-    setRemovingAirportCode(airport.code);
-
-    setTimeout(() => {
-      setFormData((prev) => ({
-        ...prev,
-        to: `${airport.city} (${airport.code})`,
-      }));
-      setRemovingAirportCode(null);
-    }, 300);
-  };
-
-  const handleAirlineToggle = (airlineId: string) => {
-    setSelectedAirlines((prev) =>
-      prev.includes(airlineId)
-        ? prev.filter((id) => id !== airlineId)
-        : [...prev, airlineId]
-    );
-  };
-
-  const addMultiCitySegment = () => {
-    if (formData.multiCitySegments && formData.multiCitySegments.length < 3) {
-      setFormData((prev) => ({
-        ...prev,
-        multiCitySegments: [
-          ...(prev.multiCitySegments || []),
-          { from: "", to: "", departureDate: undefined },
-        ],
-      }));
-    }
-  };
-
-  const removeMultiCitySegment = (index: number) => {
-    if (formData.multiCitySegments && formData.multiCitySegments.length > 2) {
-      setFormData((prev) => ({
-        ...prev,
-        multiCitySegments: prev.multiCitySegments?.filter(
-          (_, i) => i !== index
-        ),
-      }));
-    }
-  };
-
-  const updateMultiCitySegment = (
-    index: number,
-    field: "from" | "to" | "departureDate",
-    value: string | Date | undefined
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      multiCitySegments: prev.multiCitySegments?.map((segment, i) =>
-        i === index ? { ...segment, [field]: value } : segment
-      ),
+  const setTripType = (newType: "one-way" | "round-trip") => {
+    clearStoredResults();
+    setFormData((p) => ({
+      ...p,
+      tripType: newType,
+      searchFullMonth: newType === "round-trip" ? false : p.searchFullMonth,
     }));
+    sessionStorage.setItem("tripType", newType);
+    window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
   };
 
   return (
     <Card className="w-full max-w-7xl mx-auto shadow-lg border-0 bg-white rounded-2xl overflow-hidden">
       <CardContent className="p-0">
-        {/* Header với trip type selector - Compact Design for Search */}
+        {/* Header */}
         <div className="bg-white border-b border-gray-100 p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
@@ -400,133 +176,83 @@ const FlightSearchForm: React.FC = () => {
                 </p>
               </div>
             </div>
-
-            {/* Trip Type Selector - Compact Design */}
             <div className="flex items-center bg-gray-100 rounded-full p-1">
-              <div className="flex items-center space-x-1">
+              {(["one-way", "round-trip"] as const).map((t) => (
                 <label
+                  key={t}
                   className={`px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 text-sm ${
-                    formData.tripType === "one-way"
+                    formData.tripType === t
                       ? "bg-white shadow-sm text-blue-600 font-medium"
                       : "text-gray-600 hover:text-gray-900"
                   }`}>
                   <input
                     type="radio"
                     name="trip-type"
-                    value="one-way"
-                    checked={formData.tripType === "one-way"}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        tripType: e.target.value,
-                      }))
-                    }
+                    value={t}
                     className="sr-only"
+                    checked={formData.tripType === t}
+                    onChange={() => setTripType(t)}
                   />
-                  Một chiều
+                  {t === "one-way" ? "Một chiều" : "Khứ hồi"}
                 </label>
-                <label
-                  className={`px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 text-sm ${
-                    formData.tripType === "round-trip"
-                      ? "bg-white shadow-sm text-blue-600 font-medium"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}>
-                  <input
-                    type="radio"
-                    name="trip-type"
-                    value="round-trip"
-                    checked={formData.tripType === "round-trip"}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        tripType: e.target.value,
-                      }))
-                    }
-                    className="sr-only"
-                  />
-                  Khứ hồi
-                </label>
-                <label
-                  className={`px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 text-sm ${
-                    formData.tripType === "multi-city"
-                      ? "bg-white shadow-sm text-blue-600 font-medium"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}>
-                  <input
-                    type="radio"
-                    name="trip-type"
-                    value="multi-city"
-                    checked={formData.tripType === "multi-city"}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        tripType: e.target.value,
-                        multiCitySegments: prev.multiCitySegments || [
-                          { from: "", to: "", departureDate: undefined },
-                          { from: "", to: "", departureDate: undefined },
-                        ],
-                      }))
-                    }
-                    className="sr-only"
-                  />
-                  Nhiều chặng
-                </label>
+              ))}
+            </div>
+          </div>
+          {/* Full month toggle only one-way */}
+          {formData.tripType === "one-way" && (
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="full-month"
+                  checked={formData.searchFullMonth}
+                  onChange={(e) =>
+                    setFormData((p) => ({
+                      ...p,
+                      searchFullMonth: e.target.checked,
+                    }))
+                  }
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <Label
+                  htmlFor="full-month"
+                  className="ml-2 text-xs text-gray-700 font-medium flex items-center gap-2">
+                  Tìm kiếm cả tháng để có giá tốt nhất
+                  {formData.searchFullMonth && formData.departureDate && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-300">
+                      Tháng {format(formData.departureDate, "MM/yyyy")}
+                    </span>
+                  )}
+                </Label>
               </div>
             </div>
-          </div>
-          {/* Full month search toggle - Compact */}
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="full-month"
-                checked={formData.searchFullMonth}
-                onChange={(e) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    searchFullMonth: e.target.checked,
-                  }));
-                }}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <Label
-                htmlFor="full-month"
-                className="ml-2 text-xs text-gray-700 font-medium flex items-center gap-2">
-                Tìm kiếm cả tháng để có giá tốt nhất
-                {formData.searchFullMonth && formData.departureDate && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-300">
-                    Tháng {format(formData.departureDate, "MM/yyyy")}
-                  </span>
-                )}
-              </Label>
-            </div>
-          </div>
-          {/* Airline selection grid */}
+          )}
+          {/* Airlines grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-            {vietnameseAirlines.map((airline) => {
-              const active = selectedAirlines.includes(airline.id);
+            {vietnameseAirlines.map((al) => {
+              const active = selectedAirlines.includes(al.id);
               return (
                 <label
-                  key={airline.id}
-                  title={airline.name}
+                  key={al.id}
                   className={`group relative cursor-pointer flex items-center justify-center rounded-xl transition-all duration-200 h-24 w-full shadow-sm border overflow-hidden ${
                     active
                       ? "border-blue-400 bg-gradient-to-br from-blue-50 to-blue-100 ring-2 ring-blue-300"
                       : "border-gray-200 bg-gray-50 hover:bg-white hover:border-gray-300"
-                  }`}>
+                  }`}
+                  title={al.name}>
                   <input
                     type="checkbox"
                     checked={active}
-                    onChange={() => handleAirlineToggle(airline.id)}
+                    onChange={() => handleAirlineToggle(al.id)}
                     className="sr-only"
                   />
                   <img
-                    src={airline.logo}
-                    alt={airline.name}
+                    src={al.logo}
+                    alt={al.name}
+                    loading="lazy"
                     className={`object-contain w-full h-full p-4 transition-transform ${
                       active ? "scale-90" : "group-hover:scale-105"
                     }`}
-                    loading="lazy"
                   />
                   {active && (
                     <span className="absolute top-1 right-1 inline-block w-3 h-3 bg-blue-500 rounded-full ring-2 ring-white" />
@@ -537,97 +263,66 @@ const FlightSearchForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Main search form - Compact Layout */}
+        {/* Main form */}
         <div className="p-6">
-          {/* First row - Location inputs */}
+          {/* Locations row */}
           <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
-            {/* From Location */}
             <div className="md:col-span-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <Label
-                  htmlFor="from"
-                  className={`text-sm font-semibold flex items-center ${
-                    validationErrors.from ? "text-red-600" : "text-gray-700"
-                  }`}>
-                  <MapPin
-                    className={`h-4 w-4 mr-1 ${
-                      validationErrors.from ? "text-red-600" : "text-blue-600"
-                    }`}
-                  />
-                  Từ
-                  {validationErrors.from && (
-                    <span className="text-red-500 ml-1">*</span>
-                  )}
-                </Label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={getUserLocation}
-                  disabled={isGettingLocation}
-                  className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-                  {isGettingLocation ? (
-                    <>
-                      <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600 mr-1"></div>
-                      Đang tìm...
-                    </>
-                  ) : (
-                    <>
-                      <Navigation className="h-3 w-3 mr-1" />
-                      Vị trí của tôi
-                    </>
-                  )}
-                </Button>
-              </div>
+              <Label
+                className={`text-sm font-semibold flex items-center ${
+                  validationErrors.from ? "text-red-600" : "text-gray-700"
+                }`}>
+                <MapPin
+                  className={`h-4 w-4 mr-1 ${
+                    validationErrors.from ? "text-red-600" : "text-blue-600"
+                  }`}
+                />
+                Từ{" "}
+                {validationErrors.from && (
+                  <span className="text-red-500 ml-1">*</span>
+                )}
+              </Label>
               <Popover
                 open={showFromDropdown}
                 onOpenChange={setShowFromDropdown}>
                 <PopoverTrigger asChild>
                   <div className="relative">
                     <Input
-                      id="from"
                       value={formData.from || fromSearch}
+                      placeholder="Thành phố hoặc Sân bay"
                       onChange={(e) => {
                         setFromSearch(e.target.value);
-                        setFormData((prev) => ({
-                          ...prev,
-                          from: e.target.value,
-                        }));
+                        setFormData((p) => ({ ...p, from: e.target.value }));
                         setShowFromDropdown(true);
-                        // Clear validation error when user starts typing
-                        if (validationErrors.from) {
-                          setValidationErrors((prev) => ({
-                            ...prev,
-                            from: false,
-                          }));
-                        }
+                        if (validationErrors.from)
+                          setValidationErrors((p) => ({ ...p, from: false }));
                       }}
-                      placeholder="Thành phố hoặc Sân bay"
                       className={`h-12 text-base pl-4 pr-10 border-2 ${
                         validationErrors.from
                           ? "border-red-500 focus:border-red-500 focus:ring-red-200"
                           : "border-gray-200 focus:border-blue-500 focus:ring-blue-200"
                       } focus:ring-2 rounded-lg bg-gray-50/50`}
                     />
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   </div>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0" align="start">
                   <div className="max-h-60 overflow-y-auto">
                     {filterAirports(fromSearch, [
                       getAirportCodeFromString(formData.to),
-                    ]).map((airport) => (
+                    ]).map((ap) => (
                       <div
-                        key={airport.code}
-                        onClick={() => selectAirport(airport, "from")}
+                        key={ap.code}
+                        onClick={() => selectAirport(ap, "from")}
                         className="flex items-center justify-between p-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0">
                         <div className="flex items-center space-x-3">
                           <div className="bg-blue-100 text-blue-600 px-2 py-1 rounded text-sm font-bold">
-                            {airport.code}
+                            {ap.code}
                           </div>
                           <div>
-                            <div className="font-medium">{airport.city}</div>
+                            <div className="font-medium">{ap.city}</div>
                             <div className="text-sm text-gray-500">
-                              {airport.name}
+                              {ap.name}
                             </div>
                           </div>
                         </div>
@@ -637,22 +332,17 @@ const FlightSearchForm: React.FC = () => {
                 </PopoverContent>
               </Popover>
             </div>
-
-            {/* Swap Button - Compact */}
             <div className="md:col-span-1 flex justify-center items-end pb-2">
               <Button
                 onClick={swapLocations}
                 variant="outline"
                 size="sm"
-                className="h-10 w-10 rounded-full border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 bg-white shadow-sm transition-all duration-200">
+                className="h-10 w-10 rounded-full border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 bg-white shadow-sm">
                 <ArrowRightLeft className="h-4 w-4 text-blue-600" />
               </Button>
             </div>
-
-            {/* To Location */}
             <div className="md:col-span-3 space-y-2">
               <Label
-                htmlFor="to"
                 className={`text-sm font-semibold flex items-center ${
                   validationErrors.to ? "text-red-600" : "text-gray-700"
                 }`}>
@@ -661,7 +351,7 @@ const FlightSearchForm: React.FC = () => {
                     validationErrors.to ? "text-red-600" : "text-blue-600"
                   }`}
                 />
-                Đến
+                Đến{" "}
                 {validationErrors.to && (
                   <span className="text-red-500 ml-1">*</span>
                 )}
@@ -670,50 +360,41 @@ const FlightSearchForm: React.FC = () => {
                 <PopoverTrigger asChild>
                   <div className="relative">
                     <Input
-                      id="to"
                       value={formData.to || toSearch}
+                      placeholder="Thành phố hoặc Sân bay"
                       onChange={(e) => {
                         setToSearch(e.target.value);
-                        setFormData((prev) => ({
-                          ...prev,
-                          to: e.target.value,
-                        }));
+                        setFormData((p) => ({ ...p, to: e.target.value }));
                         setShowToDropdown(true);
-                        // Clear validation error when user starts typing
-                        if (validationErrors.to) {
-                          setValidationErrors((prev) => ({
-                            ...prev,
-                            to: false,
-                          }));
-                        }
+                        if (validationErrors.to)
+                          setValidationErrors((p) => ({ ...p, to: false }));
                       }}
-                      placeholder="Thành phố hoặc Sân bay"
                       className={`h-12 text-base pl-4 pr-10 border-2 ${
                         validationErrors.to
                           ? "border-red-500 focus:border-red-500 focus:ring-red-200"
                           : "border-gray-200 focus:border-blue-500 focus:ring-blue-200"
                       } focus:ring-2 rounded-lg bg-gray-50/50`}
                     />
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   </div>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0" align="start">
                   <div className="max-h-60 overflow-y-auto">
                     {filterAirports(toSearch, [
                       getAirportCodeFromString(formData.from),
-                    ]).map((airport) => (
+                    ]).map((ap) => (
                       <div
-                        key={airport.code}
-                        onClick={() => selectAirport(airport, "to")}
+                        key={ap.code}
+                        onClick={() => selectAirport(ap, "to")}
                         className="flex items-center justify-between p-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0">
                         <div className="flex items-center space-x-3">
                           <div className="bg-blue-100 text-blue-600 px-2 py-1 rounded text-sm font-bold">
-                            {airport.code}
+                            {ap.code}
                           </div>
                           <div>
-                            <div className="font-medium">{airport.city}</div>
+                            <div className="font-medium">{ap.city}</div>
                             <div className="text-sm text-gray-500">
-                              {airport.name}
+                              {ap.name}
                             </div>
                           </div>
                         </div>
@@ -725,36 +406,30 @@ const FlightSearchForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Second row - Dates (day or month), Passengers, Search */}
+          {/* Dates & passengers */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-            {/* Departure (day mode or month mode) */}
+            {/* Departure */}
             <div className="md:col-span-3 space-y-2">
               <Label
                 className={`text-sm font-semibold flex items-center ${
-                  validationErrors.departureDate
-                    ? "text-red-600"
-                    : "text-gray-700"
+                  !formData.departureDate ? "text-red-600" : "text-gray-700"
                 }`}>
                 <CalendarIcon
                   className={`h-4 w-4 mr-1 ${
-                    validationErrors.departureDate
-                      ? "text-red-600"
-                      : "text-blue-600"
+                    !formData.departureDate ? "text-red-600" : "text-blue-600"
                   }`}
                 />
-                {formData.searchFullMonth ? "Tháng khởi hành" : "Khởi hành"}
-                {validationErrors.departureDate && (
+                {formData.tripType === "one-way" && formData.searchFullMonth
+                  ? "Tháng khởi hành"
+                  : "Khởi hành"}{" "}
+                {!formData.departureDate && (
                   <span className="text-red-500 ml-1">*</span>
                 )}
               </Label>
-              {formData.searchFullMonth ? (
+              {formData.tripType === "one-way" && formData.searchFullMonth ? (
                 <input
                   type="month"
-                  className={`w-full h-12 px-4 border-2 rounded-lg bg-gray-50/50 text-base focus:outline-none focus:ring-2 ${
-                    validationErrors.departureDate
-                      ? "border-red-500 focus:ring-red-200"
-                      : "border-gray-200 focus:border-blue-500 focus:ring-blue-200"
-                  }`}
+                  className="w-full h-12 px-4 border-2 rounded-lg bg-gray-50/50 text-base focus:outline-none focus:ring-2 border-gray-200 focus:border-blue-500 focus:ring-blue-200"
                   value={
                     formData.departureDate
                       ? `${formData.departureDate.getFullYear()}-${String(
@@ -762,31 +437,13 @@ const FlightSearchForm: React.FC = () => {
                         ).padStart(2, "0")}`
                       : ""
                   }
-                  min={(() => {
-                    if (!DEV_CONFIG.HIDE_DEV_CONTROLS) return undefined;
-                    const now = new Date();
-                    return `${now.getFullYear()}-${String(
-                      now.getMonth() + 1
-                    ).padStart(2, "0")}`;
-                  })()}
                   onChange={(e) => {
                     if (!e.target.value) return;
                     const [y, m] = e.target.value.split("-").map(Number);
-                    const d = new Date(y, m - 1, 1);
-                    setFormData((prev) => ({ ...prev, departureDate: d }));
-                    if (validationErrors.departureDate) {
-                      setValidationErrors((prev) => ({
-                        ...prev,
-                        departureDate: false,
-                      }));
-                    }
-                    if (
-                      formData.tripType === "round-trip" &&
-                      formData.returnDate &&
-                      formData.returnDate < d
-                    ) {
-                      setFormData((prev) => ({ ...prev, returnDate: d }));
-                    }
+                    setFormData((p) => ({
+                      ...p,
+                      departureDate: new Date(y, m - 1, 1),
+                    }));
                   }}
                 />
               ) : (
@@ -794,18 +451,8 @@ const FlightSearchForm: React.FC = () => {
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className={`w-full h-12 justify-start text-left font-normal border-2 ${
-                        validationErrors.departureDate
-                          ? "border-red-500 hover:border-red-500"
-                          : "border-gray-200 hover:border-blue-400"
-                      } bg-gray-50/50 rounded-lg`}>
-                      <CalendarIcon
-                        className={`mr-3 h-4 w-4 ${
-                          validationErrors.departureDate
-                            ? "text-red-600"
-                            : "text-blue-600"
-                        }`}
-                      />
+                      className="w-full h-12 justify-start text-left font-normal border-2 border-gray-200 hover:border-blue-400 bg-gray-50/50 rounded-lg">
+                      <CalendarIcon className="mr-3 h-4 w-4 text-blue-600" />
                       <span className="text-base">
                         {formData.departureDate
                           ? format(formData.departureDate, "dd/MM/yyyy")
@@ -817,135 +464,67 @@ const FlightSearchForm: React.FC = () => {
                     <Calendar
                       mode="single"
                       selected={formData.departureDate}
-                      onSelect={(date) => {
-                        setFormData((prev) => ({
-                          ...prev,
-                          departureDate: date,
-                        }));
-                        if (validationErrors.departureDate) {
-                          setValidationErrors((prev) => ({
-                            ...prev,
-                            departureDate: false,
-                          }));
-                        }
-                      }}
-                      disabled={(date) => {
-                        if (!DEV_CONFIG.HIDE_DEV_CONTROLS) return false;
-                        const today = new Date(new Date().setHours(0, 0, 0, 0));
-                        return date < today;
-                      }}
+                      onSelect={(d) =>
+                        setFormData((p) => ({
+                          ...p,
+                          departureDate: d || undefined,
+                        }))
+                      }
                       initialFocus
                     />
                   </PopoverContent>
                 </Popover>
               )}
             </div>
-
-            {/* Return (day or month) */}
+            {/* Return date (round-trip only) */}
             {formData.tripType === "round-trip" && (
               <div className="md:col-span-3 space-y-2">
                 <Label className="text-sm font-semibold flex items-center text-gray-700">
                   <CalendarIcon className="h-4 w-4 mr-1 text-blue-600" />
-                  {formData.searchFullMonth ? "Tháng về" : "Về"}
+                  Về
                 </Label>
-                {formData.searchFullMonth ? (
-                  <input
-                    type="month"
-                    className="w-full h-12 px-4 border-2 rounded-lg bg-gray-50/50 text-base focus:outline-none focus:ring-2 border-gray-200 focus:border-blue-500 focus:ring-blue-200"
-                    value={
-                      formData.returnDate
-                        ? `${formData.returnDate.getFullYear()}-${String(
-                            formData.returnDate.getMonth() + 1
-                          ).padStart(2, "0")}`
-                        : ""
-                    }
-                    min={(() => {
-                      const base = formData.departureDate || new Date();
-                      if (!DEV_CONFIG.HIDE_DEV_CONTROLS) return undefined;
-                      return `${base.getFullYear()}-${String(
-                        base.getMonth() + 1
-                      ).padStart(2, "0")}`;
-                    })()}
-                    onChange={(e) => {
-                      if (!e.target.value) return;
-                      const [y, m] = e.target.value.split("-").map(Number);
-                      const d = new Date(y, m - 1, 1);
-                      if (formData.departureDate && d < formData.departureDate)
-                        return; // ignore invalid
-                      setFormData((prev) => ({ ...prev, returnDate: d }));
-                    }}
-                  />
-                ) : (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full h-12 justify-start text-left font-normal border-2 border-gray-200 hover:border-blue-400 bg-gray-50/50 rounded-lg">
-                        <CalendarIcon className="mr-3 h-4 w-4 text-blue-600" />
-                        <span className="text-base">
-                          {formData.returnDate
-                            ? format(formData.returnDate, "dd/MM/yyyy")
-                            : "Chọn ngày"}
-                        </span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={formData.returnDate}
-                        onSelect={(date) =>
-                          setFormData((prev) => ({ ...prev, returnDate: date }))
-                        }
-                        disabled={(date) => {
-                          if (!DEV_CONFIG.HIDE_DEV_CONTROLS) {
-                            if (
-                              formData.departureDate &&
-                              date <= formData.departureDate
-                            )
-                              return true;
-                            return false;
-                          }
-                          const today = new Date(
-                            new Date().setHours(0, 0, 0, 0)
-                          );
-                          if (date < today) return true;
-                          if (
-                            formData.departureDate &&
-                            date <= formData.departureDate
-                          )
-                            return true;
-                          return false;
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                )}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full h-12 justify-start text-left font-normal border-2 border-gray-200 hover:border-blue-400 bg-gray-50/50 rounded-lg">
+                      <CalendarIcon className="mr-3 h-4 w-4 text-blue-600" />
+                      <span className="text-base">
+                        {formData.returnDate
+                          ? format(formData.returnDate, "dd/MM/yyyy")
+                          : "Chọn ngày"}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.returnDate}
+                      onSelect={(d) =>
+                        setFormData((p) => ({
+                          ...p,
+                          returnDate: d || undefined,
+                        }))
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             )}
-
-            {/* Months count (only in month mode) */}
-            {formData.searchFullMonth && (
-              <div
-                className={`$${
-                  formData.tripType === "round-trip"
-                    ? "md:col-span-2"
-                    : "md:col-span-3"
-                } space-y-2`}>
+            {/* Months count (only when month search active) */}
+            {formData.tripType === "one-way" && formData.searchFullMonth && (
+              <div className="md:col-span-2 space-y-2">
                 <Label className="text-sm font-semibold text-gray-700 flex items-center">
-                  <CalendarMonth className="h-4 w-4 mr-1 text-blue-600" /> Số
-                  tháng
+                  <CalendarMonth className="h-4 w-4 mr-1 text-blue-600" />
+                  Số tháng
                 </Label>
                 <Select
                   value={String(
-                    (formData as unknown as { monthsCount?: number })
-                      .monthsCount || 1
+                    (formData as { monthsCount?: number }).monthsCount || 1
                   )}
-                  onValueChange={(val) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      monthsCount: Number(val),
-                    }))
+                  onValueChange={(v) =>
+                    setFormData((p) => ({ ...p, monthsCount: Number(v) }))
                   }>
                   <SelectTrigger className="w-full h-12">
                     <SelectValue />
@@ -960,18 +539,15 @@ const FlightSearchForm: React.FC = () => {
                 </Select>
               </div>
             )}
-
             {/* Passengers & Class */}
             <div
-              className={`${
+              className={`space-y-2 ${
                 formData.tripType === "round-trip"
-                  ? formData.searchFullMonth
-                    ? "md:col-span-4"
-                    : "md:col-span-4"
+                  ? "md:col-span-4"
                   : formData.searchFullMonth
-                  ? "md:col-span-6"
-                  : "md:col-span-7"
-              } space-y-2`}>
+                  ? "md:col-span-4"
+                  : "md:col-span-5"
+              }`}>
               <Label className="text-sm font-semibold text-gray-700 flex items-center">
                 <Users className="h-4 w-4 mr-1 text-blue-600" />
                 Hành khách & Hạng
@@ -991,17 +567,15 @@ const FlightSearchForm: React.FC = () => {
                         {getClassText()}
                       </span>
                     </div>
-                    <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0 ml-2" />
+                    <ChevronDown className="h-4 w-4 text-gray-400 ml-2" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-96 p-0" align="start">
                   <div className="p-6 space-y-6">
-                    {/* Passenger counts */}
                     <div className="space-y-4">
                       <h4 className="font-semibold text-gray-900 border-b pb-2">
                         Số lượng hành khách
                       </h4>
-
                       {/* Adults */}
                       <div className="flex items-center justify-between py-2">
                         <div className="flex items-center space-x-3">
@@ -1040,7 +614,6 @@ const FlightSearchForm: React.FC = () => {
                           </Button>
                         </div>
                       </div>
-
                       {/* Children */}
                       <div className="flex items-center justify-between py-2">
                         <div className="flex items-center space-x-3">
@@ -1081,7 +654,6 @@ const FlightSearchForm: React.FC = () => {
                           </Button>
                         </div>
                       </div>
-
                       {/* Infants */}
                       <div className="flex items-center justify-between py-2">
                         <div className="flex items-center space-x-3">
@@ -1123,7 +695,6 @@ const FlightSearchForm: React.FC = () => {
                         </div>
                       </div>
                     </div>
-
                     {/* Flight Class */}
                     <div className="space-y-3">
                       <h4 className="font-semibold text-gray-900 border-b pb-2">
@@ -1131,27 +702,20 @@ const FlightSearchForm: React.FC = () => {
                       </h4>
                       <Select
                         value={formData.flightClass}
-                        onValueChange={(value) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            flightClass: value,
-                          }))
+                        onValueChange={(v) =>
+                          setFormData((p) => ({ ...p, flightClass: v }))
                         }>
                         <SelectTrigger className="w-full h-12">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {flightClasses.map((flightClass) => (
-                            <SelectItem
-                              key={flightClass.value}
-                              value={flightClass.value}>
+                          {flightClasses.map((fc) => (
+                            <SelectItem key={fc.value} value={fc.value}>
                               <div className="flex flex-col">
-                                <span className="font-medium">
-                                  {flightClass.label}
-                                </span>
-                                {flightClass.description && (
+                                <span className="font-medium">{fc.label}</span>
+                                {fc.description && (
                                   <span className="text-xs text-gray-500">
-                                    {flightClass.description}
+                                    {fc.description}
                                   </span>
                                 )}
                               </div>
@@ -1160,7 +724,6 @@ const FlightSearchForm: React.FC = () => {
                         </SelectContent>
                       </Select>
                     </div>
-
                     {/* Special Requirements */}
                     <div className="space-y-3">
                       <h4 className="font-semibold text-gray-900 border-b pb-2">
@@ -1168,27 +731,20 @@ const FlightSearchForm: React.FC = () => {
                       </h4>
                       <Select
                         value={formData.specialRequirements}
-                        onValueChange={(value) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            specialRequirements: value,
-                          }))
+                        onValueChange={(v) =>
+                          setFormData((p) => ({ ...p, specialRequirements: v }))
                         }>
                         <SelectTrigger className="w-full h-12">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {specialRequirements.map((requirement) => (
-                            <SelectItem
-                              key={requirement.value}
-                              value={requirement.value}>
+                          {specialRequirements.map((r) => (
+                            <SelectItem key={r.value} value={r.value}>
                               <div className="flex flex-col">
-                                <span className="font-medium">
-                                  {requirement.label}
-                                </span>
-                                {requirement.description && (
+                                <span className="font-medium">{r.label}</span>
+                                {r.description && (
                                   <span className="text-xs text-gray-500">
-                                    {requirement.description}
+                                    {r.description}
                                   </span>
                                 )}
                               </div>
@@ -1197,7 +753,6 @@ const FlightSearchForm: React.FC = () => {
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="pt-4 border-t">
                       <Button
                         onClick={() => setShowPassengerDropdown(false)}
@@ -1209,8 +764,7 @@ const FlightSearchForm: React.FC = () => {
                 </PopoverContent>
               </Popover>
             </div>
-
-            {/* Search Button */}
+            {/* Search */}
             <div className="md:col-span-2">
               <Button
                 onClick={handleSearchWithValidation}
@@ -1218,7 +772,7 @@ const FlightSearchForm: React.FC = () => {
                 className="w-full h-12 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold text-base shadow-lg hover:shadow-xl transition-all duration-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
                 {isLoading ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
                     Đang tìm kiếm...
                   </>
                 ) : (
@@ -1228,203 +782,28 @@ const FlightSearchForm: React.FC = () => {
                   </>
                 )}
               </Button>
-
-              {/* Validation Error Message */}
               {(validationErrors.from ||
                 validationErrors.to ||
                 validationErrors.departureDate) && (
-                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-start space-x-2">
-                    <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-red-700 text-sm font-medium mb-1">
-                        Vui lòng điền đầy đủ thông tin:
-                      </p>
-                      <ul className="text-red-600 text-xs space-y-1">
-                        {validationErrors.from && (
-                          <li>• Chọn điểm khởi hành</li>
-                        )}
-                        {validationErrors.to && <li>• Chọn điểm đến</li>}
-                        {validationErrors.departureDate && (
-                          <li>• Chọn ngày khởi hành</li>
-                        )}
-                      </ul>
-                    </div>
-                  </div>
+                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+                  Vui lòng điền đủ thông tin bắt buộc.
                 </div>
               )}
-
-              {/* API Error Message */}
               {searchError && (
-                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-start space-x-2">
-                    <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-red-700 text-sm font-medium">
-                      Lỗi tìm kiếm: {searchError}
-                    </p>
-                  </div>
+                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+                  Lỗi tìm kiếm: {searchError}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Multi-city segments */}
-          {formData.tripType === "multi-city" && formData.multiCitySegments && (
-            <div className="space-y-4 mt-6 p-4 bg-gray-50 rounded-xl">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Chuyến bay nhiều chặng
-                </h3>
-                <Button
-                  onClick={addMultiCitySegment}
-                  disabled={formData.multiCitySegments.length >= 3}
-                  variant="outline"
-                  size="sm"
-                  className="text-blue-600 border-blue-300 hover:bg-blue-50">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Thêm chặng
-                </Button>
-              </div>
-
-              {formData.multiCitySegments.map((segment, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-white rounded-lg border border-gray-200">
-                  <div className="flex items-center space-x-2 md:col-span-4 mb-2">
-                    <span className="text-sm font-medium text-gray-600">
-                      Chặng {index + 1}
-                    </span>
-                    {formData.multiCitySegments &&
-                      formData.multiCitySegments.length > 2 && (
-                        <Button
-                          onClick={() => removeMultiCitySegment(index)}
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 ml-auto">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                  </div>
-
-                  {/* From */}
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">
-                      Từ
-                    </Label>
-                    <Input
-                      type="text"
-                      value={segment.from}
-                      onChange={(e) =>
-                        updateMultiCitySegment(index, "from", e.target.value)
-                      }
-                      placeholder="Chọn điểm khởi hành"
-                      className="mt-1"
-                    />
-                  </div>
-
-                  {/* To */}
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">
-                      Đến
-                    </Label>
-                    <Input
-                      type="text"
-                      value={segment.to}
-                      onChange={(e) =>
-                        updateMultiCitySegment(index, "to", e.target.value)
-                      }
-                      placeholder="Chọn điểm đến"
-                      className="mt-1"
-                    />
-                  </div>
-
-                  {/* Departure Date */}
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">
-                      Ngày khởi hành
-                    </Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full mt-1 justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {segment.departureDate
-                            ? format(segment.departureDate, "dd/MM/yyyy")
-                            : "Chọn ngày"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={segment.departureDate}
-                          onSelect={(date) =>
-                            updateMultiCitySegment(index, "departureDate", date)
-                          }
-                          disabled={(date) => {
-                            const today = new Date(
-                              new Date().setHours(0, 0, 0, 0)
-                            );
-                            return date < today;
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-              ))}
+          {formData.tripType === "one-way" && formData.searchFullMonth && (
+            <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200 text-sm text-blue-700">
+              Hiển thị giá vé cả tháng để chọn ngày tốt nhất.
             </div>
           )}
-
-          {/* Month search option */}
-          {formData.searchFullMonth && (
-            <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <div className="flex items-center space-x-3">
-                <CalendarMonth className="h-5 w-5 text-blue-600" />
-                <div>
-                  <div className="font-medium text-blue-900">
-                    Tìm kiếm cả tháng
-                  </div>
-                  <div className="text-sm text-blue-700">
-                    Chúng tôi sẽ hiển thị giá vé cho toàn bộ tháng để bạn chọn
-                    ngày có giá tốt nhất
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Popular Destinations - Simplified */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm font-medium text-gray-700 mb-4 flex items-center">
-              <MapPin className="h-4 w-4 mr-2 text-blue-600" />
-              Điểm đến phổ biến:
-            </p>
-            <div className="flex flex-wrap gap-3">
-              {getPopularDestinations().map((airport) => (
-                <Button
-                  key={airport.code}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => selectPopularDestination(airport)}
-                  className={`text-sm border-gray-300 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 bg-white rounded-lg px-4 py-2 transition-all duration-300 ${
-                    removingAirportCode === airport.code
-                      ? "opacity-0 scale-75 transform"
-                      : "opacity-100 scale-100"
-                  }`}>
-                  <Badge variant="secondary" className="mr-2 text-xs">
-                    {airport.code}
-                  </Badge>
-                  {airport.city}
-                </Button>
-              ))}
-            </div>
-          </div>
         </div>
       </CardContent>
     </Card>
   );
-};
-
-export default FlightSearchForm;
+}

@@ -45,7 +45,7 @@ const methods: {
     label: "Tại văn phòng",
     desc: "Thanh toán trực tiếp Quận 1",
     icon: <Building2 className="w-5 h-5" />,
-    hint: "Giữ chỗ 24h",
+  hint: "Giữ chỗ 2h",
   },
 ];
 
@@ -69,7 +69,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-blue-600" /> Thanh toán an toàn
+          <ShieldCheck className="w-5 h-5 text-blue-600" /> Giữ chỗ / Thanh toán
         </h3>
         {processing && (
           <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 animate-pulse">
@@ -83,7 +83,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 relative z-10">
           <div>
             <span className="text-xs uppercase tracking-wide text-gray-500 font-medium">
-              Tổng thanh toán
+              Tổng giá vé
             </span>
             <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">
               {amount.toLocaleString("vi-VN")} {currency}
@@ -99,7 +99,9 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
         </div>
         {/* Methods */}
         <div className="space-y-4 relative z-10">
-          <p className="text-xs text-gray-600 font-medium">Chọn phương thức:</p>
+          <p className="text-xs text-gray-600 font-medium">
+            Chọn phương thức ("Tại văn phòng" = giữ chỗ 2h, thanh toán sau)
+          </p>
           <div className="grid md:grid-cols-3 gap-4">
             {methods.map((m) => {
               const active = method === m.id;
@@ -157,9 +159,10 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           </div>
           {method === "office" && (
             <div className="text-[11px] p-3 rounded-lg bg-amber-50/80 border border-amber-200 text-amber-800 backdrop-blur-sm">
-              Vui lòng đến <b>Văn phòng Fly Journey</b>: 123 Nguyễn Huệ, P.Bến
-              Nghé, Q.1, TP.HCM trong vòng <b>24h</b> để hoàn tất thanh toán.
-              Sau thời gian này giữ chỗ sẽ tự hủy.
+              Bạn đang chọn hình thức <b>giữ chỗ 2h</b>. Vui lòng đến {" "}
+              <b>Văn phòng Fly Journey</b>: 123 Nguyễn Huệ, P.Bến Nghé, Q.1,
+              TP.HCM trong vòng <b>2h</b> để thanh toán & xác nhận. Sau thời
+              gian này giữ chỗ sẽ tự hủy tự động.
             </div>
           )}
         </div>
@@ -180,8 +183,8 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
             {processing
               ? "Đang xử lý..."
               : method === "office"
-              ? "Xác nhận giữ chỗ"
-              : "Thanh toán"}
+              ? "Xác nhận giữ chỗ 2h"
+              : "Thanh toán ngay"}
           </Button>
         </div>
       </div>

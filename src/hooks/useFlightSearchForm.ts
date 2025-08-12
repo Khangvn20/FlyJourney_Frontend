@@ -206,6 +206,12 @@ export const useFlightSearchForm = () => {
     };
   });
 
+  // Ref to avoid stale tripType during immediate search after toggle
+  const tripTypeRef = useRef(formData.tripType);
+  useEffect(() => {
+    tripTypeRef.current = formData.tripType;
+  }, [formData.tripType]);
+
   // Save form data to localStorage whenever it changes
   useEffect(() => {
     saveSearchData(formData);
@@ -259,6 +265,27 @@ export const useFlightSearchForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
+  // Old minimum spinner duration replaced by new phased loading UX:
+  // First 5s: skeleton (handled in Search page) then progressive reveal by airline.
+  // Keep month-search loops using a soft minimum to avoid flicker while days stream.
+  const MIN_MONTH_SEARCH_DURATION_MS = 4000;
+
+  const ensureMonthMinDuration = async (start: number) => {
+    const elapsed = Date.now() - start;
+    if (elapsed < MIN_MONTH_SEARCH_DURATION_MS) {
+      await new Promise((r) =>
+        setTimeout(r, MIN_MONTH_SEARCH_DURATION_MS - elapsed)
+      );
+    }
+  };
+
+  // Public helper to clear stored results (used when switching trip type)
+  const clearStoredResults = () => {
+    sessionStorage.removeItem("flightSearchResults");
+    sessionStorage.removeItem("tripType");
+    window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+  };
+
   const handleSearch = async () => {
     // Validation
     if (!formData.departureDate) {
@@ -276,9 +303,17 @@ export const useFlightSearchForm = () => {
       return;
     }
 
+    const searchStart = Date.now();
     try {
       setIsLoading(true);
+      // Mark new search start for skeleton phase coordination (normal searches)
+      const startedAt = Date.now();
+      sessionStorage.setItem("flightSearchStartedAt", String(startedAt));
+      sessionStorage.setItem("flightSearchSearchId", String(startedAt));
+      sessionStorage.removeItem("flightSearchProgressiveApplied");
       setSearchError(null);
+      // Always clear previous results before any new search to avoid stale data
+      clearStoredResults();
 
       if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
         console.log("🔍 Searching flights with data:", formData);
@@ -290,7 +325,9 @@ export const useFlightSearchForm = () => {
         return match ? match[1] : locationString;
       };
 
-      const isRoundTrip = formData.tripType === "round-trip";
+      // Use ref to ensure latest tripType (avoids race when user clicks search immediately after toggling)
+      const currentTripType = tripTypeRef.current;
+      const isRoundTrip = currentTripType === "round-trip";
 
       let apiRequest: SimpleSearchRequest | RoundTripSearchRequest;
 
@@ -361,7 +398,14 @@ export const useFlightSearchForm = () => {
 
       if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
         console.log("🔍 API search request:", apiRequest);
-        console.log("🔄 Trip type:", isRoundTrip ? "Round-trip" : "One-way");
+        console.log(
+          "🔄 Trip type (effective):",
+          isRoundTrip ? "Round-trip" : "One-way",
+          "| formData.tripType=",
+          formData.tripType,
+          "| ref=",
+          currentTripType
+        );
       }
 
       // If user requested full month search
@@ -487,6 +531,8 @@ export const useFlightSearchForm = () => {
             window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
             sessionStorage.removeItem("cancelMonthSearch");
           }
+          await ensureMonthMinDuration(searchStart);
+          setIsLoading(false);
           return;
         }
 
@@ -606,6 +652,8 @@ export const useFlightSearchForm = () => {
           );
           window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
           sessionStorage.removeItem("cancelMonthSearch");
+          await ensureMonthMinDuration(searchStart);
+          setIsLoading(false);
           return;
         }
         // Phase 2: inbound
@@ -651,13 +699,17 @@ export const useFlightSearchForm = () => {
         sessionStorage.setItem("flightSearchResults", JSON.stringify(wrapper));
         window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
         sessionStorage.removeItem("cancelMonthSearch");
+        await ensureMonthMinDuration(searchStart);
+        setIsLoading(false);
         return;
       }
 
       // Normal single search call
       const results = await callApiDirectly(apiRequest, isRoundTrip);
+      // Normal search: no artificial 8s wait. Skeleton phase handled externally.
       sessionStorage.setItem("flightSearchResults", JSON.stringify(results));
-      sessionStorage.setItem("tripType", formData.tripType);
+      sessionStorage.setItem("tripType", currentTripType);
+      sessionStorage.setItem("flightSearchCompletedAt", String(Date.now()));
       window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
       navigate("/search");
     } catch (error) {
@@ -666,7 +718,13 @@ export const useFlightSearchForm = () => {
       }
       setSearchError(error instanceof Error ? error.message : "Search failed");
     } finally {
-      setIsLoading(false);
+      // For month searches we already turned off loading after loops; avoid double clear
+      if (formData.searchFullMonth) {
+        // ensure we don't leave it true on early validation failure
+        setTimeout(() => setIsLoading(false), 0);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -717,7 +775,9 @@ export const useFlightSearchForm = () => {
         );
         window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
       }
+      setIsLoading(false);
     },
+    clearStoredResults,
     isLoading,
     searchError,
   };

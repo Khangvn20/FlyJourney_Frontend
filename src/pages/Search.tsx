@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import FlightSearchForm from "../components/flight/FlightSearchForm";
 import FilterSidebar from "../components/flight/FilterSidebar";
@@ -7,6 +7,7 @@ import OneWayFlightList from "../components/flight/OneWayFlightList";
 import RoundTripFlightList from "../components/flight/RoundTripFlightList";
 import SearchResultsHeader from "../components/flight/SearchResultsHeader";
 import LoadMoreButton from "../components/common/LoadMoreButton";
+import FlightCardSkeleton from "../components/flight/FlightCardSkeleton";
 import {
   Calendar as CalendarIcon,
   X as XIcon,
@@ -250,6 +251,14 @@ const Search: React.FC = () => {
   const [tripType, setTripType] = useState<string>("one-way");
   const [error, setError] = useState<string | null>(null);
   const [showMonthOverview, setShowMonthOverview] = useState(true);
+  // New phased loading UX states
+  const [skeletonActive, setSkeletonActive] = useState(false);
+  const [progressiveFlights, setProgressiveFlights] = useState<
+    FlightSearchApiResult[]
+  >([]);
+  const progressiveTimerRef = useRef<number | null>(null);
+  const skeletonTimerRef = useRef<number | null>(null);
+  const lastAppliedSearchIdRef = useRef<string | null>(null);
 
   // Round-trip specific state
   const [activeTab, setActiveTab] = useState<"outbound" | "inbound">(
@@ -357,6 +366,9 @@ const Search: React.FC = () => {
     }
 
     setTripType(storedTripType);
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+      console.log("🔁 Stored tripType loaded:", storedTripType);
+    }
 
     if (storedResults) {
       try {
@@ -435,6 +447,98 @@ const Search: React.FC = () => {
             );
           }
 
+          // --- Legacy / variant round-trip schema normalization ---
+          // Some backend variants wrap outbound_flights / inbound_flights inside an object at data.search_results
+          // e.g. { search_results: { outbound_flights: [...], inbound_flights: [...] }, outbound_total_count, ... }
+          // Before applying standard type guards, detect & normalize this shape.
+          const dUnknown = results.data as unknown;
+          const dAny: Record<string, unknown> =
+            typeof dUnknown === "object" && dUnknown !== null
+              ? (dUnknown as Record<string, unknown>)
+              : ({} as Record<string, unknown>);
+          const srRaw = dAny.search_results as unknown;
+          const srObj: Record<string, unknown> | null =
+            srRaw && typeof srRaw === "object" && !Array.isArray(srRaw)
+              ? (srRaw as Record<string, unknown>)
+              : null;
+          if (srObj) {
+            const outboundRaw = srObj.outbound_flights as unknown;
+            const inboundRaw = srObj.inbound_flights as unknown;
+            const outboundArr: FlightSearchApiResult[] = Array.isArray(
+              outboundRaw
+            )
+              ? (outboundRaw as FlightSearchApiResult[])
+              : [];
+            const inboundArr: FlightSearchApiResult[] = Array.isArray(
+              inboundRaw
+            )
+              ? (inboundRaw as FlightSearchApiResult[])
+              : [];
+            const variantDetected =
+              outboundArr.length > 0 || inboundArr.length > 0;
+            if (variantDetected) {
+              if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+                console.log(
+                  "🛠 Detected nested round-trip variant -> normalizing (out/in):",
+                  outboundArr.length,
+                  inboundArr.length
+                );
+              }
+              const passengersCandidate = (dAny.passengers ||
+                dAny.passenger_count) as
+                | { adults: number; children?: number; infants?: number }
+                | undefined;
+              const normalized: RoundTripLike = {
+                arrival_airport:
+                  (dAny.arrival_airport as string) ||
+                  (dAny.to_airport as string) ||
+                  "",
+                departure_airport:
+                  (dAny.departure_airport as string) ||
+                  (dAny.from_airport as string) ||
+                  "",
+                departure_date: (dAny.departure_date as string) || "",
+                return_date: dAny.return_date as string | undefined,
+                flight_class: (dAny.flight_class as string) || "all",
+                limit: (dAny.limit as number) || outboundArr.length || 0,
+                page: (dAny.page as number) || 1,
+                passengers: passengersCandidate || {
+                  adults: 1,
+                  children: 0,
+                  infants: 0,
+                },
+                outbound_search_results: outboundArr,
+                outbound_total_count:
+                  (dAny.outbound_total_count as number) ??
+                  outboundArr.length ??
+                  0,
+                outbound_total_pages:
+                  (dAny.outbound_total_pages as number) ?? 1,
+                inbound_search_results: inboundArr,
+                inbound_total_count:
+                  (dAny.inbound_total_count as number) ??
+                  inboundArr.length ??
+                  0,
+                inbound_total_pages: (dAny.inbound_total_pages as number) ?? 1,
+                sort_by: (dAny.sort_by as string) || "price",
+                sort_order: (dAny.sort_order as string) || "asc",
+              };
+              setTripType("round-trip");
+              setFlightResults(outboundArr);
+              setReturnFlightResults(inboundArr);
+              setSearchInfo(normalized as unknown as FlightSearchResponseData);
+              setError(null);
+              if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+                console.log(
+                  "✅ Normalized nested round-trip variant -> outbound/inbound counts:",
+                  outboundArr.length,
+                  inboundArr.length
+                );
+              }
+              return; // Skip further processing since handled
+            }
+          }
+
           // Check if this is a round-trip response
           if (isRoundTripResponse(results.data)) {
             if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
@@ -450,7 +554,14 @@ const Search: React.FC = () => {
             }
 
             // Force tripType to round-trip in case storedTripType wasn't set properly
-            setTripType("round-trip");
+            if (tripType !== "round-trip") {
+              if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+                console.log(
+                  "⚙️ Adjusting tripType -> round-trip based on data"
+                );
+              }
+              setTripType("round-trip");
+            }
             // Set outbound and inbound flights
             setFlightResults(results.data.outbound_search_results || []);
             setReturnFlightResults(results.data.inbound_search_results || []);
@@ -476,7 +587,22 @@ const Search: React.FC = () => {
             }
 
             // Set one-way flights
-            setFlightResults(results.data.search_results || []);
+            if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+              console.log("🎯 Treating response as one-way");
+            }
+            const sr = Array.isArray(results.data.search_results)
+              ? results.data.search_results
+              : [];
+            if (
+              !Array.isArray(results.data.search_results) &&
+              DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+              shouldShowDevControls()
+            ) {
+              console.warn(
+                "⚠️ search_results was not an array (unexpected for one-way) -> coerced to []"
+              );
+            }
+            setFlightResults(sr);
             setReturnFlightResults([]);
             setSearchInfo(results.data);
             setError(null);
@@ -582,6 +708,90 @@ const Search: React.FC = () => {
     loadSearchResults();
   }, []);
 
+  // Progressive reveal effect when new search results arrive (non-month searches)
+  useEffect(() => {
+    // If month meta present, skip progressive (already streams per day)
+    if (monthMeta) return;
+    const storedId = sessionStorage.getItem("flightSearchSearchId");
+    if (storedId && storedId !== lastAppliedSearchIdRef.current) {
+      // New search initiated -> start skeleton phase
+      lastAppliedSearchIdRef.current = storedId;
+      const started = Number(
+        sessionStorage.getItem("flightSearchStartedAt") || Date.now()
+      );
+      const now = Date.now();
+      const SKELETON_MS = 5000; // 5s skeleton requirement
+      const remaining = Math.max(0, SKELETON_MS - (now - started));
+      setSkeletonActive(true);
+      setProgressiveFlights([]);
+      if (skeletonTimerRef.current)
+        window.clearTimeout(skeletonTimerRef.current);
+      skeletonTimerRef.current = window.setTimeout(() => {
+        setSkeletonActive(false);
+        // After skeleton phase, if results already loaded, trigger progressive build
+        triggerProgressiveReveal();
+      }, remaining);
+    } else if (!skeletonActive) {
+      // If skeleton already ended and we get new data, attempt progressive reveal
+      triggerProgressiveReveal();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flightResults, returnFlightResults, monthMeta]);
+
+  const groupFlightsByAirline = (flights: FlightSearchApiResult[]) => {
+    const map = new Map<string, FlightSearchApiResult[]>();
+    flights.forEach((f) => {
+      const key = f.airline_name || "UNKNOWN";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(f);
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([, arr]) => arr);
+  };
+
+  const triggerProgressiveReveal = () => {
+    if (skeletonActive) return; // wait until skeleton done
+    if (monthMeta) return; // skip for month mode
+    if (!flightResults || flightResults.length === 0) {
+      setProgressiveFlights([]);
+      return;
+    }
+    if (
+      sessionStorage.getItem("flightSearchProgressiveApplied") ===
+      lastAppliedSearchIdRef.current
+    ) {
+      return; // Already applied for this search id
+    }
+    sessionStorage.setItem(
+      "flightSearchProgressiveApplied",
+      lastAppliedSearchIdRef.current || ""
+    );
+    const groups = groupFlightsByAirline(flightResults);
+    setProgressiveFlights([]);
+    if (progressiveTimerRef.current)
+      window.clearTimeout(progressiveTimerRef.current);
+    let idx = 0;
+    const step = () => {
+      setProgressiveFlights((prev) => [...prev, ...groups[idx]]);
+      idx += 1;
+      if (idx < groups.length) {
+        progressiveTimerRef.current = window.setTimeout(step, 350); // 350ms per airline batch
+      }
+    };
+    step();
+  };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (progressiveTimerRef.current)
+        window.clearTimeout(progressiveTimerRef.current);
+      if (skeletonTimerRef.current)
+        window.clearTimeout(skeletonTimerRef.current);
+    };
+  }, []);
+
   // Listen for storage changes to update results in real-time
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -590,6 +800,14 @@ const Search: React.FC = () => {
           console.log("🔄 SessionStorage updated, reloading search results...");
         }
         loadSearchResults();
+      }
+      if (e.key === "tripType") {
+        const t = sessionStorage.getItem("tripType") || "one-way";
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+          console.log("🧭 tripType storage event ->", t);
+        }
+        setTripType(t);
+        if (t !== "round-trip") setActiveTab("outbound");
       }
     };
 
@@ -604,6 +822,11 @@ const Search: React.FC = () => {
         );
       }
       loadSearchResults();
+      const t = sessionStorage.getItem("tripType");
+      if (t) {
+        setTripType(t);
+        if (t !== "round-trip") setActiveTab("outbound");
+      }
     };
 
     window.addEventListener("sessionStorageUpdated", handleCustomStorageUpdate);
@@ -616,6 +839,18 @@ const Search: React.FC = () => {
       );
     };
   }, []);
+
+  // Decide which flights array to present (progressive vs full) for one-way normal searches
+  const displayOneWayFlights = !monthMeta
+    ? skeletonActive
+      ? []
+      : progressiveFlights.length > 0 ||
+        (lastAppliedSearchIdRef.current &&
+          sessionStorage.getItem("flightSearchProgressiveApplied") ===
+            lastAppliedSearchIdRef.current)
+      ? progressiveFlights
+      : flightResults
+    : flightResults;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/40 to-gray-50">
@@ -646,6 +881,12 @@ const Search: React.FC = () => {
             filteredFlights={filteredFlights}
             vietnameseAirlines={vietnameseAirlines}
             onAirlineToggle={handleAirlineToggle}
+            skeletonActive={skeletonActive}
+            progressiveCount={
+              !monthMeta && tripType !== "round-trip"
+                ? progressiveFlights.length
+                : undefined
+            }
           />
 
           {/* Main Results */}
@@ -660,6 +901,12 @@ const Search: React.FC = () => {
               activeTab={activeTab}
               filters={filters}
               setFilters={setFilters}
+              progressiveCount={
+                !monthMeta && tripType !== "round-trip"
+                  ? progressiveFlights.length
+                  : undefined
+              }
+              skeletonActive={skeletonActive}
             />
 
             {/* Debug Section */}
@@ -760,8 +1007,8 @@ const Search: React.FC = () => {
             {/* Flight Lists or grouped per-day results */}
             {tripType === "round-trip" ? (
               <RoundTripFlightList
-                outboundFlights={filteredFlights}
-                inboundFlights={filteredReturnFlights}
+                outboundFlights={skeletonActive ? [] : filteredFlights}
+                inboundFlights={skeletonActive ? [] : filteredReturnFlights}
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
                 selectedOutboundFlight={selectedOutboundFlight}
@@ -817,16 +1064,28 @@ const Search: React.FC = () => {
               </div>
             ) : (
               <OneWayFlightList
-                flights={filteredFlights}
+                flights={displayOneWayFlights}
                 sortBy={filters.sortBy}
                 vietnameseAirlines={vietnameseAirlines}
                 onFlightSelect={handleFlightSelection}
                 error={error}
+                suppressEmpty={skeletonActive}
               />
             )}
 
+            {/* Skeleton placeholder (only when active & not month search) */}
+            {skeletonActive && !monthMeta && (
+              <div className="space-y-3">
+                {Array.from({ length: tripType === "round-trip" ? 6 : 4 }).map(
+                  (_, i) => (
+                    <FlightCardSkeleton key={i} />
+                  )
+                )}
+              </div>
+            )}
+
             {/* Load More Button */}
-            {!monthMeta && (
+            {!monthMeta && !skeletonActive && (
               <LoadMoreButton
                 searchInfo={searchInfo}
                 filteredFlights={filteredFlights}

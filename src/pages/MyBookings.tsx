@@ -31,7 +31,37 @@ const MyBookings: React.FC = () => {
       });
       return;
     }
-    setBookings(loadBookings());
+  // Load + auto-expire holds older than 2h
+    const list = loadBookings().map((b) => {
+      if (b.status === "PENDING" && b.holdExpiresAt) {
+        if (new Date(b.holdExpiresAt).getTime() < Date.now()) {
+          return { ...b, status: "CANCELLED" as const };
+        }
+      }
+      return b;
+    });
+    saveBookings(list);
+    setBookings(list);
+
+    // Interval to refresh expiration countdown every minute
+    const id = setInterval(() => {
+      setBookings((cur) =>
+        cur.map((b) => {
+          if (b.status === "PENDING" && b.holdExpiresAt) {
+            if (new Date(b.holdExpiresAt).getTime() < Date.now()) {
+              const updated = { ...b, status: "CANCELLED" as const };
+              const stored = loadBookings().map((x) =>
+                x.bookingId === b.bookingId ? updated : x
+              );
+              saveBookings(stored);
+              return updated;
+            }
+          }
+          return b;
+        })
+      );
+    }, 60 * 1000);
+    return () => clearInterval(id);
   }, [isAuthenticated, navigate]);
 
   const handleDelete = (bookingId: string) => {
@@ -255,6 +285,18 @@ const MyBookings: React.FC = () => {
             : b.paymentMethod === "card"
             ? "bg-indigo-100 text-indigo-700"
             : "bg-purple-100 text-purple-700";
+        // Remaining hold time
+        let holdInfo: string | null = null;
+        if (b.status === "PENDING" && b.holdExpiresAt) {
+          const ms = new Date(b.holdExpiresAt).getTime() - Date.now();
+          if (ms > 0) {
+            const hours = Math.floor(ms / (1000 * 60 * 60));
+            const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+            holdInfo = `Còn ${hours}h ${minutes}m để thanh toán`;
+          } else {
+            holdInfo = "Hết hạn";
+          }
+        }
         return (
           <Card
             key={b.bookingId}
@@ -277,6 +319,11 @@ const MyBookings: React.FC = () => {
                     <Badge className="bg-gray-100 text-gray-700 border-none">
                       {b.tripType === "round-trip" ? "Khứ hồi" : "Một chiều"}
                     </Badge>
+                    {holdInfo && (
+                      <Badge className="bg-amber-100 text-amber-700 border-none">
+                        {holdInfo}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-4 text-[11px] text-gray-500">
                     <span className="inline-flex items-center gap-1">
@@ -297,13 +344,20 @@ const MyBookings: React.FC = () => {
                   <div className="text-blue-600 font-bold text-lg tracking-tight">
                     {b.totalPrice.toLocaleString("vi-VN")} {b.currency}
                   </div>
-                  {!DEV_CONFIG.HIDE_DEV_CONTROLS && (
+                  <div className="flex gap-2 justify-end">
                     <button
-                      onClick={() => handleDelete(b.bookingId)}
-                      className="text-[10px] px-2 py-1 rounded bg-red-100 text-red-600 hover:bg-red-200 self-end">
-                      Xóa (test)
+                      onClick={() => navigate(`/my-bookings/${b.bookingId}`)}
+                      className="text-[10px] px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200">
+                      Chi tiết
                     </button>
-                  )}
+                    {!DEV_CONFIG.HIDE_DEV_CONTROLS && (
+                      <button
+                        onClick={() => handleDelete(b.bookingId)}
+                        className="text-[10px] px-2 py-1 rounded bg-red-100 text-red-600 hover:bg-red-200 self-end">
+                        Xóa (test)
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
