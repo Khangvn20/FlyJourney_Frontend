@@ -45,7 +45,7 @@ const methods: {
     label: "Tại văn phòng",
     desc: "Thanh toán trực tiếp Quận 1",
     icon: <Building2 className="w-5 h-5" />,
-  hint: "Giữ chỗ 2h",
+    hint: "Giữ chỗ 2h",
   },
 ];
 
@@ -159,7 +159,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
           </div>
           {method === "office" && (
             <div className="text-[11px] p-3 rounded-lg bg-amber-50/80 border border-amber-200 text-amber-800 backdrop-blur-sm">
-              Bạn đang chọn hình thức <b>giữ chỗ 2h</b>. Vui lòng đến {" "}
+              Bạn đang chọn hình thức <b>giữ chỗ 2h</b>. Vui lòng đến{" "}
               <b>Văn phòng Fly Journey</b>: 123 Nguyễn Huệ, P.Bến Nghé, Q.1,
               TP.HCM trong vòng <b>2h</b> để thanh toán & xác nhận. Sau thời
               gian này giữ chỗ sẽ tự hủy tự động.

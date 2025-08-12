@@ -31,7 +31,7 @@ const MyBookings: React.FC = () => {
       });
       return;
     }
-  // Load + auto-expire holds older than 2h
+    // Load + auto-expire holds older than 2h
     const list = loadBookings().map((b) => {
       if (b.status === "PENDING" && b.holdExpiresAt) {
         if (new Date(b.holdExpiresAt).getTime() < Date.now()) {
