@@ -4,7 +4,7 @@ import { ENV } from "../config/env";
 // Flight API Configuration for Backend Integration
 export const flightApiConfig = {
   baseUrl: "http://localhost:3000/api/v1",
-  timeout: 10000,
+  timeout: 60000, // Increased to 60 seconds for better reliability
   retries: 3,
 };
 
@@ -33,7 +33,7 @@ export const apiEndpoints: ApiEndpoints = {
     getById: "/flights/{id}",
     getByAirline: "/flights/airline/{airline_id}",
     getByStatus: "/flights/status/{status}",
-    booking: "/flights/booking",
+    booking: "/booking",
     airlines: "/flights/airlines",
     airports: "/flights/airports",
   },

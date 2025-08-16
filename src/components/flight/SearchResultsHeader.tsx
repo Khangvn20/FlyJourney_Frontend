@@ -8,6 +8,10 @@ import {
   isRoundTripResponse,
   isOneWayResponse,
 } from "../../shared/types/search-api.types";
+import {
+  DEV_CONFIG,
+  shouldShowDevControls,
+} from "../../shared/config/devConfig";
 
 interface SearchResultsHeaderProps {
   searchInfo: FlightSearchResponseData | null;
@@ -44,6 +48,22 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
   progressiveCount,
   skeletonActive,
 }) => {
+  // Debug logging for search results header
+  if (
+    searchInfo &&
+    filteredFlights.length > 0 &&
+    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+    shouldShowDevControls()
+  ) {
+    console.log("SearchResultsHeader Debug:", {
+      progressiveCount,
+      skeletonActive,
+      filteredFlightsLength: filteredFlights.length,
+      totalCount: isOneWayResponse(searchInfo) ? searchInfo.total_count : "N/A",
+      passengers: searchInfo.passengers,
+    });
+  }
+
   return (
     <div className="space-y-6">
       {/* Search Results Header */}
@@ -82,11 +102,16 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
                 </>
               ) : (
                 <>
-                  {(skeletonActive || progressiveCount !== undefined) && (
+                  {(skeletonActive ||
+                    (progressiveCount !== undefined &&
+                      progressiveCount > 0)) && (
                     <>
                       Đang tìm thấy{" "}
                       <span className="font-semibold text-blue-600">
-                        {progressiveCount ?? 0}
+                        {Math.max(
+                          progressiveCount ?? 0,
+                          filteredFlights.length
+                        )}
                       </span>{" "}
                       /{" "}
                       <span className="font-semibold">
@@ -97,32 +122,54 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
                       chuyến bay
                     </>
                   )}
-                  {!skeletonActive && progressiveCount === undefined && (
-                    <>
-                      Tìm thấy{" "}
-                      <span className="font-semibold text-blue-600">
-                        {isOneWayResponse(searchInfo)
-                          ? searchInfo.total_count
-                          : filteredFlights.length}
-                      </span>{" "}
-                      chuyến bay • Hiển thị{" "}
-                      <span className="font-semibold">
-                        {filteredFlights.length}
-                      </span>{" "}
-                      kết quả
-                    </>
-                  )}
+                  {!skeletonActive &&
+                    (progressiveCount === undefined ||
+                      progressiveCount === 0) && (
+                      <>
+                        Tìm thấy{" "}
+                        <span className="font-semibold text-blue-600">
+                          {isOneWayResponse(searchInfo)
+                            ? searchInfo.total_count
+                            : filteredFlights.length}
+                        </span>{" "}
+                        chuyến bay • Hiển thị{" "}
+                        <span className="font-semibold">
+                          {filteredFlights.length}
+                        </span>{" "}
+                        kết quả
+                      </>
+                    )}
                 </>
               )}
               {searchInfo.passengers && (
                 <span className="ml-2">
-                  • {searchInfo.passengers.adults} Người lớn
-                  {searchInfo.passengers.children &&
-                    searchInfo.passengers.children > 0 &&
-                    `, ${searchInfo.passengers.children} Trẻ em`}
-                  {searchInfo.passengers.infants &&
-                    searchInfo.passengers.infants > 0 &&
-                    `, ${searchInfo.passengers.infants} Em bé`}
+                  •{" "}
+                  {(() => {
+                    const {
+                      adults,
+                      children = 0,
+                      infants = 0,
+                    } = searchInfo.passengers;
+                    const totalPassengers = adults + children + infants;
+                    const passengerDetails = [];
+
+                    if (adults > 0)
+                      passengerDetails.push(`${adults} Người lớn`);
+                    if (children > 0)
+                      passengerDetails.push(`${children} Trẻ em`);
+                    if (infants > 0) passengerDetails.push(`${infants} Em bé`);
+
+                    return (
+                      <>
+                        <span className="font-medium">
+                          {totalPassengers} Hành khách
+                        </span>
+                        <span className="text-gray-500 text-xs ml-1">
+                          ({passengerDetails.join(", ")})
+                        </span>
+                      </>
+                    );
+                  })()}
                 </span>
               )}
             </div>
@@ -142,19 +189,6 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
                 : "Chọn chuyến bay"}
             </span>
           </h2>
-          <p className="text-gray-600 text-sm">
-            {currentFlights.length} Kết quả
-            {filters.sortBy !== "price" && (
-              <span className="ml-2 text-blue-600 font-medium">
-                • Sắp xếp theo{" "}
-                {filters.sortBy === "departure"
-                  ? "thời gian khởi hành"
-                  : filters.sortBy === "duration"
-                  ? "thời gian bay"
-                  : "giá"}
-              </span>
-            )}
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">Sắp xếp theo</span>

@@ -17,6 +17,7 @@ export interface FlightSearchApiResult {
   duration_minutes: number;
   stops_count: number;
   distance: number;
+  flight_class_id?: number; // newly added backend field (Aug 2025)
   flight_class: string;
   total_seats: number;
   fare_class_details: {

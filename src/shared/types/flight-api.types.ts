@@ -55,6 +55,7 @@ export interface FlightApiResponse<T = unknown> {
 export interface FlightDetail {
   id: number;
   flight_number: string;
+  flight_class_id: number;
   airline_name: string;
   departure_airport: string;
   arrival_airport: string;

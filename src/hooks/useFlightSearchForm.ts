@@ -184,11 +184,12 @@ export const useFlightSearchForm = () => {
 
   const [formData, setFormData] = useState<SearchFormData>(() => {
     const savedData = loadSavedSearchData();
-    return {
-      tripType: "one-way",
+    const today = new Date();
+    const defaultData = {
+      tripType: "one-way" as const,
       from: "",
       to: "",
-      departureDate: undefined,
+      departureDate: today,
       returnDate: undefined,
       multiCitySegments: [
         { from: "", to: "", departureDate: undefined },
@@ -199,11 +200,18 @@ export const useFlightSearchForm = () => {
         children: 0,
         infants: 0,
       },
-      flightClass: "economy",
-      specialRequirements: "normal",
+      flightClass: "economy" as const,
+      specialRequirements: "normal" as const,
       searchFullMonth: false,
-      ...savedData, // Apply saved data over defaults
     };
+
+    // Merge saved data but ensure departureDate always exists
+    const merged = { ...defaultData, ...savedData };
+    if (!merged.departureDate) {
+      merged.departureDate = today;
+    }
+
+    return merged;
   });
 
   // Ref to avoid stale tripType during immediate search after toggle
@@ -267,43 +275,57 @@ export const useFlightSearchForm = () => {
 
   // Old minimum spinner duration replaced by new phased loading UX:
   // First 5s: skeleton (handled in Search page) then progressive reveal by airline.
-  // Keep month-search loops using a soft minimum to avoid flicker while days stream.
-  const MIN_MONTH_SEARCH_DURATION_MS = 4000;
-
-  const ensureMonthMinDuration = async (start: number) => {
-    const elapsed = Date.now() - start;
-    if (elapsed < MIN_MONTH_SEARCH_DURATION_MS) {
-      await new Promise((r) =>
-        setTimeout(r, MIN_MONTH_SEARCH_DURATION_MS - elapsed)
-      );
-    }
-  };
-
   // Public helper to clear stored results (used when switching trip type)
   const clearStoredResults = () => {
-    sessionStorage.removeItem("flightSearchResults");
-    sessionStorage.removeItem("tripType");
-    window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+    try {
+      sessionStorage.removeItem("flightSearchResults");
+      sessionStorage.removeItem("tripType");
+      window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+    } catch (error) {
+      // Safely ignore storage errors
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.warn("Warning: Could not clear stored results:", error);
+      }
+    }
   };
 
   const handleSearch = async () => {
     // Validation
     if (!formData.departureDate) {
-      setSearchError("Please select departure date");
+      setSearchError("Vui lòng chọn ngày khởi hành");
       return;
     }
 
     if (formData.tripType === "round-trip" && !formData.returnDate) {
-      setSearchError("Please select return date for round-trip");
+      setSearchError("Vui lòng chọn ngày về cho chuyến bay khứ hồi");
       return;
     }
 
     if (!formData.from || !formData.to) {
-      setSearchError("Please select departure and arrival airports");
+      setSearchError("Vui lòng chọn sân bay đi và đến");
       return;
     }
 
-    const searchStart = Date.now();
+    // Check date validity based on dev config
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (DEV_CONFIG.HIDE_DEV_CONTROLS && formData.departureDate < today) {
+      setSearchError("Không thể tìm kiếm chuyến bay trong quá khứ");
+      return;
+    }
+
+    if (
+      formData.tripType === "round-trip" &&
+      formData.returnDate &&
+      DEV_CONFIG.HIDE_DEV_CONTROLS &&
+      formData.returnDate < today
+    ) {
+      setSearchError("Ngày về không thể là ngày trong quá khứ");
+      return;
+    }
+
+    // const searchStart = Date.now(); // Removed as no longer needed
     try {
       setIsLoading(true);
       // Mark new search start for skeleton phase coordination (normal searches)
@@ -461,6 +483,8 @@ export const useFlightSearchForm = () => {
           );
           sessionStorage.setItem("tripType", formData.tripType);
           window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+          // Small delay to ensure sessionStorage is saved before navigation
+          await new Promise((resolve) => setTimeout(resolve, 10));
           navigate("/search");
           for (let day = 1; day <= daysInMonth; day++) {
             if (
@@ -513,7 +537,7 @@ export const useFlightSearchForm = () => {
               if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls())
                 console.error("Month day fetch failed", dayRequest, err);
             }
-            await new Promise((r) => setTimeout(r, 160));
+            // await new Promise((r) => setTimeout(r, 160)); // Removed delay for faster search
           }
           if (aggregatedMonthRef.current) {
             aggregatedMonthRef.current = {
@@ -531,7 +555,7 @@ export const useFlightSearchForm = () => {
             window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
             sessionStorage.removeItem("cancelMonthSearch");
           }
-          await ensureMonthMinDuration(searchStart);
+          // await ensureMonthMinDuration(searchStart); // Removed timeout
           setIsLoading(false);
           return;
         }
@@ -573,6 +597,8 @@ export const useFlightSearchForm = () => {
         sessionStorage.setItem("flightSearchResults", JSON.stringify(wrapper));
         sessionStorage.setItem("tripType", formData.tripType); // still round-trip
         window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+        // Small delay to ensure sessionStorage is saved before navigation
+        await new Promise((resolve) => setTimeout(resolve, 10));
         navigate("/search");
 
         // Helper fetch one day one-way
@@ -638,7 +664,7 @@ export const useFlightSearchForm = () => {
             if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls())
               console.error("Outbound month day failed", day, err);
           }
-          await new Promise((r) => setTimeout(r, 140));
+          // await new Promise((r) => setTimeout(r, 140)); // Removed delay for faster search
         }
         if (
           currentMonthSearchId.current !== searchId ||
@@ -652,7 +678,7 @@ export const useFlightSearchForm = () => {
           );
           window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
           sessionStorage.removeItem("cancelMonthSearch");
-          await ensureMonthMinDuration(searchStart);
+          // await ensureMonthMinDuration(searchStart); // Removed timeout
           setIsLoading(false);
           return;
         }
@@ -692,14 +718,14 @@ export const useFlightSearchForm = () => {
             if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls())
               console.error("Inbound month day failed", day, err);
           }
-          await new Promise((r) => setTimeout(r, 140));
+          // await new Promise((r) => setTimeout(r, 140)); // Removed delay for faster search
         }
         wrapper.meta = { ...wrapper.meta, phase: "done", loading: false };
         aggregatedMonthRef.current = wrapper;
         sessionStorage.setItem("flightSearchResults", JSON.stringify(wrapper));
         window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
         sessionStorage.removeItem("cancelMonthSearch");
-        await ensureMonthMinDuration(searchStart);
+        // await ensureMonthMinDuration(searchStart); // Removed timeout
         setIsLoading(false);
         return;
       }
@@ -711,6 +737,8 @@ export const useFlightSearchForm = () => {
       sessionStorage.setItem("tripType", currentTripType);
       sessionStorage.setItem("flightSearchCompletedAt", String(Date.now()));
       window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+      // Small delay to ensure sessionStorage is saved before navigation
+      await new Promise((resolve) => setTimeout(resolve, 10));
       navigate("/search");
     } catch (error) {
       if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
@@ -721,7 +749,7 @@ export const useFlightSearchForm = () => {
       // For month searches we already turned off loading after loops; avoid double clear
       if (formData.searchFullMonth) {
         // ensure we don't leave it true on early validation failure
-        setTimeout(() => setIsLoading(false), 0);
+        setIsLoading(false); // Remove setTimeout delay
       } else {
         setIsLoading(false);
       }
@@ -780,5 +808,6 @@ export const useFlightSearchForm = () => {
     clearStoredResults,
     isLoading,
     searchError,
+    setSearchError,
   };
 };

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@alisaitteke/seatmap-canvas": "^2.5.18",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.0.2",
     "@radix-ui/react-popover": "^1.0.7",

@@ -14,7 +14,7 @@ import {
   Baby,
   UserCheck,
   ChevronDown,
-  // AlertCircle removed (not used)
+  Route,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -37,6 +37,7 @@ import {
 import { airlines } from "../../mocks";
 import type { Airport } from "../../shared/types";
 import { useFlightSearchForm } from "../../hooks/useFlightSearchForm";
+import { DEV_CONFIG } from "../../shared/config/devConfig";
 
 export default function FlightSearchForm() {
   const {
@@ -56,6 +57,7 @@ export default function FlightSearchForm() {
     clearStoredResults,
     isLoading,
     searchError,
+    setSearchError,
   } = useFlightSearchForm();
 
   const [fromSearch, setFromSearch] = useState("");
@@ -97,6 +99,43 @@ export default function FlightSearchForm() {
     code: a.name.substring(0, 2).toUpperCase(),
   }));
 
+  // Top 10 Vietnamese airports cho quick selection
+  const vietnameseAirports = [
+    { city: "TP. Hồ Chí Minh", code: "SGN", fullName: "TP. Hồ Chí Minh (SGN)" },
+    { city: "Hà Nội", code: "HAN", fullName: "Hà Nội (HAN)" },
+    { city: "Đà Nẵng", code: "DAD", fullName: "Đà Nẵng (DAD)" },
+    { city: "Nha Trang", code: "CXR", fullName: "Nha Trang (CXR)" },
+    { city: "Phú Quốc", code: "PQC", fullName: "Phú Quốc (PQC)" },
+    { city: "Đà Lạt", code: "DLI", fullName: "Đà Lạt (DLI)" },
+    { city: "Huế", code: "HUI", fullName: "Huế (HUI)" },
+    { city: "Cần Thơ", code: "VCA", fullName: "Cần Thơ (VCA)" },
+    { city: "Quy Nhon", code: "UIH", fullName: "Quy Nhon (UIH)" },
+    { city: "Pleiku", code: "PXU", fullName: "Pleiku (PXU)" },
+  ];
+
+  const selectQuickDestination = (
+    destination: { fullName: string; code: string },
+    type: "from" | "to"
+  ) => {
+    if (type === "from") {
+      setFormData((p) => ({
+        ...p,
+        from: destination.fullName,
+      }));
+      setFromSearch("");
+      setShowFromDropdown(false);
+    } else {
+      setFormData((p) => ({
+        ...p,
+        to: destination.fullName,
+      }));
+      setToSearch("");
+      setShowToDropdown(false);
+    }
+    // Clear validation errors
+    setValidationErrors((p) => ({ ...p, [type]: false }));
+  };
+
   const getAirportCodeFromString = (s: string) => {
     const m = s.match(/\(([^)]+)\)$/);
     return m ? m[1] : "";
@@ -105,15 +144,34 @@ export default function FlightSearchForm() {
     term: string,
     excludeCodes: string[] = []
   ): Airport[] => {
-    const base = airports.filter((a) => !excludeCodes.includes(a.code));
-    if (!term) return base.slice(0, 6);
-    return base
-      .filter((a) =>
-        [a.city, a.name, a.code].some((v) =>
-          v.toLowerCase().includes(term.toLowerCase())
-        )
+    // Get Vietnamese airports first, then others
+    const vietnameseAirports = airports.filter(
+      (a) => a.country === "Vietnam" && !excludeCodes.includes(a.code)
+    );
+    const otherAirports = airports.filter(
+      (a) => a.country !== "Vietnam" && !excludeCodes.includes(a.code)
+    );
+
+    if (!term) {
+      // Show top 10 Vietnamese airports when no search term
+      return vietnameseAirports.slice(0, 10);
+    }
+
+    // Filter Vietnamese airports first, then others
+    const filteredVietnamese = vietnameseAirports.filter((a) =>
+      [a.city, a.name, a.code].some((v) =>
+        v.toLowerCase().includes(term.toLowerCase())
       )
-      .slice(0, 6);
+    );
+
+    const filteredOthers = otherAirports.filter((a) =>
+      [a.city, a.name, a.code].some((v) =>
+        v.toLowerCase().includes(term.toLowerCase())
+      )
+    );
+
+    // Return Vietnamese results first, then others, limit to 10
+    return [...filteredVietnamese, ...filteredOthers].slice(0, 10);
   };
 
   const selectAirport = (airport: Airport, type: "from" | "to") => {
@@ -147,6 +205,8 @@ export default function FlightSearchForm() {
   };
 
   const setTripType = (newType: "one-way" | "round-trip") => {
+    // Clear any existing search errors when changing trip type
+    setSearchError(null);
     clearStoredResults();
     setFormData((p) => ({
       ...p,
@@ -265,6 +325,138 @@ export default function FlightSearchForm() {
 
         {/* Main form */}
         <div className="p-6">
+          {/* Quick Destinations */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <Route className="h-4 w-4 text-blue-600" />
+                <h3 className="text-sm font-semibold text-gray-700">
+                  Chọn nhanh sân bay Việt Nam
+                </h3>
+              </div>
+              <div className="text-xs text-gray-500">
+                Chọn từ 10 sân bay phổ biến
+              </div>
+            </div>
+
+            {/* Two row layout: FROM và TO */}
+            <div className="space-y-3">
+              {/* FROM row */}
+              <div>
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-xs font-medium text-blue-700">
+                    Điểm đi (FROM)
+                  </span>
+                </div>
+                <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                  {vietnameseAirports.map((airport) => {
+                    const isSelected =
+                      getAirportCodeFromString(formData.from) === airport.code;
+                    const isDestination =
+                      getAirportCodeFromString(formData.to) === airport.code;
+                    const isDisabled = isSelected || isDestination;
+
+                    return (
+                      <button
+                        key={`from-${airport.code}`}
+                        onClick={() => selectQuickDestination(airport, "from")}
+                        disabled={isDisabled}
+                        className={`relative p-2 rounded-lg border transition-all duration-200 text-center ${
+                          isSelected
+                            ? "bg-blue-500 text-white border-blue-500 cursor-not-allowed"
+                            : isDestination
+                            ? "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
+                            : "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 hover:border-blue-300"
+                        }`}
+                        title={
+                          isSelected
+                            ? `Đã chọn ${airport.fullName} làm điểm đi`
+                            : isDestination
+                            ? `${airport.fullName} đã được chọn làm điểm đến`
+                            : `Chọn ${airport.fullName} làm điểm đi`
+                        }>
+                        <div className="text-xs font-bold">{airport.code}</div>
+                        <div className="text-[10px] leading-tight mt-0.5">
+                          {airport.city}
+                        </div>
+                        {isSelected && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                          </div>
+                        )}
+                        {isDestination && (
+                          <div className="absolute inset-0 bg-gray-300 bg-opacity-50 rounded-lg flex items-center justify-center">
+                            <div className="text-[8px] text-gray-600 font-medium">
+                              ĐẾN
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* TO row */}
+              <div>
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-xs font-medium text-green-700">
+                    Điểm đến (TO)
+                  </span>
+                </div>
+                <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                  {vietnameseAirports.map((airport) => {
+                    const isSelected =
+                      getAirportCodeFromString(formData.to) === airport.code;
+                    const isOrigin =
+                      getAirportCodeFromString(formData.from) === airport.code;
+                    const isDisabled = isSelected || isOrigin;
+
+                    return (
+                      <button
+                        key={`to-${airport.code}`}
+                        onClick={() => selectQuickDestination(airport, "to")}
+                        disabled={isDisabled}
+                        className={`relative p-2 rounded-lg border transition-all duration-200 text-center ${
+                          isSelected
+                            ? "bg-green-500 text-white border-green-500 cursor-not-allowed"
+                            : isOrigin
+                            ? "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
+                            : "bg-green-50 hover:bg-green-100 text-green-700 border-green-200 hover:border-green-300"
+                        }`}
+                        title={
+                          isSelected
+                            ? `Đã chọn ${airport.fullName} làm điểm đến`
+                            : isOrigin
+                            ? `${airport.fullName} đã được chọn làm điểm đi`
+                            : `Chọn ${airport.fullName} làm điểm đến`
+                        }>
+                        <div className="text-xs font-bold">{airport.code}</div>
+                        <div className="text-[10px] leading-tight mt-0.5">
+                          {airport.city}
+                        </div>
+                        {isSelected && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          </div>
+                        )}
+                        {isOrigin && (
+                          <div className="absolute inset-0 bg-gray-300 bg-opacity-50 rounded-lg flex items-center justify-center">
+                            <div className="text-[8px] text-gray-600 font-medium">
+                              ĐI
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Locations row */}
           <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
             <div className="md:col-span-3 space-y-2">
@@ -306,7 +498,11 @@ export default function FlightSearchForm() {
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   </div>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
+                <PopoverContent
+                  className="w-full p-0"
+                  align="start"
+                  side="bottom"
+                  sideOffset={4}>
                   <div className="max-h-60 overflow-y-auto">
                     {filterAirports(fromSearch, [
                       getAirportCodeFromString(formData.to),
@@ -378,7 +574,11 @@ export default function FlightSearchForm() {
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   </div>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
+                <PopoverContent
+                  className="w-full p-0"
+                  align="start"
+                  side="bottom"
+                  sideOffset={4}>
                   <div className="max-h-60 overflow-y-auto">
                     {filterAirports(toSearch, [
                       getAirportCodeFromString(formData.from),
@@ -470,6 +670,14 @@ export default function FlightSearchForm() {
                           departureDate: d || undefined,
                         }))
                       }
+                      disabled={(date) => {
+                        if (DEV_CONFIG.HIDE_DEV_CONTROLS) {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return date < today;
+                        }
+                        return false;
+                      }}
                       initialFocus
                     />
                   </PopoverContent>
@@ -506,6 +714,14 @@ export default function FlightSearchForm() {
                           returnDate: d || undefined,
                         }))
                       }
+                      disabled={(date) => {
+                        if (DEV_CONFIG.HIDE_DEV_CONTROLS) {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return date < today;
+                        }
+                        return false;
+                      }}
                       initialFocus
                     />
                   </PopoverContent>
@@ -570,7 +786,11 @@ export default function FlightSearchForm() {
                     <ChevronDown className="h-4 w-4 text-gray-400 ml-2" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-96 p-0" align="start">
+                <PopoverContent
+                  className="w-96 p-0"
+                  align="start"
+                  side="bottom"
+                  sideOffset={4}>
                   <div className="p-6 space-y-6">
                     <div className="space-y-4">
                       <h4 className="font-semibold text-gray-900 border-b pb-2">

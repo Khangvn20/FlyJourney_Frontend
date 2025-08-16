@@ -1,8 +1,31 @@
 import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
+import { apiClient } from "../shared/utils/apiClient";
+import type {
+  BookingCreateRequest,
+  BookingCreateResponse,
+} from "../shared/types/backend-api.types";
 
-export const bookingService = async (_details: Record<string, unknown>) => {
+/**
+ * Create booking in backend
+ * Wraps POST /flights/booking
+ */
+export async function createBooking(
+  payload: BookingCreateRequest
+): Promise<BookingCreateResponse> {
   if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
-    console.log("Mock booking with:", _details);
+    console.log("📨 Sending booking payload:", payload);
   }
-  return { status: "success", bookingId: "XYZ987" };
-};
+  const res = await apiClient.post<BookingCreateResponse>(
+    apiClient.endpoints.flights.booking,
+    payload
+  );
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+    console.log("✅ Booking response:", res.data);
+  }
+  return res.data as BookingCreateResponse;
+}
+
+// Backwards compatibility export
+export const bookingService = async (
+  details: BookingCreateRequest
+): Promise<BookingCreateResponse> => createBooking(details);

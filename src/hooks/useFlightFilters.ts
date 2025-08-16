@@ -24,6 +24,40 @@ export const useFlightFilters = ({
     const safeFlights: FlightSearchApiResult[] = Array.isArray(flights)
       ? flights
       : (flights as unknown as FlightSearchApiResult[]) || [];
+
+    // Debug logging for departure time filter
+    if (safeFlights.length > 0 && filters.departureTime !== "all") {
+      console.log("useFlightFilters Debug:");
+      console.log("Filter mode:", filters.departureTime);
+      console.log("Sample flight times for filtering:");
+      safeFlights.slice(0, 3).forEach((f, idx) => {
+        const getHourFromDepartureTime = (departure_time: string): number => {
+          try {
+            if (departure_time.includes("T") || departure_time.includes("-")) {
+              const date = new Date(departure_time);
+              if (!isNaN(date.getTime())) {
+                return date.getHours();
+              }
+            }
+            if (departure_time.includes(":")) {
+              const timeStr = departure_time.split("T")[1] || departure_time;
+              const hour = parseInt(timeStr.split(":")[0]);
+              return !isNaN(hour) ? hour : 0;
+            }
+            return 0;
+          } catch {
+            return 0;
+          }
+        };
+        const hour = getHourFromDepartureTime(f.departure_time);
+        console.log(
+          `Flight ${idx + 1}: ${f.flight_number} | "${
+            f.departure_time
+          }" -> Hour: ${hour}`
+        );
+      });
+    }
+
     return safeFlights
       .filter((flight) => {
         // Airline filter
@@ -38,7 +72,40 @@ export const useFlightFilters = ({
 
         // Departure time filter
         if (filters.departureTime !== "all") {
-          const departureHour = new Date(flight.departure_time).getHours();
+          // Helper function to safely get hour from departure time
+          const getHourFromDepartureTime = (departure_time: string): number => {
+            try {
+              // Try parsing as ISO string first (API format)
+              if (
+                departure_time.includes("T") ||
+                departure_time.includes("-")
+              ) {
+                const date = new Date(departure_time);
+                if (!isNaN(date.getTime())) {
+                  // Get hour in local timezone (Vietnam timezone assumed)
+                  return date.getHours();
+                }
+              }
+
+              // Fallback to HH:MM format (mock data format)
+              if (departure_time.includes(":")) {
+                const timeStr = departure_time.split("T")[1] || departure_time; // Handle both ISO and plain time
+                const hour = parseInt(timeStr.split(":")[0]);
+                return !isNaN(hour) ? hour : 0;
+              }
+
+              return 0;
+            } catch (error) {
+              console.warn(
+                "Error parsing departure time in filter:",
+                departure_time,
+                error
+              );
+              return 0;
+            }
+          };
+
+          const departureHour = getHourFromDepartureTime(flight.departure_time);
           let timeMatch = false;
 
           switch (filters.departureTime) {

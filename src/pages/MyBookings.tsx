@@ -14,7 +14,6 @@ import {
   ArchiveX,
   Calendar,
   CreditCard,
-  Users,
   Hash,
   Search as SearchIcon,
 } from "lucide-react";
@@ -42,6 +41,17 @@ const MyBookings: React.FC = () => {
     });
     saveBookings(list);
     setBookings(list);
+
+    // Debug log for development
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && list.length > 0) {
+      console.log("📋 Loaded bookings:", list);
+      console.log("🔍 First booking status:", list[0]?.status);
+      console.log(
+        "💰 First booking price:",
+        list[0]?.totalPrice,
+        list[0]?.currency
+      );
+    }
 
     // Interval to refresh expiration countdown every minute
     const id = setInterval(() => {
@@ -292,7 +302,7 @@ const MyBookings: React.FC = () => {
           if (ms > 0) {
             const hours = Math.floor(ms / (1000 * 60 * 60));
             const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-            holdInfo = `Còn ${hours}h ${minutes}m để thanh toán`;
+            holdInfo = `Còn ${hours}h ${minutes}m để chọn ghế & thanh toán`;
           } else {
             holdInfo = "Hết hạn";
           }
@@ -302,62 +312,223 @@ const MyBookings: React.FC = () => {
             key={b.bookingId}
             className="border border-gray-200 hover:border-blue-300/70 hover:shadow-md transition overflow-hidden relative">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-50/30 to-transparent opacity-0 hover:opacity-100 pointer-events-none transition" />
-            <CardContent className="p-5 flex flex-col gap-4 relative z-10">
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                <div className="text-sm space-y-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-gray-800 flex items-center gap-1">
-                      <Hash className="w-3.5 h-3.5 text-gray-400" />{" "}
-                      {b.bookingId}
-                    </span>
-                    <Badge className={statusColor + " border-none"}>
-                      {b.status}
-                    </Badge>
-                    <Badge className={payColor + " border-none"}>
+            <CardContent className="p-6 relative z-10">
+              {/* Header Row - Booking ID và Status */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                    <Hash className="w-4 h-4 text-gray-400" />
+                    {b.bookingId}
+                  </span>
+                  <Badge
+                    className={statusColor + " border-none text-xs px-2 py-1"}>
+                    {b.status}
+                  </Badge>
+                  {b.status === "CONFIRMED" && (
+                    <Badge
+                      className={payColor + " border-none text-xs px-2 py-1"}>
                       {localizedPayment(b.paymentMethod)}
                     </Badge>
-                    <Badge className="bg-gray-100 text-gray-700 border-none">
-                      {b.tripType === "round-trip" ? "Khứ hồi" : "Một chiều"}
+                  )}
+                  <Badge className="bg-gray-100 text-gray-700 border-none text-xs px-2 py-1">
+                    {b.tripType === "round-trip" ? "Khứ hồi" : "Một chiều"}
+                  </Badge>
+                  {holdInfo && (
+                    <Badge className="bg-amber-100 text-amber-700 border-none text-xs px-2 py-1">
+                      {holdInfo}
                     </Badge>
-                    {holdInfo && (
-                      <Badge className="bg-amber-100 text-amber-700 border-none">
-                        {holdInfo}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-4 text-[11px] text-gray-500">
-                    <span className="inline-flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-gray-400" />{" "}
-                      {new Date(b.createdAt).toLocaleString("vi-VN")}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Users className="w-3.5 h-3.5 text-gray-400" />{" "}
-                      {b.passengers.length} HK
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <CreditCard className="w-3.5 h-3.5 text-gray-400" />{" "}
-                      {localizedPayment(b.paymentMethod)}
-                    </span>
-                  </div>
+                  )}
                 </div>
-                <div className="text-right flex flex-col justify-between gap-2 min-w-[140px]">
-                  <div className="text-blue-600 font-bold text-lg tracking-tight">
+                <div className="text-right">
+                  <div className="text-blue-600 font-bold text-xl tracking-tight">
                     {b.totalPrice.toLocaleString("vi-VN")} {b.currency}
                   </div>
-                  <div className="flex gap-2 justify-end">
+                  <div className="text-xs text-gray-500">
+                    {b.passengers.length} hành khách
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Content Grid */}
+              <div className="grid lg:grid-cols-3 gap-6">
+                {/* Left Column - Flight Info */}
+                <div className="lg:col-span-1">
+                  {b.selectedFlights?.outbound && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Plane className="w-4 h-4 text-blue-600" />
+                        <span className="font-semibold text-gray-800">
+                          {b.selectedFlights.outbound.flight_number}
+                        </span>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Tuyến bay:</span>
+                          <span className="font-medium">
+                            {b.selectedFlights.outbound.departure_airport_code}{" "}
+                            → {b.selectedFlights.outbound.arrival_airport_code}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Ngày bay:</span>
+                          <span className="font-medium">
+                            {new Date(
+                              b.selectedFlights.outbound.departure_time
+                            ).toLocaleDateString("vi-VN")}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Giờ:</span>
+                          <span className="font-medium">
+                            {new Date(
+                              b.selectedFlights.outbound.departure_time
+                            ).toLocaleTimeString("vi-VN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Hãng bay:</span>
+                          <span className="font-medium text-xs">
+                            {b.selectedFlights.outbound.airline_name}
+                          </span>
+                        </div>
+                      </div>
+                      {b.selectedSeats && b.selectedSeats.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Ghế đã chọn:</span>
+                            <span className="font-medium text-blue-600">
+                              {b.selectedSeats.join(", ")}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Middle Column - Contact & Note */}
+                <div className="lg:col-span-1 space-y-4">
+                  {/* Contact Information */}
+                  {(b.contact?.fullName ||
+                    b.contact?.email ||
+                    b.contact?.phone) && (
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                          👤
+                        </div>
+                        <span className="font-semibold text-blue-800 text-sm">
+                          Thông tin liên hệ
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-xs">
+                        {b.contact?.fullName && (
+                          <div>
+                            <span className="text-gray-600">Người đặt:</span>{" "}
+                            <span className="font-medium">
+                              {b.contact.fullName}
+                            </span>
+                          </div>
+                        )}
+                        {b.contact?.email && (
+                          <div>
+                            <span className="text-gray-600">Email:</span>{" "}
+                            <span className="font-medium">
+                              {b.contact.email}
+                            </span>
+                          </div>
+                        )}
+                        {b.contact?.phone && (
+                          <div>
+                            <span className="text-gray-600">SĐT:</span>{" "}
+                            <span className="font-medium">
+                              {b.contact.phone}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Customer Note */}
+                  {b.note && (
+                    <div className="bg-orange-50 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
+                          📝
+                        </div>
+                        <span className="font-semibold text-orange-800 text-sm">
+                          Ghi chú khách hàng
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-700 italic">
+                        "{b.note}"
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Booking Details */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Ngày đặt:</span>
+                        <span className="font-medium">
+                          {new Date(b.createdAt).toLocaleDateString("vi-VN")}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Số hành khách:</span>
+                        <span className="font-medium">
+                          {b.passengers.length}
+                        </span>
+                      </div>
+                      {b.status === "CONFIRMED" && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Thanh toán:</span>
+                          <span className="font-medium">
+                            {localizedPayment(b.paymentMethod)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column - Actions */}
+                <div className="lg:col-span-1 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    {b.status === "PENDING" && (
+                      <button
+                        onClick={() => navigate(`/my-bookings/${b.bookingId}`)}
+                        className="w-full px-4 py-3 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                        title="Xem chi tiết để chọn ghế và thanh toán">
+                        <CreditCard className="w-4 h-4" />
+                        Chọn ghế & Thanh toán
+                      </button>
+                    )}
                     <button
                       onClick={() => navigate(`/my-bookings/${b.bookingId}`)}
-                      className="text-[10px] px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200">
-                      Chi tiết
+                      className="w-full px-4 py-2 rounded-lg bg-blue-100 text-blue-700 font-medium hover:bg-blue-200 transition-colors">
+                      Xem chi tiết
                     </button>
                     {!DEV_CONFIG.HIDE_DEV_CONTROLS && (
                       <button
                         onClick={() => handleDelete(b.bookingId)}
-                        className="text-[10px] px-2 py-1 rounded bg-red-100 text-red-600 hover:bg-red-200 self-end">
+                        className="w-full px-4 py-2 rounded-lg bg-red-100 text-red-600 font-medium hover:bg-red-200 transition-colors text-sm">
                         Xóa (test)
                       </button>
                     )}
                   </div>
+
+                  {/* Debug info */}
+                  {DEV_CONFIG.ENABLE_CONSOLE_LOGS && (
+                    <div className="mt-4 text-[8px] text-gray-400 text-center">
+                      Status: {b.status}
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

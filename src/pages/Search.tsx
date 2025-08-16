@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import FlightSearchForm from "../components/flight/FlightSearchForm";
 import FilterSidebar from "../components/flight/FilterSidebar";
@@ -281,6 +281,54 @@ const Search: React.FC = () => {
     selectedAirlines,
     filters,
   });
+
+  // Filter progressive flights in real-time
+  const { filteredFlights: filteredProgressiveFlights } = useFlightFilters({
+    flights: Array.isArray(progressiveFlights) ? progressiveFlights : [],
+    selectedAirlines,
+    filters,
+  });
+
+  // Filter per-day results for month mode manually
+  const filteredPerDayResults = useMemo(() => {
+    if (!perDayResults) return [];
+
+    return perDayResults.map((dayGroup) => {
+      // Manual filtering logic for each day's flights
+      const filteredFlights = dayGroup.flights.filter((flight) => {
+        // Airline filter
+        if (selectedAirlines.length > 0) {
+          const airlineMatch = selectedAirlines.some(
+            (airlineId) =>
+              flight.airline_id?.toString() === airlineId ||
+              flight.airline_name
+                ?.toLowerCase()
+                .includes(airlineId.toLowerCase())
+          );
+          if (!airlineMatch) return false;
+        }
+
+        // Add other filters as needed (price, time, etc.)
+        // For now, keep it simple with just airline filter
+        return true;
+      });
+
+      return {
+        ...dayGroup,
+        flights: filteredFlights,
+      };
+    });
+  }, [perDayResults, selectedAirlines, filters]);
+
+  // Save searchInfo to sessionStorage whenever it changes
+  useEffect(() => {
+    if (searchInfo) {
+      sessionStorage.setItem("searchInfo", JSON.stringify(searchInfo));
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.log("💾 Saved searchInfo to sessionStorage:", searchInfo);
+      }
+    }
+  }, [searchInfo]);
 
   // Get current flights to display based on trip type and active tab
   const currentFlights =
@@ -577,6 +625,12 @@ const Search: React.FC = () => {
                 "inbound flights"
               );
             }
+
+            // Force immediate progressive reveal for data from sessionStorage
+            setTimeout(() => {
+              setSkeletonActive(false);
+              triggerProgressiveReveal();
+            }, 50);
           } else if (isOneWayResponse(results.data)) {
             if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
               console.log("➡️ Processing one-way response");
@@ -614,6 +668,12 @@ const Search: React.FC = () => {
                 "flights"
               );
             }
+
+            // Force immediate progressive reveal for data from sessionStorage
+            setTimeout(() => {
+              setSkeletonActive(false);
+              triggerProgressiveReveal();
+            }, 50);
           } else {
             if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
               console.warn("⚠️ Unknown response format");
@@ -720,7 +780,7 @@ const Search: React.FC = () => {
         sessionStorage.getItem("flightSearchStartedAt") || Date.now()
       );
       const now = Date.now();
-      const SKELETON_MS = 5000; // 5s skeleton requirement
+      const SKELETON_MS = 500; // Reduced to 0.5s for faster UI feedback
       const remaining = Math.max(0, SKELETON_MS - (now - started));
       setSkeletonActive(true);
       setProgressiveFlights([]);
@@ -848,9 +908,9 @@ const Search: React.FC = () => {
         (lastAppliedSearchIdRef.current &&
           sessionStorage.getItem("flightSearchProgressiveApplied") ===
             lastAppliedSearchIdRef.current)
-      ? progressiveFlights
-      : flightResults
-    : flightResults;
+      ? filteredProgressiveFlights // Use filtered progressive flights
+      : filteredFlights // Use filtered flights instead of raw flightResults
+    : filteredFlights; // Also use filtered flights for month mode
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/40 to-gray-50">
@@ -869,25 +929,29 @@ const Search: React.FC = () => {
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-4 gap-8">
-          {/* Filter Sidebar */}
-          <FilterSidebar
-            showFilters={showFilters}
-            setShowFilters={setShowFilters}
-            selectedAirlines={selectedAirlines}
-            setSelectedAirlines={setSelectedAirlines}
-            filters={filters}
-            setFilters={setFilters}
-            flightResults={flightResults}
-            filteredFlights={filteredFlights}
-            vietnameseAirlines={vietnameseAirlines}
-            onAirlineToggle={handleAirlineToggle}
-            skeletonActive={skeletonActive}
-            progressiveCount={
-              !monthMeta && tripType !== "round-trip"
-                ? progressiveFlights.length
-                : undefined
-            }
-          />
+          {/* Filter Sidebar - Make it sticky */}
+          <div className="lg:sticky lg:top-4 lg:self-start">
+            <FilterSidebar
+              showFilters={showFilters}
+              setShowFilters={setShowFilters}
+              selectedAirlines={selectedAirlines}
+              setSelectedAirlines={setSelectedAirlines}
+              filters={filters}
+              setFilters={setFilters}
+              flightResults={flightResults}
+              filteredFlights={filteredFlights}
+              vietnameseAirlines={vietnameseAirlines}
+              onAirlineToggle={handleAirlineToggle}
+              skeletonActive={skeletonActive}
+              progressiveCount={
+                !monthMeta &&
+                tripType !== "round-trip" &&
+                progressiveFlights.length > 0
+                  ? progressiveFlights.length
+                  : undefined
+              }
+            />
+          </div>
 
           {/* Main Results */}
           <div className="lg:col-span-3">
@@ -902,7 +966,9 @@ const Search: React.FC = () => {
               filters={filters}
               setFilters={setFilters}
               progressiveCount={
-                !monthMeta && tripType !== "round-trip"
+                !monthMeta &&
+                tripType !== "round-trip" &&
+                progressiveFlights.length > 0
                   ? progressiveFlights.length
                   : undefined
               }
@@ -1022,8 +1088,8 @@ const Search: React.FC = () => {
               />
             ) : monthMeta ? (
               <div className="space-y-8">
-                {perDayResults
-                  .filter((g) => g.flights && g.flights.length > 0) // bỏ ngày rỗng
+                {filteredPerDayResults
+                  .filter((g) => g.flights && g.flights.length > 0) // bỏ ngày rỗng sau khi filter
                   .map((dayGroup) => (
                     <div
                       key={dayGroup.day}

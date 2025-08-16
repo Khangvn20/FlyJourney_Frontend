@@ -66,7 +66,7 @@ const OneWayFlightList: React.FC<OneWayFlightListProps> = ({
 
   return (
     <div className="space-y-3">
-      {flights.map((flight) => {
+      {flights.map((flight, index) => {
         const airlineInfo =
           vietnameseAirlines.find(
             (a) => a.name.toLowerCase() === flight.airline_name.toLowerCase()
@@ -74,7 +74,7 @@ const OneWayFlightList: React.FC<OneWayFlightListProps> = ({
 
         return (
           <FlightCard
-            key={flight.flight_id}
+            key={`${flight.flight_id}-${index}-${flight.flight_number}`}
             flight={flight}
             isExpanded={expandedFlightId === flight.flight_id}
             onToggleDetails={() => toggleFlightDetails(flight.flight_id)}

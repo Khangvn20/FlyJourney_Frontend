@@ -6,10 +6,19 @@ export interface PassengerFormData {
   firstName: string;
   lastName: string;
   gender?: "male" | "female" | "other";
+  /** passport or id_card (CCCD). Default passport */
+  documentType?: "passport" | "id_card";
   dateOfBirth?: string; // ISO date
   nationality?: string;
+  issuingCountry?: string; // country issuing passport / ID
   passportNumber?: string;
   passportExpiry?: string; // ISO date
+  /** Individual baggage selection for this passenger */
+  extraBaggage?: {
+    option: string; // baggage option ID (none, bg10, bg15, bg20)
+    extraKg: number;
+    price: number;
+  };
 }
 
 export interface ContactInfo {
@@ -31,6 +40,8 @@ export interface BookingPayload {
   totalPrice: number;
   currency: string;
   paymentMethod: PaymentMethod;
+  /** Customer note/special request */
+  note?: string;
   /** Optional future expansion: selected extra baggage/services */
   addons?: {
     extraBaggageKg?: number; // additional baggage purchased
@@ -51,4 +62,6 @@ export interface BookingRecord extends BookingPayload {
   createdAt: string;
   /** If status=PENDING this indicates when the hold expires (ISO). */
   holdExpiresAt?: string;
+  /** Selected seat IDs after seat selection and payment */
+  selectedSeats?: string[];
 }

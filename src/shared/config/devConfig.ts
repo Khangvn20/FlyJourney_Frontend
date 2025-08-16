@@ -1,12 +1,6 @@
-/**
- * Development Configuration
- *
- * Set HIDE_DEV_CONTROLS to true to hide all dev controls across the application
- * Set to false to show dev controls for testing and development
- */
 export const DEV_CONFIG = {
   // Set to true to hide all dev controls in production or when testing is complete
-  HIDE_DEV_CONTROLS: true, //true,false
+  HIDE_DEV_CONTROLS: false, // Set to false for testing console suppression
 
   // Other dev settings can be added here
   ENABLE_CONSOLE_LOGS: true,
