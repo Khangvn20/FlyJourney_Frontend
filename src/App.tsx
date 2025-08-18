@@ -18,6 +18,7 @@ import Footer from "./components/layout/Footer";
 import ScrollToTop from "./components/layout/ScrollToTop";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { useScrollToTop } from "./hooks/useScrollToTop";
+import ChatBox from "./components/common/ChatBox";
 
 const App: React.FC = () => {
   useScrollToTop();
@@ -69,6 +70,7 @@ const App: React.FC = () => {
 
       {/* Global ScrollToTop button */}
       <ScrollToTop />
+      <ChatBox />
     </>
   );
 };
