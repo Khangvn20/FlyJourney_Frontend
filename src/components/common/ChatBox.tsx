@@ -10,6 +10,21 @@ type Message = {
 const ChatBox: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(0);
+
+  // Detect mobile screen size and viewport height
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 640); // sm breakpoint
+      setViewportHeight(window.innerHeight);
+    };
+
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
 
   // Load messages from localStorage
   const loadMessages = (): Message[] => {
@@ -51,6 +66,63 @@ const ChatBox: React.FC = () => {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
     }
   }, [messages, isOpen]);
+
+  // Handle mobile keyboard visibility
+  useEffect(() => {
+    if (!isMobile || !isOpen) return;
+
+    const handleResize = () => {
+      // Update viewport height and scroll to bottom
+      setViewportHeight(window.innerHeight);
+      setTimeout(() => {
+        if (messagesRef.current) {
+          messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+        }
+      }, 150);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isMobile, isOpen]);
+
+  // Calculate dynamic max height based on viewport and zoom
+  const calculateMaxHeight = () => {
+    const safeHeight = viewportHeight || window.innerHeight;
+
+    // Fixed component heights in pixels (these don't scale with zoom)
+    const headerHeight = 60;
+    const quickRepliesHeight = 90;
+    const inputHeight = 70;
+    const margins = 40;
+
+    // Total fixed height for non-scrollable areas
+    const fixedHeight =
+      headerHeight + quickRepliesHeight + inputHeight + margins;
+
+    // Calculate available height for messages area
+    const availableHeight = safeHeight - fixedHeight;
+
+    // For very small viewports (like with dev tools + zoom), use percentage-based approach
+    if (safeHeight < 400) {
+      return Math.max(120, safeHeight * 0.4); // Minimum 120px or 40% of viewport
+    }
+
+    // For normal viewports, ensure we have reasonable bounds
+    const minHeight = Math.max(150, safeHeight * 0.25);
+    const maxHeight = Math.min(safeHeight * 0.75, 500);
+
+    return Math.max(minHeight, Math.min(maxHeight, availableHeight));
+  };
+
+  // Force recalculation when chatbox opens to ensure it fits in viewport
+  useEffect(() => {
+    if (isOpen) {
+      // Small delay to let the animation start
+      setTimeout(() => {
+        setViewportHeight(window.innerHeight);
+      }, 50);
+    }
+  }, [isOpen]);
 
   const toggleChat = () => setIsOpen((s) => !s);
   const quickReplies = [
@@ -154,11 +226,11 @@ const ChatBox: React.FC = () => {
         aria-label={isOpen ? "Đóng chat" : "Mở chat"}
         aria-expanded={isOpen}
         onClick={toggleChat}
-        className="fixed right-6 bottom-6 z-[9999] flex items-center justify-center w-14 h-14 rounded-full bg-blue-600 text-white shadow-2xl hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300/40 transition-all duration-200">
+        className="fixed right-4 sm:right-6 bottom-4 sm:bottom-6 z-[9999] flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-blue-600 text-white shadow-2xl hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300/40 transition-all duration-200">
         {isOpen ? (
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
+            className="h-5 w-5 sm:h-6 sm:w-6"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor">
@@ -172,7 +244,7 @@ const ChatBox: React.FC = () => {
         ) : (
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
+            className="h-5 w-5 sm:h-6 sm:w-6"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor">
@@ -188,12 +260,30 @@ const ChatBox: React.FC = () => {
 
       {/* Chat panel */}
       {isOpen && (
-        <div className="fixed right-6 bottom-20 z-[9999] w-80 md:w-[36rem] max-h-[75vh] flex flex-col bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 duration-300">
-          <div className="flex items-center justify-between bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3">
-            <div className="flex items-center gap-3">
+        <div
+          className={`fixed z-[9999] flex flex-col bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 duration-300 ${
+            isMobile
+              ? "inset-x-2 bottom-16 top-20" // Mobile: full screen with margins
+              : "right-2 sm:right-4 lg:right-6 w-[calc(100vw-1rem)] sm:w-80 md:w-96 lg:w-[28rem] xl:w-[32rem]" // Desktop: positioned
+          }`}
+          style={{
+            maxHeight: isMobile
+              ? "calc(100vh - 9rem)" // Mobile: safe area
+              : `${calculateMaxHeight()}px`, // Desktop: dynamic
+            bottom: "1rem", // Fixed distance from bottom
+            // Ensure the chat never goes above a certain point to keep input visible
+            top: isMobile ? "5rem" : "auto",
+            minHeight: "200px", // Guarantee minimum usable height
+          }}>
+          <div className="flex items-center justify-between bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 sm:px-4 py-2 sm:py-3 flex-shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <h4 className="text-sm font-medium">Hỗ trợ kỹ thuật</h4>
-              <span className="text-xs opacity-75">Online</span>
+              <h4 className="text-xs sm:text-sm font-medium">
+                Hỗ trợ kỹ thuật
+              </h4>
+              <span className="text-xs opacity-75 hidden sm:inline">
+                Online
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -226,7 +316,11 @@ const ChatBox: React.FC = () => {
 
           <div
             ref={messagesRef}
-            className="flex-1 p-4 overflow-y-auto bg-gray-50 space-y-4 min-h-[300px]">
+            className="flex-1 overflow-y-auto bg-gray-50 space-y-3 sm:space-y-4 p-3 sm:p-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
+            style={{
+              minHeight: "80px", // Reduced minimum to save space
+              maxHeight: "calc(100% - 160px)", // Leave space for header + quick replies + input
+            }}>
             {messages.map((m) => (
               <div
                 key={m.id}
@@ -236,9 +330,9 @@ const ChatBox: React.FC = () => {
                 <div
                   className={`flex flex-col ${
                     m.role === "user" ? "items-end" : "items-start"
-                  } max-w-[85%]`}>
+                  } max-w-[90%] sm:max-w-[85%]`}>
                   <div
-                    className={`px-4 py-3 rounded-2xl text-sm md:text-base leading-relaxed ${
+                    className={`px-3 sm:px-4 py-2 sm:py-3 rounded-2xl text-sm leading-relaxed ${
                       m.role === "user"
                         ? "bg-blue-600 text-white rounded-br-md shadow-sm"
                         : "bg-white text-gray-800 border border-gray-200 rounded-bl-md shadow-sm"
@@ -254,35 +348,45 @@ const ChatBox: React.FC = () => {
           </div>
 
           {/* Quick replies */}
-          <div className="px-4 py-3 bg-white border-t border-gray-100">
-            <p className="text-xs text-gray-500 mb-2">Câu hỏi thường gặp:</p>
-            <div className="flex flex-wrap gap-2">
+          <div className="flex-shrink-0 px-3 sm:px-4 py-1 sm:py-2 bg-white border-t border-gray-100">
+            <p className="text-xs text-gray-500 mb-1">Câu hỏi thường gặp:</p>
+            <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
               {quickReplies.map((q) => (
                 <button
                   key={q}
                   onClick={() => handleQuickReply(q)}
-                  className="text-xs md:text-sm px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-full border border-blue-200 transition-colors">
+                  className="text-xs px-2 sm:px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-full border border-blue-200 transition-colors whitespace-nowrap">
                   {q}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="px-4 py-3 border-t border-gray-100 bg-white">
-            <div className="flex items-end gap-3">
+          {/* Input area - always at bottom */}
+          <div className="flex-shrink-0 px-3 sm:px-4 py-2 sm:py-3 border-t border-gray-100 bg-white">
+            <div className="flex items-center gap-2">
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
                 placeholder="Nhập tin nhắn..."
-                className="flex-1 px-4 py-3 border border-gray-200 rounded-2xl text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[40px]"
+                onFocus={() => {
+                  // On mobile, scroll to bottom when input is focused
+                  if (isMobile && messagesRef.current) {
+                    setTimeout(() => {
+                      messagesRef.current!.scrollTop =
+                        messagesRef.current!.scrollHeight;
+                    }, 300);
+                  }
+                }}
               />
               <button
                 onClick={sendMessage}
                 disabled={!input.trim()}
-                className="p-3 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
+                className="p-2 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex-shrink-0 min-w-[40px] h-[40px]">
                 <svg
-                  className="w-5 h-5"
+                  className="w-4 h-4 mx-auto"
                   fill="currentColor"
                   viewBox="0 0 20 20">
                   <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />

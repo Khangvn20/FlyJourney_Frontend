@@ -5,7 +5,7 @@ import type { BookingRecord } from "../shared/types/passenger.types";
 import BookingOverview from "../components/booking/BookingOverview";
 import PaymentFlow from "../components/booking/PaymentFlow";
 import { Button } from "../components/ui/button";
-import { ArrowLeft, CreditCard, FileText } from "lucide-react";
+import { ArrowLeft, CreditCard } from "lucide-react";
 import type { FlightSearchApiResult } from "../shared/types/search-api.types";
 
 // Placeholder flight builder due to lack of persisted flight details.
@@ -103,20 +103,6 @@ const BookingDetail: React.FC = () => {
         className="inline-flex items-center gap-2">
         <ArrowLeft className="w-4 h-4" /> Quay lại
       </Button>
-
-      {/* Customer Note Card - Hiển thị ghi chú khách hàng nếu có */}
-      {record.note && (
-        <div className="bg-white rounded-lg border p-6 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-orange-700">
-            <FileText className="w-5 h-5" />
-            Ghi chú của khách hàng
-          </h3>
-          <div className="bg-orange-50 rounded-lg p-4">
-            <p className="text-gray-700 italic">"{record.note}"</p>
-          </div>
-        </div>
-      )}
-
       {/* Booking Overview - Đã có thông tin liên hệ ở dưới */}
       <BookingOverview
         selection={selection}

@@ -14,6 +14,7 @@ import { ChevronLeft, ChevronRight, Briefcase, Zap } from "lucide-react";
 import type { PassengerFormData } from "../../shared/types/passenger.types";
 import { shouldShowDevControls } from "../../shared/config/devConfig";
 import { BAGGAGE_OPTIONS } from "./bookingAddons.constants";
+import { useAuth } from "../../hooks/useAuth";
 
 interface PassengerInfoCollectorProps {
   passengers: PassengerFormData[];
@@ -58,8 +59,29 @@ const PassengerInfoCollector: React.FC<PassengerInfoCollectorProps> = ({
   onContactAddressChange,
 }) => {
   const [currentPassengerIndex, setCurrentPassengerIndex] = useState(0);
+  const { user } = useAuth(); // Get user data for phone auto-fill
   const totalPassengers =
     passengerCounts.adults + passengerCounts.children + passengerCounts.infants;
+
+  // Auto-fill phone number for first passenger from user account when component mounts
+  React.useEffect(() => {
+    if (
+      user?.phone &&
+      passengers.length > 0 &&
+      passengers[0] &&
+      !passengers[0].phone
+    ) {
+      console.log(
+        "🔧 Auto-filling phone number for booker from user account:",
+        user.phone
+      );
+      const updatedFirstPassenger = {
+        ...passengers[0],
+        phone: user.phone,
+      };
+      onPassengerChange(0, updatedFirstPassenger);
+    }
+  }, [user?.phone, passengers, onPassengerChange]);
 
   // Auto-fill function for dev mode
   const handleAutoFill = () => {
@@ -89,6 +111,7 @@ const PassengerInfoCollector: React.FC<PassengerInfoCollectorProps> = ({
         dateOfBirth: "1990-05-15",
         passportNumber: "001099001234",
         passportExpiry: "2030-05-15",
+        phone: user?.phone || "0912345678", // Use user's phone for first passenger
       },
       {
         firstName: "Hoa",
@@ -99,6 +122,7 @@ const PassengerInfoCollector: React.FC<PassengerInfoCollectorProps> = ({
         dateOfBirth: "1992-08-22",
         passportNumber: "001099005678",
         passportExpiry: "2030-08-22",
+        phone: "0987654321",
       },
       {
         firstName: "Minh",
@@ -109,6 +133,7 @@ const PassengerInfoCollector: React.FC<PassengerInfoCollectorProps> = ({
         dateOfBirth: "2015-03-10",
         passportNumber: "001099009012",
         passportExpiry: "2030-03-10",
+        phone: "0901234567",
       },
       {
         firstName: "Linh",
@@ -119,6 +144,7 @@ const PassengerInfoCollector: React.FC<PassengerInfoCollectorProps> = ({
         dateOfBirth: "2023-01-15",
         passportNumber: "001099003456",
         passportExpiry: "2030-01-15",
+        phone: "0876543210",
       },
     ];
 
@@ -719,6 +745,44 @@ const PassengerForm: React.FC<{
               <SelectItem value="SG">🇸🇬 Singapore</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+      </div>
+
+      {/* Phone Number Section */}
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4 space-y-4">
+        <h5 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+          <span className="w-1 h-4 bg-indigo-500 rounded"></span>
+          Thông tin liên lạc
+          {index === 0 && (
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+              Người đặt vé
+            </span>
+          )}
+        </h5>
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            Số điện thoại
+            {index === 0 && (
+              <span className="text-xs text-gray-500">
+                (Đã lấy từ tài khoản)
+              </span>
+            )}
+          </Label>
+          <Input
+            value={passenger.phone || ""}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onFieldChange(index, "phone", e.target.value)
+            }
+            placeholder="Ví dụ: 0912345678"
+            className="h-12 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-lg bg-white"
+            type="tel"
+          />
+          <div className="text-xs text-gray-500">
+            {index === 0
+              ? "Số điện thoại này sẽ được dùng để liên hệ về vé máy bay và thông báo quan trọng."
+              : "Số điện thoại để liên hệ khẩn cấp với hành khách này."}
+          </div>
         </div>
       </div>
 

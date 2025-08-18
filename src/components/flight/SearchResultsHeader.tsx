@@ -40,7 +40,6 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
   searchInfo,
   tripType,
   filteredFlights,
-  returnFlightResults,
   currentFlights,
   activeTab,
   filters,
@@ -93,12 +92,6 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
                       ? `${searchInfo.outbound_total_count} chiều đi, ${searchInfo.inbound_total_count} chiều về`
                       : "0"}
                   </span>{" "}
-                  chuyến bay • Hiển thị{" "}
-                  <span className="font-semibold">
-                    {filteredFlights.length} chiều đi,{" "}
-                    {returnFlightResults.length} chiều về
-                  </span>{" "}
-                  kết quả
                 </>
               ) : (
                 <>
@@ -132,11 +125,7 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
                             ? searchInfo.total_count
                             : filteredFlights.length}
                         </span>{" "}
-                        chuyến bay • Hiển thị{" "}
-                        <span className="font-semibold">
-                          {filteredFlights.length}
-                        </span>{" "}
-                        kết quả
+                        chuyến bay
                       </>
                     )}
                 </>

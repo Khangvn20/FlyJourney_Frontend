@@ -13,6 +13,8 @@ export interface PassengerFormData {
   issuingCountry?: string; // country issuing passport / ID
   passportNumber?: string;
   passportExpiry?: string; // ISO date
+  /** Phone number for this passenger. For the first passenger (booker), this can be auto-filled from user account */
+  phone?: string;
   /** Individual baggage selection for this passenger */
   extraBaggage?: {
     option: string; // baggage option ID (none, bg10, bg15, bg20)

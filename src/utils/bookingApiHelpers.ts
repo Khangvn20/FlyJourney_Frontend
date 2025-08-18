@@ -4,7 +4,7 @@ import type {
   BookingCreateRequest,
   BookingPassengerDetailRequest,
   BookingAncillaryRequest,
-} from "../shared/types/backend-api.types";
+} from "../shared/types/booking-api.types";
 
 /**
  * Convert date from MM/DD/YYYY or YYYY-MM-DD to dd/MM/yyyy format for API
@@ -189,10 +189,13 @@ export function createBookingPayload(
   // Convert addons to ancillaries
   const ancillaries = convertAddonsToAncillaries(passengers, globalAddons);
 
+  // Use the first passenger's phone as contact phone if not provided
+  const finalContactPhone = contactPhone || passengers[0]?.phone || "";
+
   return {
     flight_id: selection.outbound.flight_id,
     contact_email: contactEmail,
-    contact_phone: contactPhone,
+    contact_phone: finalContactPhone,
     contact_address: contactAddress,
     note: note || undefined,
     total_price: selection.totalPrice + globalAddons.extraPrice,

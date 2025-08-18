@@ -114,21 +114,6 @@ export const PassengerInformationStep: React.FC<
     <div className="grid gap-8 md:grid-cols-12">
       <div className="md:col-span-8 space-y-6">
         {/* Passenger Information Section */}
-        <div className="relative overflow-hidden rounded-2xl border bg-white/90 backdrop-blur-sm p-5 shadow-sm">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/70 via-transparent to-indigo-50/70 opacity-60" />
-          <div className="relative z-10 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white text-sm font-bold shadow">
-                👤
-              </span>
-              Thông tin hành khách
-            </h3>
-            <span className="text-[11px] text-gray-500">
-              Cung cấp thông tin chính xác
-            </span>
-          </div>
-        </div>
-
         <PassengerInfoCollector
           passengers={passengers}
           onPassengerChange={(index: number, passenger: PassengerFormData) => {
@@ -217,6 +202,21 @@ export const PassengerInformationStep: React.FC<
         {!contactAddress?.trim() && (
           <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
             ⚠️ Vui lòng nhập địa chỉ liên hệ của người đặt vé để tiếp tục
+          </div>
+        )}
+
+        {!passengers[0]?.phone?.trim() && (
+          <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
+            ⚠️ Vui lòng nhập số điện thoại của người đặt vé để tiếp tục
+          </div>
+        )}
+
+        {passengers.some(
+          (passenger, index) => index > 0 && !passenger.phone?.trim()
+        ) && (
+          <div className="p-4 border border-yellow-300 bg-yellow-50 rounded-lg text-sm text-yellow-700">
+            💡 Khuyến khích nhập số điện thoại cho các hành khách khác để liên
+            hệ khẩn cấp
           </div>
         )}
 
@@ -314,6 +314,16 @@ export const PassengerInformationStep: React.FC<
                   người
                 </span>
               </div>
+
+              {/* Contact Phone */}
+              {passengers[0]?.phone && (
+                <div className="flex items-center justify-between py-2 border-t border-gray-100">
+                  <span className="text-xs text-gray-600">SĐT liên hệ</span>
+                  <span className="text-xs font-medium text-gray-700">
+                    {passengers[0].phone}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Price Breakdown */}

@@ -3,7 +3,7 @@ import { apiClient } from "../shared/utils/apiClient";
 import type {
   BookingCreateRequest,
   BookingCreateResponse,
-} from "../shared/types/backend-api.types";
+} from "../shared/types/booking-api.types";
 
 /**
  * Create booking in backend

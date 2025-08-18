@@ -315,6 +315,9 @@ const BookingFlow: React.FC = () => {
     // Check if contact address is provided
     if (!contactAddress.trim()) return false;
 
+    // Check if first passenger (booker) has phone number
+    if (!passengers[0]?.phone?.trim()) return false;
+
     return passengers.every(
       (p) =>
         p.firstName.trim() &&

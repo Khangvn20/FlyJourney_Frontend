@@ -42,7 +42,7 @@ const ApiTestPanel: React.FC = () => {
     const registerData: RegisterFormData = {
       email: formData.email,
       password: formData.password,
-      confirmPassword: formData.password, 
+      confirmPassword: formData.password,
       name: formData.name,
       phone: formData.phone,
     };
