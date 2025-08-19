@@ -209,6 +209,14 @@ const BookingFlow: React.FC = () => {
 
       if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
         console.log("🎫 Creating booking with payload:", payload);
+        console.log(
+          "📅 Trip type:",
+          selection.inbound ? "round-trip" : "one-way"
+        );
+        if (selection.inbound) {
+          console.log("✈️ Outbound flight_id:", selection.outbound.flight_id);
+          console.log("🔄 Return flight_id:", selection.inbound.flight_id);
+        }
       }
 
       // Call API
