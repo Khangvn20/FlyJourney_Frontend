@@ -12,6 +12,7 @@ export interface BookingPassengerDetailRequest {
   passenger_age: number; // derived from DOB
   passenger_gender: string; // "male" | "female" | "other"
   flight_class_id: number; // selected fare class id
+  return_flight_class_id?: number; // return flight class id (for round-trip only)
   price: number; // base price per passenger (incl taxes)
   last_name: string;
   first_name: string;
@@ -25,6 +26,7 @@ export interface BookingPassengerDetailRequest {
 
 export interface BookingCreateRequest {
   flight_id: number;
+  return_flight_id?: number; // for round-trip bookings
   contact_email: string;
   contact_phone: string;
   contact_address: string;
@@ -62,6 +64,7 @@ export interface BookingCreateResponseData {
   booking_id: number;
   user_id: number;
   flight_id: number;
+  return_flight_id?: number; // for round-trip bookings
   booking_date: string;
   contact_email: string;
   contact_phone: string;

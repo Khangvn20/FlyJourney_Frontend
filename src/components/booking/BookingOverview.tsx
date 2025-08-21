@@ -393,14 +393,21 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
                     +{addons.extraBaggageKg}kg hành lý
                   </span>
                 )}
-                {addons.services.map((s) => {
-                  const label =
-                    SERVICE_OPTIONS.find((o) => o.id === s)?.label || s;
+                {addons.services.map((serviceId) => {
+                  const service = SERVICE_OPTIONS.find(
+                    (o) => o.id === serviceId
+                  );
+                  const label = service?.label || serviceId;
+                  const price = service?.price || 0;
                   return (
                     <span
-                      key={s}
-                      className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+                      key={serviceId}
+                      className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium flex items-center gap-1">
                       {label}
+                      <span className="text-[10px] opacity-75">
+                        ({(price * passengers.length).toLocaleString("vi-VN")}{" "}
+                        ₫)
+                      </span>
                     </span>
                   );
                 })}

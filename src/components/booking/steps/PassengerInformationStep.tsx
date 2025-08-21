@@ -2,11 +2,13 @@ import React, { useMemo } from "react";
 import type { PassengerFormData } from "../../../shared/types/passenger.types";
 import PassengerInfoCollector from "../PassengerInfoCollector";
 import AddonsSelector from "../AddonsSelector";
+import { SERVICE_OPTIONS } from "../bookingAddons.constants";
 import type { BookingSelection } from "../BookingSummary";
 
-// Helper function to calculate total baggage cost from individual passenger selections
+// ===============================
+// Helpers
+// ===============================
 const calculatePassengerBaggageTotals = (passengers: PassengerFormData[]) => {
-  // Group passengers by baggage type for smarter display
   const baggageGroups: {
     [key: string]: { passengers: string[]; price: number; extraKg: number };
   } = {};
@@ -28,19 +30,15 @@ const calculatePassengerBaggageTotals = (passengers: PassengerFormData[]) => {
     }
   });
 
-  // Create smart display format
   const smartBaggageDisplay = Object.values(baggageGroups).map((group) => {
     const { passengers, price, extraKg } = group;
     let displayText: string;
 
     if (passengers.length === 1) {
-      // Single passenger: "Người đặt: +15kg"
       displayText = `${passengers[0]}: +${extraKg}kg`;
     } else if (passengers.length <= 3) {
-      // Few passengers: "HK2,HK3: +10kg"
       displayText = `${passengers.join(",")}: +${extraKg}kg`;
     } else {
-      // Many passengers: "4 người: +15kg (HK2,HK3,HK4,HK5)"
       displayText = `${
         passengers.length
       } người: +${extraKg}kg (${passengers.join(",")})`;
@@ -72,7 +70,7 @@ interface PassengerInformationStepProps {
   addons: {
     extraBaggageKg: number;
     services: string[];
-    extraPrice: number;
+    extraPrice: number; // vẫn giữ để tương thích, nhưng subtotal services sẽ tính lại từ SERVICE_OPTIONS
   };
   onAddonsChange: (addons: {
     extraBaggageKg: number;
@@ -105,31 +103,106 @@ export const PassengerInformationStep: React.FC<
   onNext,
   isValid,
 }) => {
-  // Calculate individual passenger baggage totals
+  // 1) Hành lý (theo từng hành khách)
   const { smartBaggageDisplay, totalBaggagePrice } = useMemo(
     () => calculatePassengerBaggageTotals(passengers),
     [passengers]
   );
+
+  // 2) Fare breakdown (giá vé & thuế/phí), Services breakdown
+  const {
+    totalPassengers,
+    taxesAndFees,
+    paxAllocation,
+    servicesDetail,
+    servicesTotal,
+    fareTotal,
+    grandTotal,
+  } = useMemo(() => {
+    const totalPassengers =
+      passengerCounts.adults +
+      passengerCounts.children +
+      passengerCounts.infants;
+
+    // Giả định: selection.totalPrice đã bao gồm thuế & phí
+    // Ta tách 70% là fare cơ bản, 30% là thuế/phí để hiển thị rõ ràng.
+    const baseFareTotal = Math.floor(selection.totalPrice * 0.7);
+    const taxesAndFees = selection.totalPrice - baseFareTotal;
+
+    // Phân bổ minh họa theo hệ số (adult:1, child:0.75, infant:0.1)
+    const weightAdults = passengerCounts.adults;
+    const weightChildren = passengerCounts.children * 0.75;
+    const weightInfants = passengerCounts.infants * 0.1;
+    const totalWeight = Math.max(
+      1,
+      weightAdults + weightChildren + weightInfants
+    );
+
+    const perUnit = baseFareTotal / totalWeight;
+
+    const adultsFare = Math.floor(perUnit * weightAdults);
+    const childrenFare = Math.floor(perUnit * passengerCounts.children * 0.75);
+    const infantsFare = Math.floor(perUnit * passengerCounts.infants * 0.1);
+
+    const paxAllocation = {
+      adults: adultsFare,
+      children: childrenFare,
+      infants: infantsFare,
+    };
+
+    // Dịch vụ chung: tính lại từ SERVICE_OPTIONS để đảm bảo chính xác
+    const servicesDetail = addons.services.map((serviceId) => {
+      const service = SERVICE_OPTIONS.find((s) => s.id === serviceId);
+      const name = service?.label || serviceId;
+      const price = service?.price ?? 50000;
+      const subtotal = price * totalPassengers;
+      return {
+        id: serviceId,
+        name,
+        unit: price,
+        qty: totalPassengers,
+        subtotal,
+      };
+    });
+
+    const servicesTotal = servicesDetail.reduce(
+      (sum, s) => sum + s.subtotal,
+      0
+    );
+
+    const fareTotal = selection.totalPrice; // đã gồm thuế/phí
+    const grandTotal = fareTotal + totalBaggagePrice + servicesTotal;
+
+    return {
+      totalPassengers,
+      baseFareTotal,
+      taxesAndFees,
+      paxAllocation,
+      servicesDetail,
+      servicesTotal,
+      fareTotal,
+      grandTotal,
+    };
+  }, [
+    addons.services,
+    passengerCounts,
+    selection.totalPrice,
+    totalBaggagePrice,
+  ]);
+
   return (
     <div className="grid gap-8 md:grid-cols-12">
+      {/* Left content */}
       <div className="md:col-span-8 space-y-6">
         {/* Passenger Information Section */}
         <PassengerInfoCollector
           passengers={passengers}
           onPassengerChange={(index: number, passenger: PassengerFormData) => {
-            console.log(
-              `🔧 PassengerInformationStep: Updating passenger ${index}:`,
-              passenger
-            );
             const updatedPassengers = [...passengers];
             updatedPassengers[index] = passenger;
             onPassengerChange(updatedPassengers);
           }}
           onBatchPassengerChange={(updatedPassengers: PassengerFormData[]) => {
-            console.log(
-              `🔧 PassengerInformationStep: Batch updating all passengers:`,
-              updatedPassengers.length
-            );
             onPassengerChange(updatedPassengers);
           }}
           passengerCounts={passengerCounts}
@@ -137,7 +210,7 @@ export const PassengerInformationStep: React.FC<
           onContactAddressChange={onContactAddressChange}
         />
 
-        {/* Addons Selector for general services */}
+        {/* Addons Selector */}
         <div className="relative overflow-hidden rounded-2xl border bg-white/90 backdrop-blur-sm p-5 shadow-sm">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-50/70 via-transparent to-indigo-50/70 opacity-60" />
           <div className="relative z-10">
@@ -250,7 +323,7 @@ export const PassengerInformationStep: React.FC<
         </div>
       </div>
 
-      {/* Side Summary */}
+      {/* Right summary */}
       <div className="md:col-span-4 hidden md:block">
         <div className="sticky top-4 space-y-4">
           <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white to-blue-50/30 backdrop-blur-sm shadow-lg">
@@ -270,7 +343,7 @@ export const PassengerInformationStep: React.FC<
                 )}
               </div>
 
-              {/* Flight Routes */}
+              {/* Flight routes */}
               <div className="space-y-2 mb-4">
                 <div className="flex items-center text-sm font-medium text-gray-700">
                   <span className="flex-1">
@@ -304,18 +377,14 @@ export const PassengerInformationStep: React.FC<
                 )}
               </div>
 
-              {/* Passenger Count */}
+              {/* Passenger Count & Contact */}
               <div className="flex items-center justify-between py-2 border-t border-gray-100">
                 <span className="text-xs text-gray-600">Hành khách</span>
                 <span className="text-xs font-medium text-gray-700">
-                  {passengerCounts.adults +
-                    passengerCounts.children +
-                    passengerCounts.infants}{" "}
-                  người
+                  {totalPassengers} người
                 </span>
               </div>
 
-              {/* Contact Phone */}
               {passengers[0]?.phone && (
                 <div className="flex items-center justify-between py-2 border-t border-gray-100">
                   <span className="text-xs text-gray-600">SĐT liên hệ</span>
@@ -326,185 +395,138 @@ export const PassengerInformationStep: React.FC<
               )}
             </div>
 
-            {/* Price Breakdown */}
+            {/* PRICE GROUPS */}
             <div className="relative z-10 px-4 pb-4">
-              <div className="bg-white/60 rounded-xl p-3 space-y-2">
-                <h5 className="text-xs font-semibold text-gray-700 mb-2">
-                  Chi tiết giá vé
-                </h5>
-
-                {/* Base Flight Prices */}
-                <div className="space-y-1.5">
-                  {passengerCounts.adults > 0 && (
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-600">
-                        Người lớn × {passengerCounts.adults}
-                      </span>
-                      <span className="font-medium text-gray-800">
-                        {Math.floor(
-                          ((selection.totalPrice * 0.7) /
-                            (passengerCounts.adults +
-                              passengerCounts.children * 0.75 +
-                              passengerCounts.infants * 0.1)) *
-                            passengerCounts.adults
-                        ).toLocaleString("vi-VN")}{" "}
-                        ₫
+              <div className="bg-white/70 rounded-xl p-3 space-y-3">
+                {/* GROUP 1: GIÁ VÉ (TỔNG) */}
+                <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold tracking-wide">
+                        GIÁ VÉ (TỔNG)
                       </span>
                     </div>
-                  )}
+                    <div className="text-sm font-extrabold text-blue-700">
+                      {fareTotal.toLocaleString("vi-VN")} ₫
+                    </div>
+                  </div>
 
-                  {passengerCounts.children > 0 && (
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-600">
-                        Trẻ em × {passengerCounts.children}
-                      </span>
+                  <div className="mt-2 space-y-1.5">
+                    {passengerCounts.adults > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600">
+                          Người lớn × {passengerCounts.adults}
+                        </span>
+                        <span className="font-medium text-gray-800">
+                          {paxAllocation.adults.toLocaleString("vi-VN")} ₫
+                        </span>
+                      </div>
+                    )}
+
+                    {passengerCounts.children > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600">
+                          Trẻ em × {passengerCounts.children}
+                        </span>
+                        <span className="font-medium text-gray-800">
+                          {paxAllocation.children.toLocaleString("vi-VN")} ₫
+                        </span>
+                      </div>
+                    )}
+
+                    {passengerCounts.infants > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600">
+                          Trẻ sơ sinh × {passengerCounts.infants}
+                        </span>
+                        <span className="font-medium text-gray-800">
+                          {paxAllocation.infants.toLocaleString("vi-VN")} ₫
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between text-[11px] pt-1 border-t border-gray-200/70 mt-1">
+                      <span className="text-gray-600">Thuế & phí</span>
                       <span className="font-medium text-gray-800">
-                        {Math.floor(
-                          ((selection.totalPrice * 0.7) /
-                            (passengerCounts.adults +
-                              passengerCounts.children * 0.75 +
-                              passengerCounts.infants * 0.1)) *
-                            passengerCounts.children *
-                            0.75
-                        ).toLocaleString("vi-VN")}{" "}
-                        ₫
+                        {taxesAndFees.toLocaleString("vi-VN")} ₫
                       </span>
                     </div>
-                  )}
-
-                  {passengerCounts.infants > 0 && (
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-600">
-                        Trẻ sơ sinh × {passengerCounts.infants}
-                      </span>
-                      <span className="font-medium text-gray-800">
-                        {Math.floor(
-                          ((selection.totalPrice * 0.7) /
-                            (passengerCounts.adults +
-                              passengerCounts.children * 0.75 +
-                              passengerCounts.infants * 0.1)) *
-                            passengerCounts.infants *
-                            0.1
-                        ).toLocaleString("vi-VN")}{" "}
-                        ₫
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Taxes & Fees */}
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-600">Thuế & phí</span>
-                    <span className="font-medium text-gray-800">
-                      {Math.floor(selection.totalPrice * 0.3).toLocaleString(
-                        "vi-VN"
-                      )}{" "}
-                      ₫
-                    </span>
                   </div>
                 </div>
 
-                {/* Baggage & Services Section */}
-                {(totalBaggagePrice > 0 || addons.services.length > 0) && (
-                  <>
-                    <div className="border-t border-gray-200 pt-2 mt-2">
-                      <h6 className="text-xs font-semibold text-gray-700 mb-1.5">
-                        Dịch vụ thêm
-                      </h6>
-
-                      {/* Individual Passenger Baggage Details - Smart Display */}
-                      {smartBaggageDisplay.length > 0 && (
-                        <div className="space-y-1.5">
-                          <div className="text-[10px] font-medium text-blue-700 uppercase tracking-wide">
-                            Hành lý cá nhân
-                          </div>
-                          {smartBaggageDisplay.map((item, index) => (
-                            <div
-                              key={index}
-                              className="flex justify-between text-xs py-0.5">
-                              <span className="text-gray-600">
-                                {item.display}
-                              </span>
-                              <span className="font-medium text-gray-800">
-                                {(item.price * item.count).toLocaleString(
-                                  "vi-VN"
-                                )}{" "}
-                                ₫
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {addons.services.length > 0 && (
-                        <div className="space-y-1.5 pt-2">
-                          <div className="text-[10px] font-medium text-green-700 uppercase tracking-wide">
-                            Dịch vụ chung
-                          </div>
-                          {addons.services.map((service, index) => {
-                            // Map service IDs to display names and prices
-                            const serviceMap: Record<
-                              string,
-                              { name: string; price: number }
-                            > = {
-                              svc_fasttrack: {
-                                name: "Fast Track an ninh",
-                                price: 150000,
-                              },
-                              svc_meal: { name: "Suất ăn nóng", price: 120000 },
-                              svc_combo: {
-                                name: "Combo ăn + nước",
-                                price: 180000,
-                              },
-                              svc_priority: {
-                                name: "Ưu tiên lên máy bay",
-                                price: 90000,
-                              },
-                            };
-
-                            const serviceInfo = serviceMap[service] || {
-                              name: service,
-                              price: 150000,
-                            };
-                            const totalPassengers =
-                              passengerCounts.adults +
-                              passengerCounts.children +
-                              passengerCounts.infants;
-
-                            return (
-                              <div
-                                key={index}
-                                className="flex justify-between text-xs py-0.5">
-                                <span className="text-gray-600">
-                                  {serviceInfo.name} ({totalPassengers} người)
-                                </span>
-                                <span className="font-medium text-gray-800">
-                                  {(
-                                    serviceInfo.price * totalPassengers
-                                  ).toLocaleString("vi-VN")}{" "}
-                                  ₫
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {/* Total */}
-                <div className="border-t border-gray-200 pt-2 mt-3">
+                {/* GROUP 2: HÀNH LÝ */}
+                <div className="rounded-lg border border-amber-100 bg-amber-50/40 p-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-gray-800">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold tracking-wide">
+                      HÀNH LÝ (TÁCH RIÊNG)
+                    </span>
+                    <div className="text-sm font-extrabold text-amber-700">
+                      {totalBaggagePrice.toLocaleString("vi-VN")} ₫
+                    </div>
+                  </div>
+
+                  {smartBaggageDisplay.length > 0 ? (
+                    <div className="mt-2 space-y-1.5">
+                      {smartBaggageDisplay.map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex justify-between text-xs">
+                          <span className="text-gray-600">{item.display}</span>
+                          <span className="font-medium text-gray-800">
+                            {(item.price * item.count).toLocaleString("vi-VN")}{" "}
+                            ₫
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-[11px] text-gray-500">
+                      Chưa chọn thêm hành lý.
+                    </div>
+                  )}
+                </div>
+
+                {/* GROUP 3: DỊCH VỤ CHUNG */}
+                <div className="rounded-lg border border-emerald-100 bg-emerald-50/40 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold tracking-wide">
+                      DỊCH VỤ CHUNG
+                    </span>
+                    <div className="text-sm font-extrabold text-emerald-700">
+                      {servicesTotal.toLocaleString("vi-VN")} ₫
+                    </div>
+                  </div>
+
+                  {servicesDetail.length > 0 ? (
+                    <div className="mt-2 space-y-1.5">
+                      {servicesDetail.map((s) => (
+                        <div
+                          key={s.id}
+                          className="flex justify-between text-xs">
+                          <span className="text-gray-600">
+                            {s.name} ({s.qty} người)
+                          </span>
+                          <span className="font-medium text-gray-800">
+                            {s.subtotal.toLocaleString("vi-VN")} ₫
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-[11px] text-gray-500">
+                      Chưa chọn dịch vụ thêm.
+                    </div>
+                  )}
+                </div>
+
+                {/* GRAND TOTAL */}
+                <div className="border-t border-gray-200 pt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-extrabold text-gray-900">
                       Tổng cộng
                     </span>
-                    <span className="text-lg font-bold text-blue-600">
-                      {(
-                        selection.totalPrice +
-                        totalBaggagePrice +
-                        addons.extraPrice
-                      ).toLocaleString("vi-VN")}{" "}
-                      ₫
+                    <span className="text-xl font-black text-blue-700 tracking-tight">
+                      {grandTotal.toLocaleString("vi-VN")} ₫
                     </span>
                   </div>
                   <div className="text-[10px] text-gray-500 text-right mt-0.5">
@@ -513,6 +535,7 @@ export const PassengerInformationStep: React.FC<
                 </div>
               </div>
             </div>
+            {/* /PRICE GROUPS */}
           </div>
         </div>
       </div>

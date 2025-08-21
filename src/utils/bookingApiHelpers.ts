@@ -5,6 +5,10 @@ import type {
   BookingPassengerDetailRequest,
   BookingAncillaryRequest,
 } from "../shared/types/booking-api.types";
+import {
+  getServiceMapping,
+  getBaggageApiDescription,
+} from "../shared/constants/serviceMapping";
 
 /**
  * Convert date from MM/DD/YYYY or YYYY-MM-DD to dd/MM/yyyy format for API
@@ -69,11 +73,12 @@ export function calculateAge(dateOfBirth: string | undefined): number {
 export function convertPassengerToApiFormat(
   passenger: PassengerFormData,
   flightClassId: number,
+  returnFlightClassId: number | undefined,
   basePrice: number
 ): BookingPassengerDetailRequest {
   const age = calculateAge(passenger.dateOfBirth);
 
-  return {
+  const result: BookingPassengerDetailRequest = {
     passenger_age: age,
     passenger_gender: passenger.gender || "other",
     flight_class_id: flightClassId,
@@ -87,6 +92,13 @@ export function convertPassengerToApiFormat(
     issuing_country: passenger.issuingCountry || "VN",
     nationality: passenger.nationality || "VN",
   };
+
+  // Add return flight class ID if it's a round-trip booking
+  if (returnFlightClassId) {
+    result.return_flight_class_id = returnFlightClassId;
+  }
+
+  return result;
 }
 
 /**
@@ -101,12 +113,18 @@ export function convertAddonsToAncillaries(
   // Handle individual baggage for each passenger
   passengers.forEach((passenger, index) => {
     if (passenger.extraBaggage && passenger.extraBaggage.extraKg > 0) {
+      // Format name as: Last Name, First Name (international standard)
+      const passengerName = `${passenger.lastName.trim()}, ${passenger.firstName.trim()}`;
+      const baggageWeight = passenger.extraBaggage.extraKg;
+
       ancillaries.push({
         type: "baggage",
-        description: `Hành lý ký gửi thêm cho hành khách ${index + 1} (${
-          passenger.firstName
-        } ${passenger.lastName})`,
-        quantity: passenger.extraBaggage.extraKg,
+        description: getBaggageApiDescription(
+          baggageWeight,
+          index,
+          passengerName
+        ),
+        quantity: baggageWeight,
         price: passenger.extraBaggage.price, // Use the already calculated price
       });
     }
@@ -114,45 +132,24 @@ export function convertAddonsToAncillaries(
 
   // Handle global services
   globalAddons.services.forEach((serviceId) => {
-    let description = "";
-    let pricePerService = 0;
+    const serviceMapping = getServiceMapping(serviceId);
 
-    switch (serviceId) {
-      case "seat_selection":
-        description = "Chọn chỗ ngồi";
-        pricePerService = 150000;
-        break;
-      case "priority_boarding":
-        description = "Lên máy bay ưu tiên";
-        pricePerService = 100000;
-        break;
-      case "lounge_access":
-        description = "Phòng chờ VIP";
-        pricePerService = 300000;
-        break;
-      case "extra_legroom":
-        description = "Ghế khoang rộng";
-        pricePerService = 250000;
-        break;
-      case "wifi":
-        description = "WiFi trên chuyến bay";
-        pricePerService = 80000;
-        break;
-      case "meal_upgrade":
-        description = "Nâng cấp suất ăn";
-        pricePerService = 200000;
-        break;
-      default:
-        description = serviceId;
-        pricePerService = 50000;
+    if (serviceMapping) {
+      ancillaries.push({
+        type: "service",
+        description: serviceMapping.apiDescription(passengers.length),
+        quantity: passengers.length,
+        price: serviceMapping.price * passengers.length,
+      });
+    } else {
+      // Fallback for unknown service IDs
+      ancillaries.push({
+        type: "service",
+        description: `[${serviceId}] Dịch vụ bổ sung - ${passengers.length} hành khách`,
+        quantity: passengers.length,
+        price: 50000 * passengers.length,
+      });
     }
-
-    ancillaries.push({
-      type: "service",
-      description,
-      quantity: passengers.length, // Apply to all passengers
-      price: pricePerService * passengers.length,
-    });
   });
 
   return ancillaries;
@@ -175,6 +172,7 @@ export function createBookingPayload(
   }
 ): BookingCreateRequest {
   const flightClassId = selection.outbound.flight_class_id || 1;
+  const returnFlightClassId = selection.inbound?.flight_class_id;
 
   // Calculate base price per passenger (excluding addons)
   const basePrice = Math.round(
@@ -183,7 +181,12 @@ export function createBookingPayload(
 
   // Convert passengers to API format
   const details = passengers.map((passenger) =>
-    convertPassengerToApiFormat(passenger, flightClassId, basePrice)
+    convertPassengerToApiFormat(
+      passenger,
+      flightClassId,
+      returnFlightClassId,
+      basePrice
+    )
   );
 
   // Convert addons to ancillaries
@@ -192,7 +195,7 @@ export function createBookingPayload(
   // Use the first passenger's phone as contact phone if not provided
   const finalContactPhone = contactPhone || passengers[0]?.phone || "";
 
-  return {
+  const payload: BookingCreateRequest = {
     flight_id: selection.outbound.flight_id,
     contact_email: contactEmail,
     contact_phone: finalContactPhone,
@@ -202,4 +205,11 @@ export function createBookingPayload(
     details,
     ancillaries: ancillaries.length > 0 ? ancillaries : undefined,
   };
+
+  // Add return flight ID for round-trip bookings
+  if (selection.inbound) {
+    payload.return_flight_id = selection.inbound.flight_id;
+  }
+
+  return payload;
 }
