@@ -11,7 +11,7 @@ import type {
   BookingRecord,
 } from "../../shared/types/passenger.types";
 import { createBooking } from "../../services/bookingService";
-import { createBookingPayload } from "../../utils/bookingApiHelpers";
+import { createBookingPayload } from "../../shared/utils/bookingApiHelpers";
 import { saveBookings, loadBookings } from "../../services/bookingStorage";
 import {
   DEV_CONFIG,

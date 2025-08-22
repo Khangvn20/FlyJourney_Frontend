@@ -24,7 +24,7 @@ import {
   validateName,
   validatePhone,
   getPasswordStrength,
-} from "../../utils/userMenuValidation";
+} from "../../shared/utils/userMenuValidation";
 import type { BackendUserProfile } from "../../shared/types/backend-api.types";
 
 /**

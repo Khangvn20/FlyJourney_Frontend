@@ -8,10 +8,8 @@ import Booking from "./pages/Booking";
 import Register from "./pages/Register";
 import Blog from "./pages/Blog";
 import News from "./pages/News";
-import DebugApi from "./pages/DebugApi";
 import MyBookings from "./pages/MyBookings";
 import BookingDetail from "./pages/BookingDetail";
-import ApiTest from "./pages/ApiTest";
 
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
@@ -50,8 +48,6 @@ const App: React.FC = () => {
                       </ProtectedRoute>
                     }
                   />
-                  <Route path="/debug" element={<DebugApi />} />
-                  <Route path="/api-test" element={<ApiTest />} />
                   <Route
                     path="/my-bookings"
                     element={

@@ -1,14 +1,14 @@
-import type { PassengerFormData } from "../shared/types/passenger.types";
-import type { BookingSelection } from "../components/booking/BookingSummary";
+import type { PassengerFormData } from "../types/passenger.types";
+import type { BookingSelection } from "../../components/booking/BookingSummary";
 import type {
   BookingCreateRequest,
   BookingPassengerDetailRequest,
   BookingAncillaryRequest,
-} from "../shared/types/booking-api.types";
+} from "../types/booking-api.types";
 import {
   getServiceMapping,
   getBaggageApiDescription,
-} from "../shared/constants/serviceMapping";
+} from "../constants/serviceMapping";
 
 /**
  * Convert date from MM/DD/YYYY or YYYY-MM-DD to dd/MM/yyyy format for API

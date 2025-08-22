@@ -5,7 +5,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Mail, Lock, User, Eye, EyeOff, Shield, Phone } from "lucide-react";
 import type { RegisterFormData } from "../../shared/types";
-import { validateRegisterForm } from "../../utils/registerFormHelpers";
+import { validateRegisterForm } from "../../shared/utils/registerFormHelpers";
 
 interface RegisterFormProps {
   onSubmit: (data: RegisterFormData) => Promise<void>;
