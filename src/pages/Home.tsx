@@ -2,9 +2,10 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
-import FlightSearchForm from "../components/FlightSearchForm";
-import PopularDestinations from "../components/PopularDestinations";
-import TravelNews from "../components/TravelNews";
+import FlightSearchForm from "../components/flight/FlightSearchForm";
+import PopularDestinations from "../components/sections/PopularDestinations";
+import TravelNews from "../components/sections/TravelNews";
+import AirlinesSection from "../components/sections/AirlinesSection";
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,7 +14,7 @@ import {
   Shield,
   Clock,
 } from "lucide-react";
-import { heroSlides, whyChooseUs, airlines } from "../assets/mock";
+import { heroSlides, whyChooseUs } from "../mocks";
 
 const Home: React.FC = () => {
   // State cho slideshow hero
@@ -50,7 +51,7 @@ const Home: React.FC = () => {
                 index === currentSlide ? "opacity-100" : "opacity-0"
               }`}>
               <img
-                src={slide.image}
+                src={slide.image || "/placeholder.svg"}
                 alt={slide.title}
                 className="w-full h-full object-cover"
               />
@@ -110,10 +111,12 @@ const Home: React.FC = () => {
           </div>
         </div>
       </section>
+
       {/* Search Form */}
       <section className="relative -mt-20 z-20">
         <FlightSearchForm />
       </section>
+
       {/* Tại sao chọn chúng tôi */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
@@ -157,39 +160,16 @@ const Home: React.FC = () => {
           </div>
         </div>
       </section>
+
       {/* Điểm đến hấp dẫn */}
       <PopularDestinations />
-      {/* Tin tức nổi bật */}
-      <TravelNews /> {/* Các hãng bay nổi bật */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-gray-900 mb-4">
-              Các hãng bay nổi bật
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Đối tác hàng không uy tín, chúng tôi cam kết mang đến cho bạn
-              những chuyến bay an toàn và thoải mái
-            </p>
-          </div>
 
-          <div className="bg-white rounded-2xl shadow-soft p-8">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 items-center">
-              {airlines.map((airline, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-center p-4 hover:bg-gray-50 rounded-lg transition-colors duration-200">
-                  <img
-                    src={airline.logo}
-                    alt={airline.name}
-                    className="h-12 w-auto object-contain filter grayscale hover:grayscale-0 transition-all duration-200"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Tin tức nổi bật */}
+      <TravelNews />
+
+      {/* Các hãng bay nổi bật - Full width, breaks out of container */}
+      <AirlinesSection />
+
       {/* Newsletter Section */}
       <section className="py-16">
         <div className="container mx-auto px-4">

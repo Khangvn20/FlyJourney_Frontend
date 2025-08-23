@@ -1,14 +1,10 @@
-import { useState } from "react";
+import { useContext } from "react";
+import { AuthContext } from "../contexts/AuthContext";
 
 export const useAuth = () => {
-  const [token, setToken] = useState<string | null>(null);
-
-  const login = async (email: string, password: string) => {
-    console.log("Mock login with:", { email, password });
-    setToken("mock-token");
-  };
-
-  const logout = () => setToken(null);
-
-  return { token, login, logout };
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 };

@@ -3,56 +3,17 @@ import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import {
-  MapPin,
-  Clock,
-  Users,
-  Star,
-  Plane,
-  Camera,
-  Coffee,
-  Mountain,
-} from "lucide-react";
+import { MapPin, Clock, Users, Star, Coffee } from "lucide-react";
+import { getTravelItineraryById } from "../mocks";
+import type { TravelItineraryItem } from "../shared/types";
 
 const Blog: React.FC = () => {
-  const travelItinerary = [
-    {
-      day: "Ngày 1",
-      title: "Khám phá Hà Nội",
-      activities: [
-        "Tham quan Hồ Hoàn Kiếm và Đền Ngọc Sơn",
-        "Thưởng thức phở Hà Nội tại phố cổ",
-        "Dạo bước tại Khu phố cổ Hà Nội",
-        "Xem múa rối nước truyền thống",
-      ],
-      image:
-        "https://images.pexels.com/photos/2161467/pexels-photo-2161467.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop",
-    },
-    {
-      day: "Ngày 2",
-      title: "Di sản và Văn hóa",
-      activities: [
-        "Tham quan Lăng Chủ tích Hồ Chí Minh",
-        "Khám phá Văn Miếu - Quốc Tử Giám",
-        "Mua sắm tại chợ Đông Xuân",
-        "Thưởng thức bia hơi tại phố Tạ Hiện",
-      ],
-      image:
-        "https://images.pexels.com/photos/5207262/pexels-photo-5207262.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop",
-    },
-    {
-      day: "Ngày 3",
-      title: "Ẩm thực và Giải trí",
-      activities: [
-        "Tham quan chợ Hôm và Long Biên",
-        "Thưởng thức bún chả Obama",
-        "Tham quan Nhà hát lớn Hà Nội",
-        "Shopping tại Vincom và Tràng Tiền Plaza",
-      ],
-      image:
-        "https://images.pexels.com/photos/2161467/pexels-photo-2161467.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop",
-    },
-  ];
+  // Sử dụng itinerary đầu tiên làm mặc định
+  const itinerary = getTravelItineraryById("hcm-hanoi-3days");
+
+  if (!itinerary) {
+    return <div>Không tìm thấy lịch trình du lịch</div>;
+  }
 
   const highlights = [
     {
@@ -73,29 +34,6 @@ const Blog: React.FC = () => {
     },
   ];
 
-  const tips = [
-    {
-      icon: Plane,
-      title: "Thời gian bay tốt nhất",
-      description: "Chuyến bay sáng sớm để có thời gian khám phá nhiều hơn",
-    },
-    {
-      icon: Camera,
-      title: "Điểm chụp ảnh đẹp",
-      description: "Hồ Hoàn Kiếm lúc hoàng hôn, Cầu Long Biên vào buổi sáng",
-    },
-    {
-      icon: Coffee,
-      title: "Món ăn phải thử",
-      description: "Phở, bún chả, chả cá Lã Vọng, bánh mì pate",
-    },
-    {
-      icon: Mountain,
-      title: "Hoạt động thú vị",
-      description: "Xe ôm tour, cyclo phố cổ, cruise trên sông Hồng",
-    },
-  ];
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
@@ -112,19 +50,19 @@ const Blog: React.FC = () => {
               HÀNH TRÌNH KHÁM PHÁ
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold mb-4">
-              Hà Nội - TP Hồ Chí Minh
+              {itinerary.title}
             </h1>
             <p className="text-xl md:text-2xl opacity-90">
-              Khám phá hai thành phố lớn nhất Việt Nam
+              {itinerary.description}
             </p>
             <div className="flex items-center justify-center space-x-6 mt-6 text-lg">
               <div className="flex items-center">
                 <Clock className="h-5 w-5 mr-2" />
-                <span>3 ngày 2 đêm</span>
+                <span>{itinerary.duration}</span>
               </div>
               <div className="flex items-center">
                 <MapPin className="h-5 w-5 mr-2" />
-                <span>15+ điểm tham quan</span>
+                <span>{itinerary.highlights.length} điểm nổi bật</span>
               </div>
             </div>
           </div>
@@ -142,10 +80,7 @@ const Blog: React.FC = () => {
                 Tổng quan hành trình
               </h2>
               <p className="text-lg text-gray-600 leading-relaxed mb-6">
-                Hành trình khám phá hai thành phố lớn nhất Việt Nam - từ Hà Nội
-                cổ kính với hàng nghìn năm lịch sử đến TP Hồ Chí Minh năng động,
-                hiện đại. Trải nghiệm sự đa dạng về văn hóa, ẩm thực và con
-                người qua từng vùng miền đặc sắc.
+                {itinerary.description}
               </p>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -175,46 +110,62 @@ const Blog: React.FC = () => {
               </h2>
 
               <div className="space-y-8">
-                {travelItinerary.map((day, index) => (
-                  <div key={index} className="flex gap-6">
-                    <div className="flex-shrink-0">
-                      <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold">
-                          {day.day.split(" ")[1]}
-                        </span>
+                {itinerary.itinerary.map(
+                  (day: TravelItineraryItem, index: number) => (
+                    <div key={index} className="flex gap-6">
+                      <div className="flex-shrink-0">
+                        <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center">
+                          <span className="text-white font-bold">
+                            {day.day}
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex-1">
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="flex flex-col md:flex-row gap-6">
-                          <div className="flex-1">
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">
-                              {day.day}: {day.title}
-                            </h3>
-                            <ul className="space-y-2">
-                              {day.activities.map((activity, actIndex) => (
-                                <li key={actIndex} className="flex items-start">
-                                  <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0" />
-                                  <span className="text-gray-700">
-                                    {activity}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div className="md:w-48">
-                            <img
-                              src={day.image}
-                              alt={day.title}
-                              className="w-full h-32 object-cover rounded-lg"
-                            />
+                      <div className="flex-1">
+                        <div className="bg-gray-50 rounded-xl p-6">
+                          <div className="flex flex-col md:flex-row gap-6">
+                            <div className="flex-1">
+                              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                Ngày {day.day}: {day.title}
+                              </h3>
+                              <p className="text-gray-600 mb-4">
+                                {day.description}
+                              </p>
+                              <ul className="space-y-2">
+                                {day.activities.map(
+                                  (activity: string, actIndex: number) => (
+                                    <li
+                                      key={actIndex}
+                                      className="flex items-start">
+                                      <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+                                      <span className="text-gray-700">
+                                        {activity}
+                                      </span>
+                                    </li>
+                                  )
+                                )}
+                              </ul>
+                              {day.tips && (
+                                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                                  <p className="text-sm text-blue-800">
+                                    <strong>💡 Gợi ý:</strong> {day.tips}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            <div className="md:w-48">
+                              <img
+                                src="https://images.pexels.com/photos/2161467/pexels-photo-2161467.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop"
+                                alt={day.title}
+                                className="w-full h-32 object-cover rounded-lg"
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
             </div>
 
@@ -225,26 +176,21 @@ const Blog: React.FC = () => {
               </h2>
 
               <div className="grid md:grid-cols-2 gap-6">
-                {tips.map((tip, index) => {
-                  const IconComponent = tip.icon;
-                  return (
-                    <div
-                      key={index}
-                      className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="flex-shrink-0">
-                        <IconComponent className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-1">
-                          {tip.title}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          {tip.description}
-                        </p>
-                      </div>
+                {itinerary.tips.map((tip: string, index: number) => (
+                  <div
+                    key={index}
+                    className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="flex-shrink-0">
+                      <Coffee className="h-6 w-6 text-blue-600" />
                     </div>
-                  );
-                })}
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-1">
+                        Gợi ý #{index + 1}
+                      </h3>
+                      <p className="text-sm text-gray-600">{tip}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -266,32 +212,48 @@ const Blog: React.FC = () => {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
                     <div>
-                      <p className="font-semibold text-gray-900">HCM → HN</p>
+                      <p className="font-semibold text-gray-900">
+                        Economy Class
+                      </p>
                       <p className="text-sm text-gray-600">
                         Khởi hành hàng ngày
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-xl font-bold text-blue-600">
-                        1.299.000đ
+                        {itinerary.flightPrices.economy.toLocaleString("vi-VN")}
+                        đ
                       </p>
-                      <p className="text-xs text-gray-500">một chiều</p>
+                      <p className="text-xs text-gray-500">khứ hồi</p>
                     </div>
                   </div>
 
                   <div className="flex justify-between items-center p-4 bg-green-50 rounded-lg">
                     <div>
-                      <p className="font-semibold text-gray-900">HN → HCM</p>
+                      <p className="font-semibold text-gray-900">
+                        Business Class
+                      </p>
                       <p className="text-sm text-gray-600">
                         Khởi hành hàng ngày
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-xl font-bold text-green-600">
-                        1.449.000đ
+                        {itinerary.flightPrices.business.toLocaleString(
+                          "vi-VN"
+                        )}
+                        đ
                       </p>
-                      <p className="text-xs text-gray-500">một chiều</p>
+                      <p className="text-xs text-gray-500">khứ hồi</p>
                     </div>
+                  </div>
+
+                  <div className="p-4 bg-orange-50 rounded-lg border-l-4 border-orange-400">
+                    <p className="text-sm text-orange-800">
+                      <strong>💰 Giá tour:</strong>{" "}
+                      {itinerary.priceRange.min.toLocaleString("vi-VN")}đ -{" "}
+                      {itinerary.priceRange.max.toLocaleString("vi-VN")}đ
+                    </p>
                   </div>
                 </div>
 

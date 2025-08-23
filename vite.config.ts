@@ -7,5 +7,14 @@ export default defineConfig({
   server: {
     port: 3030,
     host: true,
+    // Proxy để tránh CORS và OPTIONS requests
+    proxy: {
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+        secure: false,
+        // Proxy sẽ forward request trực tiếp, không có CORS preflight
+      },
+    },
   },
 });

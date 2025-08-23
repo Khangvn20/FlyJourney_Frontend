@@ -1,47 +1,32 @@
-"use client";
-
 import type React from "react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
-import {
-  Home,
-  Plane,
-  CheckCircle,
-  ArrowLeft,
-  Shield,
-  Zap,
-  Heart,
-} from "lucide-react";
-import OTPInput from "../components/OTPInput";
-import RegisterForm from "../components/RegisterForm";
-import LoginForm from "../components/LoginForm";
-import SuccessMessage from "../components/SuccessMessage";
-import TabNavigation from "../components/TabNavigation";
-import type {
-  RegisterFormData,
-  LoginFormData,
-  AuthStep,
-  AuthTab,
-} from "../shared/types";
-import DevControls from "../components/DevControls";
-import MobileHeader from "../components/MobileHeader";
+import { Home, Plane, CheckCircle, Shield, Zap, Heart } from "lucide-react";
+import MultiStepRegistration from "../components/auth/MultiStepRegistration";
+import LoginForm from "../components/auth/LoginForm";
+import TabNavigation from "../components/layout/TabNavigation";
+import type { LoginFormData, AuthTab } from "../shared/types";
+import MobileHeader from "../components/layout/MobileHeader";
+import { useAuthContext } from "../hooks/useAuthContext";
+import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<AuthTab>("register");
-  const [currentStep, setCurrentStep] = useState<AuthStep>("form");
+  const location = useLocation();
+  const redirectState = location.state as {
+    redirectTo?: string;
+    intent?: string;
+    selection?: unknown;
+  } | null;
+  const [activeTab, setActiveTab] = useState<AuthTab>(
+    redirectState?.intent ? "login" : "register"
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [isTabChanging, setIsTabChanging] = useState(false);
 
-  const [registerData, setRegisterData] = useState<RegisterFormData>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const { login } = useAuthContext();
 
   const handleTabChange = (newTab: AuthTab) => {
     if (newTab !== activeTab && !isLoading) {
@@ -53,132 +38,59 @@ const Register: React.FC = () => {
     }
   };
 
-  const handleRegisterSubmit = async (data: RegisterFormData) => {
+  const handleLoginSubmit = async (
+    data: LoginFormData & { rememberMe: boolean }
+  ) => {
     setIsLoading(true);
     try {
-      setRegisterData(data);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setCurrentStep("otp");
-      console.log("Registration initiated:", {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-      });
+      const result = await login(data.email, data.password);
+
+      if (result.success) {
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+          console.log("Login successful:", data);
+        }
+        if (redirectState?.redirectTo) {
+          // restore selection if exists
+          if (redirectState.selection) {
+            sessionStorage.setItem(
+              "bookingSelection",
+              JSON.stringify(redirectState.selection)
+            );
+          }
+          navigate(redirectState.redirectTo, { replace: true });
+        } else {
+          navigate("/");
+        }
+      } else {
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+          console.error("Login failed:", result.error);
+        }
+        // You might want to show an error message here
+      }
     } catch (error) {
-      console.error("Registration failed:", error);
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.error("Login failed:", error);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLoginSubmit = async (data: LoginFormData) => {
-    setIsLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log("Login submitted:", data);
-      navigate("/");
-    } catch (error) {
-      console.error("Login failed:", error);
-    } finally {
-      setIsLoading(false);
+  const handleForgotPassword = () => {
+    // For now, we can either navigate to a forgot password page
+    // or show a message that forgot password should be done from the header login
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+      console.log("Forgot password clicked from register page");
     }
-  };
-
-  const handleOTPComplete = async (otp: string) => {
-    setIsLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log("OTP verification complete:", { ...registerData, otp });
-      setCurrentStep("success");
-    } catch (error) {
-      console.error("OTP verification failed:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleOTPResend = async () => {
-    console.log("Resending OTP to:", registerData.email);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  };
-
-  const handleBackToForm = () => {
-    setCurrentStep("form");
-  };
-
-  const handleGoHome = () => {
+    // You could navigate to home and open the login modal
     navigate("/");
   };
 
-  const handleSkipToOTP = () => {
-    setRegisterData({
-      firstName: "Test",
-      lastName: "User",
-      email: "test@example.com",
-      password: "password123",
-      confirmPassword: "password123",
-    });
-    setCurrentStep("otp");
-  };
-
   const renderContent = () => {
-    if (currentStep === "success") {
-      return (
-        <div className="space-y-8 flex flex-col justify-center min-h-full py-8">
-          <SuccessMessage
-            title="🎉 Chúc mừng!"
-            message="Tài khoản của bạn đã được tạo thành công. Chào mừng bạn đến với Fly Journey!"
-          />
-
-          <div className="space-y-4">
-            <Button
-              onClick={handleGoHome}
-              className="w-full h-14 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 text-white font-semibold shadow-xl hover:shadow-2xl transform hover:scale-[1.02] transition-all duration-300">
-              <Home className="h-5 w-5 mr-3" />
-              Khám phá ngay
-            </Button>
-            <Button
-              onClick={() => handleTabChange("login")}
-              variant="outline"
-              className="w-full h-12 border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200">
-              <span className="text-slate-700 font-medium">Đăng nhập</span>
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    if (currentStep === "otp") {
-      return (
-        <div className="space-y-8 flex flex-col justify-center min-h-full py-8">
-          <Button
-            onClick={handleBackToForm}
-            variant="ghost"
-            className="self-start -ml-2 text-slate-600 hover:text-slate-900"
-            disabled={isLoading}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Quay lại
-          </Button>
-
-          <OTPInput
-            length={6}
-            email={registerData.email}
-            onComplete={handleOTPComplete}
-            onResend={handleOTPResend}
-            isLoading={isLoading}
-          />
-          <DevControls
-            showBackButton={true}
-            onBack={handleBackToForm}
-            disabled={isLoading}
-          />
-        </div>
-      );
-    }
-
     return (
-      <div className="space-y-3 flex flex-col justify-center min-h-full py-6">
-        <div className="text-center space-y-3">
+      <div className="space-y-6 flex flex-col min-h-full">
+        {/* Header */}
+        <div className="text-center space-y-3 flex-shrink-0">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             {activeTab === "register"
               ? "Tạo tài khoản mới"
@@ -191,13 +103,17 @@ const Register: React.FC = () => {
           </p>
         </div>
 
-        <TabNavigation
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          disabled={isLoading}
-        />
+        {/* Tab Navigation */}
+        <div className="flex-shrink-0">
+          <TabNavigation
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            disabled={isLoading}
+          />
+        </div>
 
-        <div className="flex-1 flex flex-col justify-center">
+        {/* Form Content - takes available space */}
+        <div className="flex-1 flex flex-col justify-center min-h-[300px]">
           <div className="flex flex-col justify-center">
             {!isTabChanging && (
               <>
@@ -207,10 +123,7 @@ const Register: React.FC = () => {
                       opacity: 0,
                       animation: "fadeIn 0.3s ease-in-out forwards",
                     }}>
-                    <RegisterForm
-                      onSubmit={handleRegisterSubmit}
-                      isLoading={isLoading}
-                    />
+                    <MultiStepRegistration onSuccess={() => navigate("/")} />
                   </div>
                 ) : (
                   <div
@@ -220,6 +133,7 @@ const Register: React.FC = () => {
                     }}>
                     <LoginForm
                       onSubmit={handleLoginSubmit}
+                      onForgotPassword={handleForgotPassword}
                       isLoading={isLoading}
                     />
                   </div>
@@ -229,22 +143,16 @@ const Register: React.FC = () => {
           </div>
         </div>
 
-        {/* Nút về trang chủ gần hơn - loại bỏ margin-top */}
-        <div>
+        {/* Home Button - Fixed at bottom */}
+        <div className="flex-shrink-0 pt-4">
           <Button
-            onClick={handleGoHome}
+            onClick={() => navigate("/")}
             variant="outline"
             className="w-full h-10 border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 bg-transparent text-slate-600 hover:text-slate-700">
             <Home className="h-4 w-4 mr-2 text-blue-600" />
             <span className="font-medium">Về trang chủ</span>
           </Button>
         </div>
-
-        <DevControls
-          showSkipToOTP={activeTab === "register"}
-          onSkipToOTP={handleSkipToOTP}
-          disabled={isLoading}
-        />
       </div>
     );
   };
@@ -338,7 +246,7 @@ const Register: React.FC = () => {
             <div className="w-full max-w-lg mx-auto lg:mx-0 flex items-center justify-center min-h-screen lg:min-h-0">
               <Card className="shadow-2xl border-0 backdrop-blur-sm bg-white/95 w-full overflow-hidden">
                 <CardContent className="px-8 py-8">
-                  <div className="min-h-[550px] flex flex-col justify-center">
+                  <div className="min-h-[500px] flex flex-col">
                     {renderContent()}
                   </div>
                 </CardContent>

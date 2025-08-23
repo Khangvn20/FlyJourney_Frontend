@@ -8,12 +8,15 @@ import Booking from "./pages/Booking";
 import Register from "./pages/Register";
 import Blog from "./pages/Blog";
 import News from "./pages/News";
-import DebugApi from "./pages/DebugApi";
+import MyBookings from "./pages/MyBookings";
+import BookingDetail from "./pages/BookingDetail";
 
-import Header from "./components/Header";
-import Footer from "./components/Footer";
-import ScrollToTop from "./components/ScrollToTop";
+import Header from "./components/layout/Header";
+import Footer from "./components/layout/Footer";
+import ScrollToTop from "./components/layout/ScrollToTop";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { useScrollToTop } from "./hooks/useScrollToTop";
+import ChatBox from "./components/common/ChatBox";
 
 const App: React.FC = () => {
   useScrollToTop();
@@ -37,7 +40,22 @@ const App: React.FC = () => {
                   <Route path="/blog" element={<Blog />} />
                   <Route path="/news" element={<News />} />
                   <Route path="/booking" element={<Booking />} />
-                  <Route path="/debug" element={<DebugApi />} />
+                  <Route
+                    path="/my-bookings/:id"
+                    element={
+                      <ProtectedRoute>
+                        <BookingDetail />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/my-bookings"
+                    element={
+                      <ProtectedRoute>
+                        <MyBookings />
+                      </ProtectedRoute>
+                    }
+                  />
                 </Routes>
               </main>
               <Footer />
@@ -48,6 +66,7 @@ const App: React.FC = () => {
 
       {/* Global ScrollToTop button */}
       <ScrollToTop />
+      <ChatBox />
     </>
   );
 };

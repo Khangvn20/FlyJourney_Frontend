@@ -1,5 +1,5 @@
-import React from 'react';
-import BookingFlow from '../components/BookingFlow';
+import React from "react";
+import BookingFlow from "../components/booking/BookingFlow";
 
 const Booking: React.FC = () => {
   return (

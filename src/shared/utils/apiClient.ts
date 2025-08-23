@@ -1,16 +1,19 @@
 import type { ApiResponse, ApiError, ApiHeaders } from "../types";
 import { apiConfig, apiEndpoints, apiSettings } from "../constants/apiConfig";
+import { DEV_CONFIG, shouldShowDevControls } from "../config/devConfig";
 
 class ApiClient {
   private baseUrl: string;
   private timeout: number;
   private defaultHeaders: ApiHeaders;
+  private pendingRequests: Map<string, Promise<ApiResponse<unknown>>> =
+    new Map();
 
   constructor() {
     this.baseUrl = apiConfig.baseUrl;
     this.timeout = apiConfig.timeout;
+    // Chỉ set Accept header, Content-Type sẽ được set động
     this.defaultHeaders = {
-      "Content-Type": "application/json",
       Accept: "application/json",
     };
 
@@ -19,14 +22,44 @@ class ApiClient {
     }
   }
 
+  private createRequestKey(endpoint: string, options: RequestInit): string {
+    return `${options.method || "GET"}:${endpoint}:${JSON.stringify(
+      options.body || {}
+    )}`;
+  }
+
   private async makeRequest<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
+    // Create a unique key for this request to prevent duplicates
+    const requestKey = this.createRequestKey(endpoint, options);
+
+    // If same request is already pending and deduplication is enabled, return the existing promise
+    if (
+      apiSettings.enableRequestDeduplication &&
+      this.pendingRequests.has(requestKey)
+    ) {
+      if (
+        DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+        shouldShowDevControls() &&
+        apiSettings.enableLogging &&
+        apiSettings.isDevelopment
+      ) {
+        console.log(
+          `⚡ API Request deduplicated: ${options.method || "GET"} ${endpoint}`
+        );
+      }
+      return this.pendingRequests.get(requestKey) as Promise<ApiResponse<T>>;
+    }
+
     const url = `${this.baseUrl}${endpoint}`;
 
     const config: RequestInit = {
       ...options,
+      // Với proxy, không cần CORS mode đặc biệt
+      mode: "cors",
+      credentials: "same-origin", // same-origin vì request đi qua proxy
       headers: {
         ...this.defaultHeaders,
         ...options.headers,
@@ -38,51 +71,82 @@ class ApiClient {
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
     config.signal = controller.signal;
 
-    try {
-      if (apiSettings.enableLogging && apiSettings.isDevelopment) {
-        console.log(`🚀 API Request: ${config.method || "GET"} ${url}`, config);
-      }
+    const requestPromise = (async () => {
+      try {
+        if (
+          DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+          shouldShowDevControls() &&
+          apiSettings.enableLogging &&
+          apiSettings.isDevelopment
+        ) {
+          console.log(`🚀 API Request: ${config.method || "GET"} ${url}`);
+          console.log(`📋 Request Config:`, config);
+        }
 
-      const response = await fetch(url, config);
-      clearTimeout(timeoutId);
+        const response = await fetch(url, config);
+        clearTimeout(timeoutId);
 
-      const data = await response.json();
+        // Handle 204 No Content response
+        let data = null;
+        if (response.status !== 204) {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+          } else {
+            data = await response.text();
+          }
+        }
 
-      if (apiSettings.enableLogging && apiSettings.isDevelopment) {
-        console.log(`✅ API Response: ${response.status}`, data);
-      }
+        if (apiSettings.enableLogging && apiSettings.isDevelopment) {
+          console.log(`✅ API Response: ${response.status}`, data);
+        }
 
-      if (!response.ok) {
-        const error: ApiError = {
-          message: data.message || "API request failed",
+        if (!response.ok) {
+          const error: ApiError = {
+            message:
+              data?.message ||
+              `HTTP ${response.status}: ${response.statusText}`,
+            code: response.status,
+            details: data,
+          };
+          throw error;
+        }
+
+        return {
+          success: true,
+          data: data, // Return full backend response
+          message: data?.message || data?.errorMessage || "Success",
           code: response.status,
-          details: data,
         };
+      } catch (error) {
+        clearTimeout(timeoutId);
+
+        if (apiSettings.enableLogging && apiSettings.isDevelopment) {
+          console.error(`❌ API Error:`, error);
+        }
+
+        if (error instanceof Error && error.name === "AbortError") {
+          throw {
+            message: "Request timeout",
+            code: 408,
+          } as ApiError;
+        }
+
         throw error;
+      } finally {
+        // Remove request from pending map when done (only if deduplication is enabled)
+        if (apiSettings.enableRequestDeduplication) {
+          this.pendingRequests.delete(requestKey);
+        }
       }
+    })();
 
-      return {
-        success: true,
-        data: data.data || data,
-        message: data.message,
-        code: response.status,
-      };
-    } catch (error) {
-      clearTimeout(timeoutId);
-
-      if (apiSettings.enableLogging && apiSettings.isDevelopment) {
-        console.error(`❌ API Error:`, error);
-      }
-
-      if (error instanceof Error && error.name === "AbortError") {
-        throw {
-          message: "Request timeout",
-          code: 408,
-        } as ApiError;
-      }
-
-      throw error;
+    // Store the promise to prevent duplicates (only if deduplication is enabled)
+    if (apiSettings.enableRequestDeduplication) {
+      this.pendingRequests.set(requestKey, requestPromise);
     }
+
+    return requestPromise;
   }
 
   // HTTP Methods
@@ -98,9 +162,25 @@ class ApiClient {
     data?: unknown,
     headers?: ApiHeaders
   ): Promise<ApiResponse<T>> {
+    if (apiSettings.enableLogging && apiSettings.isDevelopment) {
+      console.log(`📤 POST Request Details:`, {
+        endpoint,
+        data,
+        headers,
+        baseUrl: this.baseUrl,
+        fullUrl: `${this.baseUrl}${endpoint}`,
+      });
+    }
+
+    // Chỉ set Content-Type khi có data để tránh CORS preflight
+    const requestHeaders = { ...headers };
+    if (data) {
+      requestHeaders["Content-Type"] = "application/json";
+    }
+
     return this.makeRequest<T>(endpoint, {
       method: "POST",
-      headers,
+      headers: requestHeaders,
       body: data ? JSON.stringify(data) : undefined,
     });
   }
@@ -110,9 +190,15 @@ class ApiClient {
     data?: unknown,
     headers?: ApiHeaders
   ): Promise<ApiResponse<T>> {
+    // Chỉ set Content-Type khi có data để tránh CORS preflight
+    const requestHeaders = { ...headers };
+    if (data) {
+      requestHeaders["Content-Type"] = "application/json";
+    }
+
     return this.makeRequest<T>(endpoint, {
       method: "PUT",
-      headers,
+      headers: requestHeaders,
       body: data ? JSON.stringify(data) : undefined,
     });
   }

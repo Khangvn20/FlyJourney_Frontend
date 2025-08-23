@@ -45,13 +45,19 @@ export interface ApiEndpoints {
   auth: {
     login: string;
     register: string;
-    refresh: string;
+    confirmRegister: string;
     logout: string;
     verifyOtp: string;
     resendOtp: string;
+    resetPassword: string;
+    confirmResetPassword: string;
   };
   flights: {
     search: string;
+    searchRoundTrip: string;
+    getById: string;
+    getByAirline: string;
+    getByStatus: string;
     booking: string;
     airlines: string;
     airports: string;
