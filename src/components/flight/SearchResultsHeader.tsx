@@ -13,13 +13,15 @@ import {
   shouldShowDevControls,
 } from "../../shared/config/devConfig";
 
+type TripTab = "outbound" | "inbound";
+
 interface SearchResultsHeaderProps {
   searchInfo: FlightSearchResponseData | null;
-  tripType: string;
+  tripType: "one-way" | "round-trip";
   filteredFlights: FlightSearchApiResult[];
-  returnFlightResults: FlightSearchApiResult[];
   currentFlights: FlightSearchApiResult[];
-  activeTab?: string;
+  activeTab?: TripTab;
+  onTabChange?: (tab: TripTab) => void;
   filters: {
     sortBy: string;
   };
@@ -42,6 +44,7 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
   filteredFlights,
   currentFlights,
   activeTab,
+  onTabChange,
   filters,
   setFilters,
   progressiveCount,
@@ -50,18 +53,24 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
   // Debug logging for search results header
   if (
     searchInfo &&
-    filteredFlights.length > 0 &&
+    currentFlights.length > 0 &&
     DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
     shouldShowDevControls()
   ) {
     console.log("SearchResultsHeader Debug:", {
       progressiveCount,
       skeletonActive,
-      filteredFlightsLength: filteredFlights.length,
+      currentFlightsLength: currentFlights.length,
       totalCount: isOneWayResponse(searchInfo) ? searchInfo.total_count : "N/A",
       passengers: searchInfo.passengers,
+      tripType,
+      activeTab,
     });
   }
+
+  const isInbound = tripType === "round-trip" && activeTab === "inbound";
+  const canShowTabs =
+    tripType === "round-trip" && typeof onTabChange === "function";
 
   return (
     <div className="space-y-6">
@@ -70,20 +79,82 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
         <Card className="border border-gray-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-semibold text-gray-900">
-                🛫 {searchInfo.departure_airport} → {searchInfo.arrival_airport}
-                {tripType === "round-trip" && (
-                  <span className="text-blue-600 ml-2">• Khứ hồi</span>
-                )}
-              </h2>
-              <div className="text-sm text-gray-600">
-                📅 {searchInfo.departure_date}
-                {isRoundTripResponse(searchInfo) && searchInfo.return_date && (
-                  <span className="ml-2">↔️ {searchInfo.return_date}</span>
-                )}
-              </div>
+              {(() => {
+                const dep =
+                  tripType === "round-trip" && isInbound
+                    ? searchInfo.arrival_airport
+                    : searchInfo.departure_airport;
+                const arr =
+                  tripType === "round-trip" && isInbound
+                    ? searchInfo.departure_airport
+                    : searchInfo.arrival_airport;
+                const date =
+                  tripType === "round-trip" &&
+                  isInbound &&
+                  isRoundTripResponse(searchInfo)
+                    ? searchInfo.return_date
+                    : searchInfo.departure_date;
+
+                return (
+                  <>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      🛫 {dep} → {arr}
+                      {tripType === "round-trip" && (
+                        <span className="text-blue-600 ml-2">
+                          {isInbound ? "• Chiều về" : "• Chiều đi"}
+                        </span>
+                      )}
+                    </h2>
+                    <div className="text-sm text-gray-600">
+                      📅 {date}
+                      {tripType === "round-trip" &&
+                        !isInbound &&
+                        isRoundTripResponse(searchInfo) &&
+                        searchInfo.return_date && (
+                          <span className="ml-2">
+                            ↔️ {searchInfo.return_date}
+                          </span>
+                        )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
-            <div className="text-sm text-gray-600">
+
+            {/* Tab switcher (cho round-trip) */}
+            {canShowTabs && (
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onTabChange?.("outbound")}
+                  className={`px-3 py-1.5 rounded-md text-sm border transition
+                    ${
+                      !isInbound
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  aria-pressed={!isInbound}>
+                  Chiều đi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onTabChange?.("inbound")}
+                  className={`px-3 py-1.5 rounded-md text-sm border transition
+                    ${
+                      isInbound
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  aria-pressed={isInbound}>
+                  Chiều về
+                </button>
+                <span className="text-xs text-gray-500 ml-1">
+                  (Bạn có thể chuyển qua lại trước khi xác nhận 2 vé)
+                </span>
+              </div>
+            )}
+
+            <div className="mt-3 text-sm text-gray-600">
               {tripType === "round-trip" ? (
                 <>
                   Tìm thấy{" "}
@@ -140,7 +211,7 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
                       infants = 0,
                     } = searchInfo.passengers;
                     const totalPassengers = adults + children + infants;
-                    const passengerDetails = [];
+                    const passengerDetails: string[] = [];
 
                     if (adults > 0)
                       passengerDetails.push(`${adults} Người lớn`);
@@ -168,11 +239,11 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
 
       {/* Results Header with Sort Controls */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold text-gray-900 flex items-center">
             <span className="mr-2">
               {tripType === "round-trip"
-                ? activeTab === "inbound"
+                ? isInbound
                   ? "Chọn chiều về"
                   : "Chọn chiều đi"
                 : "Chọn chuyến bay"}
@@ -183,7 +254,7 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
           <span className="text-sm text-gray-600">Sắp xếp theo</span>
           <select
             value={filters.sortBy}
-            onChange={(e) =>
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
               setFilters((prev) => ({ ...prev, sortBy: e.target.value }))
             }
             className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -220,4 +291,5 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
   );
 };
 
+export type { TripTab };
 export default SearchResultsHeader;

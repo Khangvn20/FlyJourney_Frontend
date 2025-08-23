@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
-import { Plane } from "lucide-react";
+import { Plane, CheckCircle2 } from "lucide-react";
 import FlightCard from "./FlightCard";
 import { formatPrice, formatDateTime } from "../../services/flightApiService";
 import type {
@@ -11,8 +11,7 @@ import type {
 import { isRoundTripResponse } from "../../shared/types/search-api.types";
 
 interface RoundTripFlightListProps {
-  outboundFlights: FlightSearchApiResult[];
-  inboundFlights: FlightSearchApiResult[];
+  flights: FlightSearchApiResult[];
   activeTab: "outbound" | "inbound";
   setActiveTab: (tab: "outbound" | "inbound") => void;
   selectedOutboundFlight: FlightSearchApiResult | null;
@@ -28,11 +27,11 @@ interface RoundTripFlightListProps {
   }>;
   searchInfo: FlightSearchResponseData | null;
   error: string | null;
+  disableInboundTab?: boolean;
 }
 
 const RoundTripFlightList: React.FC<RoundTripFlightListProps> = ({
-  outboundFlights,
-  inboundFlights,
+  flights,
   activeTab,
   setActiveTab,
   selectedOutboundFlight,
@@ -43,17 +42,31 @@ const RoundTripFlightList: React.FC<RoundTripFlightListProps> = ({
   vietnameseAirlines,
   searchInfo,
   error,
+  disableInboundTab = false,
 }) => {
-  const [expandedFlightId, setExpandedFlightId] = useState<number | null>(null);
-  const [detailsActiveTab, setDetailsActiveTab] = useState<string>("flight");
+  const [expandedFlightIds, setExpandedFlightIds] = useState<{
+    outbound: number | null;
+    inbound: number | null;
+  }>({ outbound: null, inbound: null });
+  const [detailsTabs, setDetailsTabs] = useState<{
+    outbound: string;
+    inbound: string;
+  }>({ outbound: "flight", inbound: "flight" });
 
-  const toggleFlightDetails = (flightId: number) => {
-    setExpandedFlightId((prev) => (prev === flightId ? null : flightId));
-    setDetailsActiveTab("flight");
+  const toggleFlightDetails = (
+    dir: "outbound" | "inbound",
+    flightId: number
+  ) => {
+    setExpandedFlightIds((prev) => ({
+      ...prev,
+      [dir]: prev[dir] === flightId ? null : flightId,
+    }));
+    setDetailsTabs((prev) => ({ ...prev, [dir]: "flight" }));
   };
 
-  const currentFlights =
-    activeTab === "inbound" ? inboundFlights : outboundFlights;
+  const currentFlights = flights;
+  const expandedFlightId = expandedFlightIds[activeTab];
+  const detailsActiveTab = detailsTabs[activeTab];
 
   if (error) {
     return (
@@ -69,48 +82,74 @@ const RoundTripFlightList: React.FC<RoundTripFlightListProps> = ({
     );
   }
 
+  const renderSelectedBanner = (
+    dir: "outbound" | "inbound",
+    flight: FlightSearchApiResult | null
+  ) => {
+    if (!flight) return null;
+    return (
+      <div
+        className={`${
+          dir === "outbound"
+            ? "bg-green-50 border-green-200"
+            : "bg-blue-50 border-blue-200"
+        } border-b p-4`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CheckCircle2
+              className={`h-5 w-5 ${
+                dir === "outbound" ? "text-green-600" : "text-blue-600"
+              }`}
+            />
+            <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
+              <span
+                className={`font-semibold ${
+                  dir === "outbound" ? "text-green-700" : "text-blue-700"
+                }`}>
+                {dir === "outbound"
+                  ? "✓ Chiều đi đã chọn:"
+                  : "✓ Chiều về đã chọn:"}
+              </span>
+              <span className="font-medium">{flight.flight_number}</span>
+              <span className="text-sm text-gray-600">
+                {formatDateTime(flight.departure_time).time} –{" "}
+                {formatDateTime(flight.arrival_time).time}
+              </span>
+              <span className="text-orange-600 font-bold">
+                {formatPrice(flight.pricing.grand_total)}
+              </span>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onClearSelectedFlight(dir)}
+            className={`${
+              dir === "outbound"
+                ? "text-red-600 hover:text-red-700 hover:bg-red-50"
+                : "text-red-600 hover:text-red-700 hover:bg-red-50"
+            }`}>
+            Thay đổi
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Round-trip Tab Navigation */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        {/* Selected Outbound Flight Display */}
-        {selectedOutboundFlight && (
-          <div className="bg-green-50 border-b border-green-200 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <span className="text-green-600 font-semibold">
-                    ✓ Chiều đi đã chọn:
-                  </span>
-                  <span className="font-medium">
-                    {selectedOutboundFlight.flight_number}
-                  </span>
-                  <span className="text-sm text-gray-600">
-                    {formatDateTime(selectedOutboundFlight.departure_time).time}{" "}
-                    - {formatDateTime(selectedOutboundFlight.arrival_time).time}
-                  </span>
-                </div>
-                <div className="text-orange-600 font-bold">
-                  {formatPrice(selectedOutboundFlight.pricing.grand_total)}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onClearSelectedFlight("outbound")}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                Thay đổi
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Selected banners */}
+        {renderSelectedBanner("outbound", selectedOutboundFlight)}
+        {renderSelectedBanner("inbound", selectedInboundFlight)}
 
         <div className="flex">
+          {/* Chiều đi: KHÔNG disable để user quay lại chọn/đổi */}
           <Button
             variant={activeTab === "outbound" ? "default" : "ghost"}
             onClick={() => setActiveTab("outbound")}
-            className="flex-1 rounded-none py-3"
-            disabled={selectedOutboundFlight !== null}>
+            className="flex-1 rounded-none py-3">
             <div className="text-center">
               <div className="font-semibold">
                 {selectedOutboundFlight ? "✓ Chiều đi" : "Chiều đi"}
@@ -125,11 +164,13 @@ const RoundTripFlightList: React.FC<RoundTripFlightListProps> = ({
               </div>
             </div>
           </Button>
+
+          {/* Chiều về: chỉ disable khi CHƯA chọn chiều đi */}
           <Button
             variant={activeTab === "inbound" ? "default" : "ghost"}
-            onClick={() => setActiveTab("inbound")}
-            className="flex-1 rounded-none py-3"
-            disabled={!selectedOutboundFlight}>
+            onClick={() => !disableInboundTab && setActiveTab("inbound")}
+            disabled={disableInboundTab}
+            className="flex-1 rounded-none py-3">
             <div className="text-center">
               <div className="font-semibold">
                 {selectedInboundFlight ? "✓ Chiều về" : "Chiều về"}
@@ -173,18 +214,37 @@ const RoundTripFlightList: React.FC<RoundTripFlightListProps> = ({
                   a.name.toLowerCase() === flight.airline_name.toLowerCase()
               ) || vietnameseAirlines[0];
 
+            const isSelected =
+              (activeTab === "outbound" &&
+                selectedOutboundFlight?.flight_id === flight.flight_id) ||
+              (activeTab === "inbound" &&
+                selectedInboundFlight?.flight_id === flight.flight_id);
+
             return (
-              <FlightCard
-                key={flight.flight_id}
-                flight={flight}
-                isExpanded={expandedFlightId === flight.flight_id}
-                onToggleDetails={() => toggleFlightDetails(flight.flight_id)}
-                onSelect={() => onFlightSelect(flight)}
-                sortBy={sortBy}
-                airlineLogo={airlineInfo.logo}
-                activeTab={detailsActiveTab}
-                setActiveTab={setDetailsActiveTab}
-              />
+              <div
+                key={`${activeTab}-${flight.flight_id}`}
+                className={`rounded-xl transition-all ${
+                  isSelected
+                    ? "ring-2 ring-blue-500/60 ring-offset-1"
+                    : "ring-0"
+                }`}>
+                {/* Nếu FlightCard hỗ trợ isSelected, truyền xuống; nếu không, vẫn có ring ở wrapper */}
+                <FlightCard
+                  flight={flight}
+                  isExpanded={expandedFlightId === flight.flight_id}
+                  onToggleDetails={() =>
+                    toggleFlightDetails(activeTab, flight.flight_id)
+                  }
+                  onSelect={() => onFlightSelect(flight)}
+                  sortBy={sortBy}
+                  airlineLogo={airlineInfo.logo}
+                  activeTab={detailsActiveTab}
+                  setActiveTab={(tab) =>
+                    setDetailsTabs((prev) => ({ ...prev, [activeTab]: tab }))
+                  }
+                  isSelected={isSelected as unknown as boolean} // backward compat
+                />
+              </div>
             );
           })
         )}
