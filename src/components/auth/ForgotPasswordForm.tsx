@@ -6,7 +6,7 @@ import { Mail, ArrowLeft, KeyRound, Shield, Eye, EyeOff } from "lucide-react";
 import {
   validatePassword,
   getPasswordStrength,
-} from "../../utils/userMenuValidation";
+} from "../../shared/utils/userMenuValidation";
 
 interface ForgotPasswordFormProps {
   onSubmit: (data: {

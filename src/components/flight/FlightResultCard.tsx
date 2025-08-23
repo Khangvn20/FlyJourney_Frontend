@@ -4,15 +4,28 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Plane, Clock, Users, Wifi } from "lucide-react";
 import type { FlightResultData } from "../../shared/types";
-import { flightResults } from "../../mocks";
 
 interface FlightResultCardProps {
   flight?: FlightResultData;
   onSelect?: (flight: FlightResultData) => void;
 }
 
-// Lấy flight đầu tiên làm default
-const defaultFlight = flightResults[0];
+// Placeholder flight used when no data is provided
+const defaultFlight: FlightResultData = {
+  id: "placeholder",
+  airline: "",
+  airlineCode: "",
+  flightNumber: "",
+  aircraft: "",
+  departure: { airport: "", code: "", time: "", date: "" },
+  arrival: { airport: "", code: "", time: "", date: "" },
+  duration: "",
+  price: { amount: 0, currency: "VND", formatted: "" },
+  class: "",
+  amenities: [],
+  stops: 0,
+  availableSeats: 0,
+};
 
 const FlightResultCard: React.FC<FlightResultCardProps> = ({
   flight = defaultFlight,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import {
   CalendarIcon,
@@ -14,14 +14,16 @@ import {
   Baby,
   UserCheck,
   ChevronDown,
-  Route,
+  Globe,
+  Lock,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Card, CardContent } from "../ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Calendar } from "../ui/calendar";
+import { DatePicker } from "antd";
+import dayjs from "dayjs";
 import {
   Select,
   SelectContent,
@@ -30,14 +32,47 @@ import {
   SelectValue,
 } from "../ui/select";
 import {
-  airports,
-  flightClasses,
-  specialRequirements,
+  airports as airportsData,
+  FlightClass as flightClassData,
+  SpecialRequirement as specialRequirementData,
 } from "../../mocks/flightData";
 import { airlines } from "../../mocks";
 import type { Airport } from "../../shared/types";
 import { useFlightSearchForm } from "../../hooks/useFlightSearchForm";
 import { DEV_CONFIG } from "../../shared/config/devConfig";
+const { RangePicker } = DatePicker;
+
+const MAX_PAX = 8;
+const PREFERRED_COUNTRY = "Vietnam";
+const QUICK_AIRPORT_CODES = [
+  "SGN",
+  "HAN",
+  "DAD",
+  "CXR",
+  "PQC",
+  "VCA",
+  "HPH",
+  "HUI",
+];
+
+type Option = { value: string; label: string; description?: string };
+type MaybeDescribed = { value: string; label: string; description?: string };
+
+const airports: Airport[] = airportsData as unknown as Airport[];
+const flightClassOptions: Option[] = (flightClassData as MaybeDescribed[]).map(
+  (fc) => ({
+    value: fc.value,
+    label: fc.label,
+    description: fc.description,
+  })
+);
+const specialRequirementOptions: Option[] = (
+  specialRequirementData as MaybeDescribed[]
+).map((r) => ({
+  value: r.value,
+  label: r.label,
+  description: r.description,
+}));
 
 export default function FlightSearchForm() {
   const {
@@ -62,7 +97,6 @@ export default function FlightSearchForm() {
 
   const [fromSearch, setFromSearch] = useState("");
   const [toSearch, setToSearch] = useState("");
-  // removed removingAirportCode (animation not essential in restored version)
 
   const [selectedAirlines, setSelectedAirlines] = useState<string[]>(() => {
     try {
@@ -83,7 +117,6 @@ export default function FlightSearchForm() {
     localStorage.setItem("selectedAirlines", JSON.stringify(selectedAirlines));
   }, [selectedAirlines]);
 
-  // Coerce legacy multi-city
   useEffect(() => {
     if (formData.tripType === "multi-city") {
       setFormData((p) => ({ ...p, tripType: "one-way" }));
@@ -99,79 +132,68 @@ export default function FlightSearchForm() {
     code: a.name.substring(0, 2).toUpperCase(),
   }));
 
-  // Top 10 Vietnamese airports cho quick selection
-  const vietnameseAirports = [
-    { city: "TP. Hồ Chí Minh", code: "SGN", fullName: "TP. Hồ Chí Minh (SGN)" },
-    { city: "Hà Nội", code: "HAN", fullName: "Hà Nội (HAN)" },
-    { city: "Đà Nẵng", code: "DAD", fullName: "Đà Nẵng (DAD)" },
-    { city: "Nha Trang", code: "CXR", fullName: "Nha Trang (CXR)" },
-    { city: "Phú Quốc", code: "PQC", fullName: "Phú Quốc (PQC)" },
-    { city: "Đà Lạt", code: "DLI", fullName: "Đà Lạt (DLI)" },
-    { city: "Huế", code: "HUI", fullName: "Huế (HUI)" },
-    { city: "Cần Thơ", code: "VCA", fullName: "Cần Thơ (VCA)" },
-    { city: "Quy Nhon", code: "UIH", fullName: "Quy Nhon (UIH)" },
-    { city: "Pleiku", code: "PXU", fullName: "Pleiku (PXU)" },
-  ];
+  const quickAirports = useMemo(
+    () =>
+      airports
+        .filter((a) => QUICK_AIRPORT_CODES.includes(a.code))
+        .map((a) => ({
+          city: a.city,
+          code: a.code,
+          fullName: `${a.city} (${a.code})`,
+        })),
+    []
+  );
 
-  const selectQuickDestination = (
-    destination: { fullName: string; code: string },
-    type: "from" | "to"
-  ) => {
-    if (type === "from") {
-      setFormData((p) => ({
-        ...p,
-        from: destination.fullName,
-      }));
-      setFromSearch("");
-      setShowFromDropdown(false);
-    } else {
-      setFormData((p) => ({
-        ...p,
-        to: destination.fullName,
-      }));
-      setToSearch("");
-      setShowToDropdown(false);
-    }
-    // Clear validation errors
-    setValidationErrors((p) => ({ ...p, [type]: false }));
+  const availableCountries = useMemo(
+    () => Array.from(new Set(airports.map((a) => a.country))),
+    []
+  );
+  const [fromCountry, setFromCountry] = useState<string>(PREFERRED_COUNTRY);
+  const [toCountry, setToCountry] = useState<string>(PREFERRED_COUNTRY);
+
+  const disablePastDate = (current: dayjs.Dayjs) => {
+    if (!DEV_CONFIG.HIDE_DEV_CONTROLS) return false;
+    return current && current < dayjs().startOf("day");
   };
 
   const getAirportCodeFromString = (s: string) => {
     const m = s.match(/\(([^)]+)\)$/);
     return m ? m[1] : "";
   };
+
   const filterAirports = (
     term: string,
+    country: string,
     excludeCodes: string[] = []
   ): Airport[] => {
-    // Get Vietnamese airports first, then others
-    const vietnameseAirports = airports.filter(
-      (a) => a.country === "Vietnam" && !excludeCodes.includes(a.code)
+    const inCountry = airports.filter(
+      (a) => a.country === country && !excludeCodes.includes(a.code)
     );
-    const otherAirports = airports.filter(
-      (a) => a.country !== "Vietnam" && !excludeCodes.includes(a.code)
+    const others = airports.filter(
+      (a) => a.country !== country && !excludeCodes.includes(a.code)
     );
+    if (!term) return inCountry;
+    const match = (a: Airport) =>
+      [a.city, a.name, a.code].some((v) =>
+        v.toLowerCase().includes(term.toLowerCase())
+      );
+    return [...inCountry.filter(match), ...others.filter(match)].slice(0, 30);
+  };
 
-    if (!term) {
-      // Show top 10 Vietnamese airports when no search term
-      return vietnameseAirports.slice(0, 10);
+  const selectQuickDestination = (
+    destination: { fullName: string; code: string },
+    type: "from" | "to"
+  ) => {
+    if (type === "from") {
+      setFormData((p) => ({ ...p, from: destination.fullName }));
+      setFromSearch("");
+      setShowFromDropdown(false);
+    } else {
+      setFormData((p) => ({ ...p, to: destination.fullName }));
+      setToSearch("");
+      setShowToDropdown(false);
     }
-
-    // Filter Vietnamese airports first, then others
-    const filteredVietnamese = vietnameseAirports.filter((a) =>
-      [a.city, a.name, a.code].some((v) =>
-        v.toLowerCase().includes(term.toLowerCase())
-      )
-    );
-
-    const filteredOthers = otherAirports.filter((a) =>
-      [a.city, a.name, a.code].some((v) =>
-        v.toLowerCase().includes(term.toLowerCase())
-      )
-    );
-
-    // Return Vietnamese results first, then others, limit to 10
-    return [...filteredVietnamese, ...filteredOthers].slice(0, 10);
+    setValidationErrors((p) => ({ ...p, [type]: false }));
   };
 
   const selectAirport = (airport: Airport, type: "from" | "to") => {
@@ -200,12 +222,12 @@ export default function FlightSearchForm() {
     setValidationErrors(errs);
     return !errs.from && !errs.to && !errs.departureDate;
   };
+
   const handleSearchWithValidation = () => {
     if (validateForm()) handleSearch();
   };
 
   const setTripType = (newType: "one-way" | "round-trip") => {
-    // Clear any existing search errors when changing trip type
     setSearchError(null);
     clearStoredResults();
     setFormData((p) => ({
@@ -217,10 +239,14 @@ export default function FlightSearchForm() {
     window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
   };
 
+  const totalPassengers =
+    formData.passengers.adults +
+    formData.passengers.children +
+    formData.passengers.infants;
+
   return (
     <Card className="w-full max-w-7xl mx-auto shadow-lg border-0 bg-white rounded-2xl overflow-hidden">
       <CardContent className="p-0">
-        {/* Header */}
         <div className="bg-white border-b border-gray-100 p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
@@ -258,7 +284,7 @@ export default function FlightSearchForm() {
               ))}
             </div>
           </div>
-          {/* Full month toggle only one-way */}
+
           {formData.tripType === "one-way" && (
             <div className="flex items-center space-x-3 mb-4">
               <div className="flex items-center">
@@ -287,7 +313,7 @@ export default function FlightSearchForm() {
               </div>
             </div>
           )}
-          {/* Airlines grid */}
+
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {vietnameseAirlines.map((al) => {
               const active = selectedAirlines.includes(al.id);
@@ -323,141 +349,7 @@ export default function FlightSearchForm() {
           </div>
         </div>
 
-        {/* Main form */}
         <div className="p-6">
-          {/* Quick Destinations */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <Route className="h-4 w-4 text-blue-600" />
-                <h3 className="text-sm font-semibold text-gray-700">
-                  Chọn nhanh sân bay Việt Nam
-                </h3>
-              </div>
-              <div className="text-xs text-gray-500">
-                Chọn từ 10 sân bay phổ biến
-              </div>
-            </div>
-
-            {/* Two row layout: FROM và TO */}
-            <div className="space-y-3">
-              {/* FROM row */}
-              <div>
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-xs font-medium text-blue-700">
-                    Điểm đi (FROM)
-                  </span>
-                </div>
-                <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-                  {vietnameseAirports.map((airport) => {
-                    const isSelected =
-                      getAirportCodeFromString(formData.from) === airport.code;
-                    const isDestination =
-                      getAirportCodeFromString(formData.to) === airport.code;
-                    const isDisabled = isSelected || isDestination;
-
-                    return (
-                      <button
-                        key={`from-${airport.code}`}
-                        onClick={() => selectQuickDestination(airport, "from")}
-                        disabled={isDisabled}
-                        className={`relative p-2 rounded-lg border transition-all duration-200 text-center ${
-                          isSelected
-                            ? "bg-blue-500 text-white border-blue-500 cursor-not-allowed"
-                            : isDestination
-                            ? "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
-                            : "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 hover:border-blue-300"
-                        }`}
-                        title={
-                          isSelected
-                            ? `Đã chọn ${airport.fullName} làm điểm đi`
-                            : isDestination
-                            ? `${airport.fullName} đã được chọn làm điểm đến`
-                            : `Chọn ${airport.fullName} làm điểm đi`
-                        }>
-                        <div className="text-xs font-bold">{airport.code}</div>
-                        <div className="text-[10px] leading-tight mt-0.5">
-                          {airport.city}
-                        </div>
-                        {isSelected && (
-                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
-                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                          </div>
-                        )}
-                        {isDestination && (
-                          <div className="absolute inset-0 bg-gray-300 bg-opacity-50 rounded-lg flex items-center justify-center">
-                            <div className="text-[8px] text-gray-600 font-medium">
-                              ĐẾN
-                            </div>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* TO row */}
-              <div>
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-xs font-medium text-green-700">
-                    Điểm đến (TO)
-                  </span>
-                </div>
-                <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-                  {vietnameseAirports.map((airport) => {
-                    const isSelected =
-                      getAirportCodeFromString(formData.to) === airport.code;
-                    const isOrigin =
-                      getAirportCodeFromString(formData.from) === airport.code;
-                    const isDisabled = isSelected || isOrigin;
-
-                    return (
-                      <button
-                        key={`to-${airport.code}`}
-                        onClick={() => selectQuickDestination(airport, "to")}
-                        disabled={isDisabled}
-                        className={`relative p-2 rounded-lg border transition-all duration-200 text-center ${
-                          isSelected
-                            ? "bg-green-500 text-white border-green-500 cursor-not-allowed"
-                            : isOrigin
-                            ? "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
-                            : "bg-green-50 hover:bg-green-100 text-green-700 border-green-200 hover:border-green-300"
-                        }`}
-                        title={
-                          isSelected
-                            ? `Đã chọn ${airport.fullName} làm điểm đến`
-                            : isOrigin
-                            ? `${airport.fullName} đã được chọn làm điểm đi`
-                            : `Chọn ${airport.fullName} làm điểm đến`
-                        }>
-                        <div className="text-xs font-bold">{airport.code}</div>
-                        <div className="text-[10px] leading-tight mt-0.5">
-                          {airport.city}
-                        </div>
-                        {isSelected && (
-                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
-                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                          </div>
-                        )}
-                        {isOrigin && (
-                          <div className="absolute inset-0 bg-gray-300 bg-opacity-50 rounded-lg flex items-center justify-center">
-                            <div className="text-[8px] text-gray-600 font-medium">
-                              ĐI
-                            </div>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Locations row */}
           <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
             <div className="md:col-span-3 space-y-2">
               <Label
@@ -503,8 +395,37 @@ export default function FlightSearchForm() {
                   align="start"
                   side="bottom"
                   sideOffset={4}>
-                  <div className="max-h-60 overflow-y-auto">
-                    {filterAirports(fromSearch, [
+                  <div className="flex items-center gap-2 px-3 py-2 border-b bg-gray-50">
+                    <Globe className="h-4 w-4 text-gray-500" />
+                    {availableCountries.map((cty) => {
+                      const active = cty === fromCountry;
+                      const disabled = cty !== PREFERRED_COUNTRY;
+                      const count = airports.filter(
+                        (a) => a.country === cty
+                      ).length;
+                      const base =
+                        "text-xs px-2.5 py-1 rounded-full border transition";
+                      const enabledStyle = active
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-400";
+                      const disabledStyle =
+                        "bg-white text-gray-500 border-gray-300 opacity-60 cursor-not-allowed";
+                      return (
+                        <button
+                          key={`from-cty-${cty}`}
+                          onClick={() => !disabled && setFromCountry(cty)}
+                          className={`${base} ${
+                            disabled ? disabledStyle : enabledStyle
+                          }`}
+                          title={disabled ? "Demo: chỉ Vietnam được bật" : cty}>
+                          {cty} ({count}){" "}
+                          {disabled && <Lock className="inline h-3 w-3 ml-1" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {filterAirports(fromSearch, fromCountry, [
                       getAirportCodeFromString(formData.to),
                     ]).map((ap) => (
                       <div
@@ -522,12 +443,38 @@ export default function FlightSearchForm() {
                             </div>
                           </div>
                         </div>
+                        <span className="text-[11px] text-gray-500">
+                          {ap.country}
+                        </span>
                       </div>
                     ))}
                   </div>
                 </PopoverContent>
               </Popover>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {quickAirports.map((airport) => {
+                  const isDestination =
+                    getAirportCodeFromString(formData.to) === airport.code;
+                  if (isDestination) return null;
+                  const isSelected =
+                    getAirportCodeFromString(formData.from) === airport.code;
+                  return (
+                    <button
+                      key={`from-quick-${airport.code}`}
+                      onClick={() => selectQuickDestination(airport, "from")}
+                      disabled={isSelected}
+                      className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                        isSelected
+                          ? "bg-blue-600 text-white border-blue-600 cursor-not-allowed"
+                          : "bg-white text-blue-700 border-blue-200 hover:bg-blue-50"
+                      }`}>
+                      {airport.city} ({airport.code})
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
             <div className="md:col-span-1 flex justify-center items-end pb-2">
               <Button
                 onClick={swapLocations}
@@ -537,6 +484,7 @@ export default function FlightSearchForm() {
                 <ArrowRightLeft className="h-4 w-4 text-blue-600" />
               </Button>
             </div>
+
             <div className="md:col-span-3 space-y-2">
               <Label
                 className={`text-sm font-semibold flex items-center ${
@@ -579,8 +527,37 @@ export default function FlightSearchForm() {
                   align="start"
                   side="bottom"
                   sideOffset={4}>
-                  <div className="max-h-60 overflow-y-auto">
-                    {filterAirports(toSearch, [
+                  <div className="flex items-center gap-2 px-3 py-2 border-b bg-gray-50">
+                    <Globe className="h-4 w-4 text-gray-500" />
+                    {availableCountries.map((cty) => {
+                      const active = cty === toCountry;
+                      const disabled = cty !== PREFERRED_COUNTRY;
+                      const count = airports.filter(
+                        (a) => a.country === cty
+                      ).length;
+                      const base =
+                        "text-xs px-2.5 py-1 rounded-full border transition";
+                      const enabledStyle = active
+                        ? "bg-green-600 text-white border-green-600"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-green-50 hover:border-green-400";
+                      const disabledStyle =
+                        "bg-white text-gray-500 border-gray-300 opacity-60 cursor-not-allowed";
+                      return (
+                        <button
+                          key={`to-cty-${cty}`}
+                          onClick={() => !disabled && setToCountry(cty)}
+                          className={`${base} ${
+                            disabled ? disabledStyle : enabledStyle
+                          }`}
+                          title={disabled ? "Demo: chỉ Vietnam được bật" : cty}>
+                          {cty} ({count}){" "}
+                          {disabled && <Lock className="inline h-3 w-3 ml-1" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {filterAirports(toSearch, toCountry, [
                       getAirportCodeFromString(formData.from),
                     ]).map((ap) => (
                       <div
@@ -598,18 +575,46 @@ export default function FlightSearchForm() {
                             </div>
                           </div>
                         </div>
+                        <span className="text-[11px] text-gray-500">
+                          {ap.country}
+                        </span>
                       </div>
                     ))}
                   </div>
                 </PopoverContent>
               </Popover>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {quickAirports.map((airport) => {
+                  const isOrigin =
+                    getAirportCodeFromString(formData.from) === airport.code;
+                  if (isOrigin) return null;
+                  const isSelected =
+                    getAirportCodeFromString(formData.to) === airport.code;
+                  return (
+                    <button
+                      key={`to-quick-${airport.code}`}
+                      onClick={() => selectQuickDestination(airport, "to")}
+                      disabled={isSelected}
+                      className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                        isSelected
+                          ? "bg-green-600 text-white border-green-600 cursor-not-allowed"
+                          : "bg-white text-green-700 border-green-200 hover:bg-green-50"
+                      }`}>
+                      {airport.city} ({airport.code})
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          {/* Dates & passengers */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-            {/* Departure */}
-            <div className="md:col-span-3 space-y-2">
+            <div
+              className={`${
+                formData.tripType === "round-trip"
+                  ? "md:col-span-4"
+                  : "md:col-span-3"
+              } space-y-2`}>
               <Label
                 className={`text-sm font-semibold flex items-center ${
                   !formData.departureDate ? "text-red-600" : "text-gray-700"
@@ -619,14 +624,40 @@ export default function FlightSearchForm() {
                     !formData.departureDate ? "text-red-600" : "text-blue-600"
                   }`}
                 />
-                {formData.tripType === "one-way" && formData.searchFullMonth
+                {formData.tripType === "round-trip"
+                  ? "Ngày đi & về"
+                  : formData.searchFullMonth
                   ? "Tháng khởi hành"
                   : "Khởi hành"}{" "}
                 {!formData.departureDate && (
                   <span className="text-red-500 ml-1">*</span>
                 )}
               </Label>
-              {formData.tripType === "one-way" && formData.searchFullMonth ? (
+              {formData.tripType === "round-trip" ? (
+                <RangePicker
+                  className="w-full h-12"
+                  format="DD/MM/YYYY"
+                  value={[
+                    formData.departureDate
+                      ? dayjs(formData.departureDate)
+                      : null,
+                    formData.returnDate ? dayjs(formData.returnDate) : null,
+                  ]}
+                  disabledDate={disablePastDate}
+                  onChange={(dates) => {
+                    const [start, end] = dates || [];
+                    setFormData((p) => ({
+                      ...p,
+                      departureDate: start ? start.toDate() : undefined,
+                      returnDate: end ? end.toDate() : undefined,
+                    }));
+                    setValidationErrors((p) => ({
+                      ...p,
+                      departureDate: !(dates && dates[0]),
+                    }));
+                  }}
+                />
+              ) : formData.searchFullMonth ? (
                 <input
                   type="month"
                   className="w-full h-12 px-4 border-2 rounded-lg bg-gray-50/50 text-base focus:outline-none focus:ring-2 border-gray-200 focus:border-blue-500 focus:ring-blue-200"
@@ -647,88 +678,29 @@ export default function FlightSearchForm() {
                   }}
                 />
               ) : (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full h-12 justify-start text-left font-normal border-2 border-gray-200 hover:border-blue-400 bg-gray-50/50 rounded-lg">
-                      <CalendarIcon className="mr-3 h-4 w-4 text-blue-600" />
-                      <span className="text-base">
-                        {formData.departureDate
-                          ? format(formData.departureDate, "dd/MM/yyyy")
-                          : "Chọn ngày"}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.departureDate}
-                      onSelect={(d) =>
-                        setFormData((p) => ({
-                          ...p,
-                          departureDate: d || undefined,
-                        }))
-                      }
-                      disabled={(date) => {
-                        if (DEV_CONFIG.HIDE_DEV_CONTROLS) {
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          return date < today;
-                        }
-                        return false;
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker
+                  className="w-full h-12"
+                  format="DD/MM/YYYY"
+                  value={
+                    formData.departureDate
+                      ? dayjs(formData.departureDate)
+                      : null
+                  }
+                  disabledDate={disablePastDate}
+                  onChange={(date) => {
+                    setFormData((p) => ({
+                      ...p,
+                      departureDate: date ? date.toDate() : undefined,
+                    }));
+                    setValidationErrors((p) => ({
+                      ...p,
+                      departureDate: !date,
+                    }));
+                  }}
+                />
               )}
             </div>
-            {/* Return date (round-trip only) */}
-            {formData.tripType === "round-trip" && (
-              <div className="md:col-span-3 space-y-2">
-                <Label className="text-sm font-semibold flex items-center text-gray-700">
-                  <CalendarIcon className="h-4 w-4 mr-1 text-blue-600" />
-                  Về
-                </Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full h-12 justify-start text-left font-normal border-2 border-gray-200 hover:border-blue-400 bg-gray-50/50 rounded-lg">
-                      <CalendarIcon className="mr-3 h-4 w-4 text-blue-600" />
-                      <span className="text-base">
-                        {formData.returnDate
-                          ? format(formData.returnDate, "dd/MM/yyyy")
-                          : "Chọn ngày"}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.returnDate}
-                      onSelect={(d) =>
-                        setFormData((p) => ({
-                          ...p,
-                          returnDate: d || undefined,
-                        }))
-                      }
-                      disabled={(date) => {
-                        if (DEV_CONFIG.HIDE_DEV_CONTROLS) {
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          return date < today;
-                        }
-                        return false;
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            )}
-            {/* Months count (only when month search active) */}
+
             {formData.tripType === "one-way" && formData.searchFullMonth && (
               <div className="md:col-span-2 space-y-2">
                 <Label className="text-sm font-semibold text-gray-700 flex items-center">
@@ -755,19 +727,24 @@ export default function FlightSearchForm() {
                 </Select>
               </div>
             )}
-            {/* Passengers & Class */}
+
             <div
-              className={`space-y-2 ${
+              className={`${
                 formData.tripType === "round-trip"
-                  ? "md:col-span-4"
+                  ? "md:col-span-6"
                   : formData.searchFullMonth
-                  ? "md:col-span-4"
-                  : "md:col-span-5"
-              }`}>
-              <Label className="text-sm font-semibold text-gray-700 flex items-center">
-                <Users className="h-4 w-4 mr-1 text-blue-600" />
-                Hành khách & Hạng
-              </Label>
+                  ? "md:col-span-5"
+                  : "md:col-span-7"
+              } space-y-2`}>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold text-gray-700 flex items-center">
+                  <Users className="h-4 w-4 mr-1 text-blue-600" />
+                  Hành khách & Hạng
+                </Label>
+                <span className="text-[11px] text-gray-500">
+                  Tối đa {MAX_PAX} hành khách
+                </span>
+              </div>
               <Popover
                 open={showPassengerDropdown}
                 onOpenChange={setShowPassengerDropdown}>
@@ -794,9 +771,11 @@ export default function FlightSearchForm() {
                   <div className="p-6 space-y-6">
                     <div className="space-y-4">
                       <h4 className="font-semibold text-gray-900 border-b pb-2">
-                        Số lượng hành khách
+                        Số lượng hành khách{" "}
+                        <span className="text-xs text-gray-500">
+                          (tối đa {MAX_PAX})
+                        </span>
                       </h4>
-                      {/* Adults */}
                       <div className="flex items-center justify-between py-2">
                         <div className="flex items-center space-x-3">
                           <div className="bg-blue-100 p-2 rounded-full">
@@ -828,13 +807,16 @@ export default function FlightSearchForm() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updatePassengerCount("adults", true)}
+                            onClick={() =>
+                              totalPassengers < MAX_PAX &&
+                              updatePassengerCount("adults", true)
+                            }
+                            disabled={totalPassengers >= MAX_PAX}
                             className="h-8 w-8 rounded-full p-0">
                             <Plus className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
-                      {/* Children */}
                       <div className="flex items-center justify-between py-2">
                         <div className="flex items-center space-x-3">
                           <div className="bg-green-100 p-2 rounded-full">
@@ -867,14 +849,15 @@ export default function FlightSearchForm() {
                             variant="outline"
                             size="sm"
                             onClick={() =>
+                              totalPassengers < MAX_PAX &&
                               updatePassengerCount("children", true)
                             }
+                            disabled={totalPassengers >= MAX_PAX}
                             className="h-8 w-8 rounded-full p-0">
                             <Plus className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
-                      {/* Infants */}
                       <div className="flex items-center justify-between py-2">
                         <div className="flex items-center space-x-3">
                           <div className="bg-pink-100 p-2 rounded-full">
@@ -907,15 +890,16 @@ export default function FlightSearchForm() {
                             variant="outline"
                             size="sm"
                             onClick={() =>
+                              totalPassengers < MAX_PAX &&
                               updatePassengerCount("infants", true)
                             }
+                            disabled={totalPassengers >= MAX_PAX}
                             className="h-8 w-8 rounded-full p-0">
                             <Plus className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
                     </div>
-                    {/* Flight Class */}
                     <div className="space-y-3">
                       <h4 className="font-semibold text-gray-900 border-b pb-2">
                         Hạng vé
@@ -929,7 +913,7 @@ export default function FlightSearchForm() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {flightClasses.map((fc) => (
+                          {flightClassOptions.map((fc) => (
                             <SelectItem key={fc.value} value={fc.value}>
                               <div className="flex flex-col">
                                 <span className="font-medium">{fc.label}</span>
@@ -944,7 +928,6 @@ export default function FlightSearchForm() {
                         </SelectContent>
                       </Select>
                     </div>
-                    {/* Special Requirements */}
                     <div className="space-y-3">
                       <h4 className="font-semibold text-gray-900 border-b pb-2">
                         Yêu cầu đặc biệt
@@ -958,7 +941,7 @@ export default function FlightSearchForm() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {specialRequirements.map((r) => (
+                          {specialRequirementOptions.map((r) => (
                             <SelectItem key={r.value} value={r.value}>
                               <div className="flex flex-col">
                                 <span className="font-medium">{r.label}</span>
@@ -984,12 +967,12 @@ export default function FlightSearchForm() {
                 </PopoverContent>
               </Popover>
             </div>
-            {/* Search */}
+
             <div className="md:col-span-2">
               <Button
                 onClick={handleSearchWithValidation}
                 disabled={isLoading}
-                className="w-full h-12 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold text-base shadow-lg hover:shadow-xl transition-all duration-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                className="w-full h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-base shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
                 {isLoading ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
@@ -998,7 +981,7 @@ export default function FlightSearchForm() {
                 ) : (
                   <>
                     <Search className="h-5 w-5 mr-2" />
-                    Tìm kiếm
+                    Tìm chuyến bay
                   </>
                 )}
               </Button>

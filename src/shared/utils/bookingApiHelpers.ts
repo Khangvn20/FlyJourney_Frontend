@@ -1,14 +1,14 @@
-import type { PassengerFormData } from "../shared/types/passenger.types";
-import type { BookingSelection } from "../components/booking/BookingSummary";
+import type { PassengerFormData } from "../types/passenger.types";
+import type { BookingSelection } from "../../components/booking/BookingSummary";
 import type {
   BookingCreateRequest,
   BookingPassengerDetailRequest,
   BookingAncillaryRequest,
-} from "../shared/types/booking-api.types";
+} from "../types/booking-api.types";
 import {
   getServiceMapping,
   getBaggageApiDescription,
-} from "../shared/constants/serviceMapping";
+} from "../constants/serviceMapping";
 
 /**
  * Convert date from MM/DD/YYYY or YYYY-MM-DD to dd/MM/yyyy format for API
@@ -161,6 +161,7 @@ export function convertAddonsToAncillaries(
 export function createBookingPayload(
   selection: BookingSelection,
   passengers: PassengerFormData[],
+  contactName: string,
   contactEmail: string,
   contactPhone: string,
   contactAddress: string,
@@ -197,6 +198,7 @@ export function createBookingPayload(
 
   const payload: BookingCreateRequest = {
     flight_id: selection.outbound.flight_id,
+    contact_name: contactName,
     contact_email: contactEmail,
     contact_phone: finalContactPhone,
     contact_address: contactAddress,

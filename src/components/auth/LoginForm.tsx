@@ -5,7 +5,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Mail, Lock, Eye, EyeOff, LogIn } from "lucide-react";
 import type { LoginFormData } from "../../shared/types";
-import { credentialsUtils } from "../../utils/registerFormHelpers";
+import { credentialsUtils } from "../../shared/utils/registerFormHelpers";
 
 interface LoginFormProps {
   onSubmit: (data: LoginFormData & { rememberMe: boolean }) => Promise<void>;

@@ -205,10 +205,11 @@ export const useFlightSearchForm = () => {
       searchFullMonth: false,
     };
 
-    // Merge saved data but ensure departureDate always exists
+    // Merge saved data but always use today's date for departure
     const merged = { ...defaultData, ...savedData };
-    if (!merged.departureDate) {
-      merged.departureDate = today;
+    merged.departureDate = today;
+    if (merged.returnDate && merged.returnDate < merged.departureDate) {
+      merged.returnDate = undefined;
     }
 
     return merged;
@@ -224,6 +225,17 @@ export const useFlightSearchForm = () => {
   useEffect(() => {
     saveSearchData(formData);
   }, [formData]);
+
+  // Keep return date in sync with departure date
+  useEffect(() => {
+    if (
+      formData.returnDate &&
+      formData.departureDate &&
+      formData.returnDate < formData.departureDate
+    ) {
+      setFormData((p) => ({ ...p, returnDate: undefined }));
+    }
+  }, [formData.departureDate, formData.returnDate, setFormData]);
 
   const [showPassengerDropdown, setShowPassengerDropdown] = useState(false);
   const [showFromDropdown, setShowFromDropdown] = useState(false);
@@ -322,6 +334,16 @@ export const useFlightSearchForm = () => {
       formData.returnDate < today
     ) {
       setSearchError("Ngày về không thể là ngày trong quá khứ");
+      return;
+    }
+
+    if (
+      formData.tripType === "round-trip" &&
+      formData.returnDate &&
+      formData.departureDate &&
+      formData.returnDate < formData.departureDate
+    ) {
+      setSearchError("Ngày về phải sau ngày khởi hành");
       return;
     }
 

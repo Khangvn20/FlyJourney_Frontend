@@ -10,12 +10,14 @@ interface LoadMoreButtonProps {
   searchInfo: FlightSearchResponseData | null;
   filteredFlights: FlightSearchApiResult[];
   onLoadMore?: () => void;
+  loading?: boolean;
 }
 
 const LoadMoreButton: React.FC<LoadMoreButtonProps> = ({
   searchInfo,
   filteredFlights,
   onLoadMore,
+  loading,
 }) => {
   if (filteredFlights.length === 0) {
     return null;
@@ -33,12 +35,14 @@ const LoadMoreButton: React.FC<LoadMoreButtonProps> = ({
         variant="outline"
         size="lg"
         onClick={onLoadMore}
-        disabled={!hasMore}>
-        Xem thêm chuyến bay (
-        {hasMore
-          ? `còn ${searchInfo.total_count - filteredFlights.length}`
-          : "tất cả"}
-        )
+        disabled={!hasMore || loading}>
+        {loading
+          ? "Đang tải..."
+          : `Xem thêm chuyến bay (${
+              hasMore
+                ? `còn ${searchInfo.total_count - filteredFlights.length}`
+                : "tất cả"
+            })`}
       </Button>
     </div>
   );

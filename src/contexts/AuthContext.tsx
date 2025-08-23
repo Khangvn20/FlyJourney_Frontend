@@ -1,8 +1,13 @@
-import React, { useState, useCallback, useEffect } from "react";
-import { AuthContext } from "./auth.context";
+/* eslint-disable react-refresh/only-export-components */
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
 import type { User, AuthContextType } from "./auth.types";
-import { authService } from "../services/authService";
-import { convertRegisterFormToRequest } from "../utils/registerFormHelpers";
 import type {
   ConfirmRegisterRequest,
   LoginRequest,
@@ -10,9 +15,33 @@ import type {
 } from "../shared/types/backend-api.types";
 import type { RegisterFormData } from "../shared/types/auth.types";
 
+import { authService } from "../services/authService";
+import { convertRegisterFormToRequest } from "../shared/utils/registerFormHelpers";
+
+// ==============================
+// Context + Hook
+// ==============================
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const useAuthContext = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuthContext must be used within <AuthProvider>");
+  }
+  return ctx;
+};
+
 interface AuthProviderProps {
   children: React.ReactNode;
 }
+
+// LocalStorage key for persisting token
+const TOKEN_KEY = "auth_token";
+
+// ==============================
+// Provider
+// ==============================
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
@@ -20,13 +49,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load token from localStorage on mount
+  // Load token from localStorage on mount and try to fetch profile
   useEffect(() => {
-    const savedToken = localStorage.getItem("auth_token");
+    const savedToken = localStorage.getItem(TOKEN_KEY);
     if (savedToken) {
       setToken(savedToken);
       authService.setAuthToken(savedToken);
-      // Try to load user profile
       loadUserProfile();
     }
   }, []);
@@ -36,15 +64,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await authService.getUserProfile();
       if (response.status && response.data) {
         const userData: User = {
+          id: response.data.user_id.toString(),
           email: response.data.email,
           name: response.data.name,
-          id: response.data.user_id.toString(),
           phone: response.data.phone,
         };
         setUser(userData);
       }
-    } catch (error) {
-      console.error("Failed to load user profile:", error);
+    } catch (err) {
+      console.error("Failed to load user profile:", err);
       // If profile load fails, clear auth state
       logout();
     }
@@ -54,16 +82,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      // Convert form data to API request format
       const requestData = convertRegisterFormToRequest(userData);
       const response = await authService.register(requestData);
       if (response.status) {
         return { success: true, message: response.errorMessage };
-      } else {
-        throw new Error(response.errorMessage);
       }
-    } catch (error: unknown) {
-      const errorMessage = (error as Error).message || "Registration failed";
+      throw new Error(response.errorMessage);
+    } catch (err: unknown) {
+      const errorMessage = (err as Error).message || "Registration failed";
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -78,19 +104,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         const response = await authService.confirmRegister(confirmData);
         if (response.status && response.data) {
-          console.log("✅ Registration confirmed successfully");
-
           return {
             success: true,
             message: response.errorMessage,
             data: response.data,
           };
-        } else {
-          throw new Error(response.errorMessage);
         }
-      } catch (error: unknown) {
+        throw new Error(response.errorMessage);
+      } catch (err: unknown) {
         const errorMessage =
-          (error as Error).message || "Registration confirmation failed";
+          (err as Error).message || "Registration confirmation failed";
         setError(errorMessage);
         return { success: false, error: errorMessage };
       } finally {
@@ -107,8 +130,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const credentials: LoginRequest = { email, password };
       const response = await authService.login(credentials);
 
-      console.log("🔍 Login response received:", response);
-
       if (response.status && response.data) {
         const {
           token: authToken,
@@ -117,11 +138,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: userEmail,
         } = response.data;
 
-        console.log("✅ Login successful, setting auth state");
-
         // Save token
         setToken(authToken);
-        localStorage.setItem("auth_token", authToken);
+        localStorage.setItem(TOKEN_KEY, authToken);
+        authService.setAuthToken(authToken);
 
         // Set user data
         const userData: User = {
@@ -132,15 +152,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(userData);
 
         return { success: true };
-      } else {
-        console.log("❌ Login response missing status or data:", {
-          status: response.status,
-          data: response.data,
-        });
-        throw new Error(response.errorMessage || "Invalid response format");
       }
-    } catch (error: unknown) {
-      const errorMessage = (error as Error).message || "Login failed";
+      throw new Error(response.errorMessage || "Invalid response format");
+    } catch (err: unknown) {
+      const errorMessage = (err as Error).message || "Login failed";
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -154,7 +169,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authService.updateUserProfile(updateData);
       if (response.status && response.data) {
-        // Update local user state
         const userData: User = {
           id: response.data.user_id.toString(),
           email: response.data.email,
@@ -163,11 +177,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
         setUser(userData);
         return { success: true, message: response.errorMessage };
-      } else {
-        throw new Error(response.errorMessage);
       }
-    } catch (error: unknown) {
-      const errorMessage = (error as Error).message || "Profile update failed";
+      throw new Error(response.errorMessage);
+    } catch (err: unknown) {
+      const errorMessage = (err as Error).message || "Profile update failed";
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -182,11 +195,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await authService.resetPassword(email);
       if (response.status) {
         return { success: true, message: response.errorMessage };
-      } else {
-        throw new Error(response.errorMessage);
       }
-    } catch (error: unknown) {
-      const errorMessage = (error as Error).message || "Reset password failed";
+      throw new Error(response.errorMessage);
+    } catch (err: unknown) {
+      const errorMessage = (err as Error).message || "Reset password failed";
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -202,12 +214,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const response = await authService.confirmResetPassword(data);
         if (response.status) {
           return { success: true, message: response.errorMessage };
-        } else {
-          throw new Error(response.errorMessage);
         }
-      } catch (error: unknown) {
+        throw new Error(response.errorMessage);
+      } catch (err: unknown) {
         const errorMessage =
-          (error as Error).message || "Reset password confirmation failed";
+          (err as Error).message || "Reset password confirmation failed";
         setError(errorMessage);
         return { success: false, error: errorMessage };
       } finally {
@@ -219,30 +230,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = useCallback(async () => {
     // Prevent multiple logout calls
-    if (loading) {
-      console.log("⚠️ Logout already in progress, skipping...");
-      return;
-    }
+    if (loading) return;
 
     setLoading(true);
     try {
-      // Call logout API if token exists
       if (token) {
-        console.log("🚪 Calling logout API...");
         await authService.logout();
-        console.log("✅ Logout API call successful");
       }
-    } catch (error) {
-      console.error("❌ Logout API call failed:", error);
+    } catch (err) {
+      console.error("Logout API call failed:", err);
     } finally {
-      // Clear local state regardless of API call result
+      // Clear local state regardless of API result
       setToken(null);
       setUser(null);
       setError(null);
-      localStorage.removeItem("auth_token");
+      localStorage.removeItem(TOKEN_KEY);
       authService.removeAuthToken();
       setLoading(false);
-      console.log("🧹 Local auth state cleared");
     }
   }, [token, loading]);
 
@@ -251,6 +255,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     loading,
     error,
+    isAuthenticated: !!token && !!user,
+    // actions
     login,
     logout,
     register,
@@ -258,8 +264,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     updateProfile,
     resetPassword,
     confirmResetPassword,
-    isAuthenticated: !!token && !!user,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+// Re-export context for advanced use-cases (optional)
+export { AuthContext };

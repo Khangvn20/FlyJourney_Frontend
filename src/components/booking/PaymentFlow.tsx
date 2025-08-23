@@ -381,7 +381,7 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ booking, onCancel }) => {
               try {
                 new URL(paymentUrl);
                 console.log("URL fixed successfully");
-              } catch (secondError) {
+              } catch {
                 notification.error({
                   message: "Lỗi Định Dạng URL",
                   description: "Không thể sửa URL thanh toán. Vui lòng thử lại sau.",
@@ -495,11 +495,13 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ booking, onCancel }) => {
           // Sử dụng hàm processSuccessfulPayment đã khai báo ở trên
           
           return;
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const message =
+            error instanceof Error ? error.message : "Lỗi không xác định";
           console.error("Error with MoMo payment:", error);
           notification.error({
             message: "Lỗi Thanh Toán",
-            description: `Lỗi thanh toán MoMo: ${error.message || 'Lỗi không xác định'}`,
+            description: `Lỗi thanh toán MoMo: ${message}`,
             placement: "top",
             duration: 7
           });
@@ -533,11 +535,13 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ booking, onCancel }) => {
         });
         navigate("/my-bookings");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Lỗi không xác định";
       console.error("Payment error:", error);
       notification.error({
         message: "Lỗi Thanh Toán",
-        description: `Có lỗi xảy ra khi thanh toán: ${error.message || 'Lỗi không xác định'}`,
+        description: `Có lỗi xảy ra khi thanh toán: ${message}`,
         placement: "top",
         duration: 7
       });

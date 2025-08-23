@@ -28,6 +28,7 @@ interface FlightCardProps {
   airlineLogo: string;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  isSelected?: boolean;
 }
 
 const FlightCard: React.FC<FlightCardProps> = ({
@@ -39,6 +40,8 @@ const FlightCard: React.FC<FlightCardProps> = ({
   airlineLogo,
   activeTab,
   setActiveTab,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  isSelected: _isSelected,
 }) => {
   const departureTime = formatDateTime(flight.departure_time);
   const arrivalTime = formatDateTime(flight.arrival_time);

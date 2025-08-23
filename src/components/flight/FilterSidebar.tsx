@@ -30,7 +30,6 @@ interface FilterSidebarProps {
     }>
   >;
   flightResults: FlightSearchApiResult[];
-  filteredFlights: FlightSearchApiResult[];
   vietnameseAirlines: Array<{
     id: string;
     name: string;
