@@ -18,7 +18,7 @@ export const SERVICE_MAPPING: ServiceMappingItem[] = [
     price: 150000,
     desc: "Chọn vị trí ngồi ưa thích",
     apiDescription: (count: number) =>
-      `[seat_selection] Dịch vụ chọn chỗ ngồi - ${count} hành khách`,
+      `Dịch vụ chọn chỗ ngồi - ${count} hành khách`,
   },
   {
     id: "priority_boarding",
@@ -26,7 +26,7 @@ export const SERVICE_MAPPING: ServiceMappingItem[] = [
     price: 100000,
     desc: "Ưu tiên lên máy bay trước",
     apiDescription: (count: number) =>
-      `[priority_boarding] Lên máy bay ưu tiên - ${count} hành khách`,
+      `Lên máy bay ưu tiên - ${count} hành khách`,
   },
   {
     id: "lounge_access",
@@ -34,7 +34,7 @@ export const SERVICE_MAPPING: ServiceMappingItem[] = [
     price: 300000,
     desc: "Truy cập phòng chờ VIP sân bay",
     apiDescription: (count: number) =>
-      `[lounge_access] Phòng chờ VIP sân bay - ${count} hành khách`,
+      `Phòng chờ VIP sân bay - ${count} hành khách`,
   },
   {
     id: "extra_legroom",
@@ -42,7 +42,7 @@ export const SERVICE_MAPPING: ServiceMappingItem[] = [
     price: 250000,
     desc: "Ghế có khoảng chân rộng hơn",
     apiDescription: (count: number) =>
-      `[extra_legroom] Ghế khoang rộng - ${count} hành khách`,
+      `Ghế khoang rộng - ${count} hành khách`,
   },
   {
     id: "wifi",
@@ -50,7 +50,7 @@ export const SERVICE_MAPPING: ServiceMappingItem[] = [
     price: 80000,
     desc: "Truy cập internet trong chuyến bay",
     apiDescription: (count: number) =>
-      `[wifi] Dịch vụ WiFi trên chuyến bay - ${count} hành khách`,
+      `Dịch vụ WiFi trên chuyến bay - ${count} hành khách`,
   },
   {
     id: "meal_upgrade",
@@ -58,7 +58,7 @@ export const SERVICE_MAPPING: ServiceMappingItem[] = [
     price: 200000,
     desc: "Suất ăn cao cấp với menu đặc biệt",
     apiDescription: (count: number) =>
-      `[meal_upgrade] Nâng cấp suất ăn - ${count} hành khách`,
+      `Nâng cấp suất ăn - ${count} hành khách`,
   },
   {
     id: "fast_track",
@@ -66,7 +66,7 @@ export const SERVICE_MAPPING: ServiceMappingItem[] = [
     price: 120000,
     desc: "Ưu tiên qua cửa an ninh",
     apiDescription: (count: number) =>
-      `[fast_track] Fast Track an ninh - ${count} hành khách`,
+      `Fast Track an ninh - ${count} hành khách`,
   },
   {
     id: "travel_insurance",
@@ -74,7 +74,7 @@ export const SERVICE_MAPPING: ServiceMappingItem[] = [
     price: 50000,
     desc: "Bảo hiểm cơ bản cho chuyến bay",
     apiDescription: (count: number) =>
-      `[travel_insurance] Bảo hiểm du lịch - ${count} hành khách`,
+      `Bảo hiểm du lịch - ${count} hành khách`,
   },
 ];
 
@@ -98,7 +98,7 @@ export function getServiceApiDescription(
   if (mapping) {
     return mapping.apiDescription(passengerCount);
   }
-  return `[${serviceId}] Dịch vụ bổ sung - ${passengerCount} hành khách`;
+  return ` Dịch vụ bổ sung - ${passengerCount} hành khách`;
 }
 
 /**
@@ -109,7 +109,7 @@ export function getBaggageApiDescription(
   passengerIndex: number,
   passengerName: string
 ): string {
-  return `[baggage_${baggageWeight}kg] Hành lý ký gửi thêm ${baggageWeight}kg - Hành khách ${
+  return ` Hành lý ký gửi thêm ${baggageWeight}kg - Hành khách ${
     passengerIndex + 1
   }: ${passengerName}`;
 }

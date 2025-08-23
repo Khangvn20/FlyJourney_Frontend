@@ -23,13 +23,6 @@ export interface SearchFormData {
   searchFullMonth: boolean;
 }
 
-export interface Airport {
-  code: string;
-  name: string;
-  city: string;
-  country: string;
-}
-
 export interface FlightClass {
   value: string;
   label: string;

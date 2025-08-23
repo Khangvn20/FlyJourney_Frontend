@@ -161,6 +161,7 @@ export function convertAddonsToAncillaries(
 export function createBookingPayload(
   selection: BookingSelection,
   passengers: PassengerFormData[],
+  contactName: string,
   contactEmail: string,
   contactPhone: string,
   contactAddress: string,
@@ -197,6 +198,7 @@ export function createBookingPayload(
 
   const payload: BookingCreateRequest = {
     flight_id: selection.outbound.flight_id,
+    contact_name: contactName,
     contact_email: contactEmail,
     contact_phone: finalContactPhone,
     contact_address: contactAddress,

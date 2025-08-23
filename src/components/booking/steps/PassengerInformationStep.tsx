@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import type { PassengerFormData } from "../../../shared/types/passenger.types";
-import PassengerInfoCollector from "../PassengerInfoCollector";
+import ContactInformationForm from "../ContactInformationForm";
+import PassengerInformationForm from "../PassengerInformationForm";
 import AddonsSelector from "../AddonsSelector";
 import { SERVICE_OPTIONS } from "../bookingAddons.constants";
 import type { BookingSelection } from "../BookingSummary";
@@ -79,8 +80,14 @@ interface PassengerInformationStepProps {
   }) => void;
   note?: string;
   onNoteChange?: (note: string) => void;
-  contactAddress?: string;
-  onContactAddressChange?: (address: string) => void;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  contactAddress: string;
+  onContactNameChange: (name: string) => void;
+  onContactEmailChange: (email: string) => void;
+  onContactPhoneChange: (phone: string) => void;
+  onContactAddressChange: (address: string) => void;
   onBack: () => void;
   onNext: () => void;
   isValid: boolean;
@@ -97,7 +104,13 @@ export const PassengerInformationStep: React.FC<
   onAddonsChange,
   note,
   onNoteChange,
+  contactName,
+  contactEmail,
+  contactPhone,
   contactAddress,
+  onContactNameChange,
+  onContactEmailChange,
+  onContactPhoneChange,
   onContactAddressChange,
   onBack,
   onNext,
@@ -194,8 +207,20 @@ export const PassengerInformationStep: React.FC<
     <div className="grid gap-8 md:grid-cols-12">
       {/* Left content */}
       <div className="md:col-span-8 space-y-6">
-        {/* Passenger Information Section */}
-        <PassengerInfoCollector
+        {/* Contact Information Form */}
+        <ContactInformationForm
+          contactName={contactName}
+          contactEmail={contactEmail}
+          contactPhone={contactPhone}
+          contactAddress={contactAddress}
+          onContactNameChange={onContactNameChange}
+          onContactEmailChange={onContactEmailChange}
+          onContactPhoneChange={onContactPhoneChange}
+          onContactAddressChange={onContactAddressChange}
+        />
+
+        {/* Passenger Information Form */}
+        <PassengerInformationForm
           passengers={passengers}
           onPassengerChange={(index: number, passenger: PassengerFormData) => {
             const updatedPassengers = [...passengers];
@@ -206,8 +231,6 @@ export const PassengerInformationStep: React.FC<
             onPassengerChange(updatedPassengers);
           }}
           passengerCounts={passengerCounts}
-          contactAddress={contactAddress}
-          onContactAddressChange={onContactAddressChange}
         />
 
         {/* Addons Selector */}
@@ -272,24 +295,35 @@ export const PassengerInformationStep: React.FC<
           </div>
         )}
 
-        {!contactAddress?.trim() && (
+        {!contactName?.trim() && (
           <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
-            ⚠️ Vui lòng nhập địa chỉ liên hệ của người đặt vé để tiếp tục
+            ⚠️ Vui lòng nhập tên người liên hệ để tiếp tục
           </div>
         )}
 
-        {!passengers[0]?.phone?.trim() && (
+        {!contactEmail?.trim() && (
           <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
-            ⚠️ Vui lòng nhập số điện thoại của người đặt vé để tiếp tục
+            ⚠️ Vui lòng nhập email liên hệ để tiếp tục
+          </div>
+        )}
+
+        {!contactPhone?.trim() && (
+          <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
+            ⚠️ Vui lòng nhập số điện thoại liên hệ để tiếp tục
+          </div>
+        )}
+
+        {!contactAddress?.trim() && (
+          <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
+            ⚠️ Vui lòng nhập địa chỉ liên hệ để tiếp tục
           </div>
         )}
 
         {passengers.some(
-          (passenger, index) => index > 0 && !passenger.phone?.trim()
+          (passenger) => !passenger.phone?.trim()
         ) && (
           <div className="p-4 border border-yellow-300 bg-yellow-50 rounded-lg text-sm text-yellow-700">
-            💡 Khuyến khích nhập số điện thoại cho các hành khách khác để liên
-            hệ khẩn cấp
+            💡 Khuyến khích nhập số điện thoại cho các hành khách để liên hệ khẩn cấp
           </div>
         )}
 
@@ -385,11 +419,20 @@ export const PassengerInformationStep: React.FC<
                 </span>
               </div>
 
-              {passengers[0]?.phone && (
+              {contactPhone && (
                 <div className="flex items-center justify-between py-2 border-t border-gray-100">
                   <span className="text-xs text-gray-600">SĐT liên hệ</span>
                   <span className="text-xs font-medium text-gray-700">
-                    {passengers[0].phone}
+                    {contactPhone}
+                  </span>
+                </div>
+              )}
+
+              {contactName && (
+                <div className="flex items-center justify-between py-2 border-t border-gray-100">
+                  <span className="text-xs text-gray-600">Người liên hệ</span>
+                  <span className="text-xs font-medium text-gray-700">
+                    {contactName}
                   </span>
                 </div>
               )}

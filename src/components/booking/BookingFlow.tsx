@@ -31,6 +31,7 @@ const BookingFlow: React.FC = () => {
 
   // Basic state
   const [passengers, setPassengers] = useState<PassengerFormData[]>([]);
+  const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactAddress, setContactAddress] = useState("");
@@ -174,6 +175,7 @@ const BookingFlow: React.FC = () => {
 
   const handleConfirm = () => {
     if (isAuthenticated && user) {
+      setContactName(user.name || "");
       setContactEmail(user.email || "");
       setContactPhone(user.phone || "");
     }
@@ -200,6 +202,7 @@ const BookingFlow: React.FC = () => {
       const payload = createBookingPayload(
         selection,
         passengers,
+        contactName,
         contactEmail,
         contactPhone,
         contactAddress,
@@ -242,7 +245,7 @@ const BookingFlow: React.FC = () => {
             inboundFlightId: selection.inbound?.flight_id,
             passengers,
             contact: {
-              fullName: `${passengers[0]?.firstName} ${passengers[0]?.lastName}`,
+              fullName: contactName,
               email: contactEmail,
               phone: contactPhone,
             },
@@ -320,11 +323,11 @@ const BookingFlow: React.FC = () => {
       passengerCounts.infants;
     if (passengers.length !== expectedTotal) return false;
 
-    // Check if contact address is provided
+    // Check if contact information is provided
+    if (!contactName.trim()) return false;
+    if (!contactEmail.trim()) return false;
+    if (!contactPhone.trim()) return false;
     if (!contactAddress.trim()) return false;
-
-    // Check if first passenger (booker) has phone number
-    if (!passengers[0]?.phone?.trim()) return false;
 
     return passengers.every(
       (p) =>
@@ -401,7 +404,13 @@ const BookingFlow: React.FC = () => {
           onAddonsChange={setAddons}
           note={note}
           onNoteChange={setNote}
+          contactName={contactName}
+          contactEmail={contactEmail}
+          contactPhone={contactPhone}
           contactAddress={contactAddress}
+          onContactNameChange={setContactName}
+          onContactEmailChange={setContactEmail}
+          onContactPhoneChange={setContactPhone}
           onContactAddressChange={setContactAddress}
           onBack={() => setStep(0)}
           onNext={() => setStep(2)}
@@ -449,7 +458,7 @@ const BookingFlow: React.FC = () => {
           <BookingOverview
             selection={selection}
             passengers={passengers}
-            contact={{ email: contactEmail, phone: contactPhone }}
+            contact={{ name: contactName, email: contactEmail, phone: contactPhone }}
             contactAddress={contactAddress}
             addons={addons}
             totalPrice={selection.totalPrice + addons.extraPrice}
