@@ -4,6 +4,8 @@ export const DEV_CONFIG = {
 
   // Other dev settings can be added here
   ENABLE_CONSOLE_LOGS: true,
+  // Reduce duplicate logs in development
+  REDUCE_DUPLICATE_LOGS: true,
   MOCK_API_DELAY: 1500,
   // Allow bypassing passenger name validations (for rapid QA flows)
   BYPASS_PASSENGER_NAME_VALIDATION: true,

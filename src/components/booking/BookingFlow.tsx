@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Result } from "antd";
 import { useAuthContext } from "../../hooks/useAuthContext";
@@ -6,6 +6,7 @@ import BookingSummary from "./BookingSummary";
 import type { BookingSelection } from "./BookingSummary";
 import BookingOverview from "./BookingOverview";
 import { Button } from "../ui/button";
+import { SERVICE_OPTIONS } from "./bookingAddons.constants";
 import type {
   PassengerFormData,
   BookingRecord,
@@ -17,6 +18,7 @@ import {
   DEV_CONFIG,
   shouldShowDevControls,
 } from "../../shared/config/devConfig";
+import { PriceValidator } from "../../shared/utils/priceValidation";
 
 // Import the new step components
 import { BookingStepHeader, PassengerInformationStep } from "./steps";
@@ -55,6 +57,36 @@ const BookingFlow: React.FC = () => {
     services: string[];
     extraPrice: number;
   }>({ extraBaggageKg: 0, services: [], extraPrice: 0 });
+
+  const baggageTotal = useMemo(
+    () =>
+      passengers.reduce(
+        (sum, p) => sum + (p.extraBaggage?.price || 0),
+        0
+      ),
+    [passengers]
+  );
+
+  const servicesTotal = useMemo(() => {
+    const totalPassengers =
+      passengerCounts.adults +
+      passengerCounts.children +
+      passengerCounts.infants;
+    return addons.services.reduce((sum, id) => {
+      const svc = SERVICE_OPTIONS.find((s) => s.id === id);
+      return sum + (svc?.price || 0) * totalPassengers;
+    }, 0);
+  }, [addons.services, passengerCounts]);
+
+  const addonsTotal = baggageTotal + servicesTotal;
+  const addonsWithPrice = useMemo(
+    () => ({ ...addons, extraPrice: addonsTotal }),
+    [addons, addonsTotal]
+  );
+  const totalPriceWithAddons = useMemo(
+    () => (selection ? selection.totalPrice : 0) + addonsTotal,
+    [selection, addonsTotal]
+  );
 
   // Load selection from route state or sessionStorage
   useEffect(() => {
@@ -198,6 +230,26 @@ const BookingFlow: React.FC = () => {
     setBookingError(null);
 
     try {
+      // COMPREHENSIVE PRICE VALIDATION USING UTILITY
+      const priceValidation = PriceValidator.validatePriceCalculation(
+        selection,
+        passengers,
+        baggageTotal,
+        servicesTotal,
+        totalPriceWithAddons,
+        "pre_booking_validation"
+      );
+
+      if (!priceValidation.isValid) {
+        console.error("❌ PRICE VALIDATION FAILED:", priceValidation.errors);
+        setBookingError(`Lỗi tính giá: ${priceValidation.errors.join(", ")}`);
+        return;
+      }
+
+      if (priceValidation.warnings.length > 0) {
+        console.warn("⚠️ Price validation warnings:", priceValidation.warnings);
+      }
+
       // Create booking payload
       const payload = createBookingPayload(
         selection,
@@ -207,28 +259,124 @@ const BookingFlow: React.FC = () => {
         contactPhone,
         contactAddress,
         note,
-        addons
+        addonsWithPrice
       );
 
-      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
-        console.log("🎫 Creating booking with payload:", payload);
-        console.log(
-          "📅 Trip type:",
-          selection.inbound ? "round-trip" : "one-way"
-        );
-        if (selection.inbound) {
-          console.log("✈️ Outbound flight_id:", selection.outbound.flight_id);
-          console.log("🔄 Return flight_id:", selection.inbound.flight_id);
-        }
+      // PRICE CONSISTENCY CHECK
+      const payloadPriceAudit = {
+        timestamp: new Date().toISOString(),
+        step: "payload_creation",
+        payloadTotalPrice: payload.total_price,
+        frontendTotal: totalPriceWithAddons,
+        selectionPrice: selection.totalPrice,
+        addonsPrice: addonsWithPrice.extraPrice,
+        difference: Math.abs(payload.total_price - totalPriceWithAddons)
+      };
+
+      console.log("🔍 PRICE AUDIT TRAIL - PAYLOAD:", payloadPriceAudit);
+
+      // Validate payload price matches frontend calculation
+      if (Math.abs(payload.total_price - totalPriceWithAddons) > 0.01) {
+        const payloadError = `Payload price mismatch: payload=${payload.total_price}, frontend=${totalPriceWithAddons}`;
+        console.error("❌ PAYLOAD PRICE VALIDATION FAILED:", payloadError);
+        setBookingError(`Lỗi tạo payload: ${payloadError}`);
+        return;
       }
 
-      // Call API
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.log("🎫 Creating booking with validated payload:", payload);
+        console.log("💰 COMPREHENSIVE PRICE BREAKDOWN:");
+        console.log("  ✅ Price validation passed");
+        console.log("  - selection.totalPrice:", selection.totalPrice);
+        console.log("  - baggageTotal:", baggageTotal);
+        console.log("  - servicesTotal:", servicesTotal);
+        console.log("  - addonsTotal:", addonsTotal);
+        console.log("  - totalPriceWithAddons (frontend calc):", totalPriceWithAddons);
+        console.log("  - payload.total_price (validated):", payload.total_price);
+        console.log("  - currency:", selection.currency);
+        console.log("  - passenger breakdown:", {
+          adults: passengerCounts.adults,
+          children: passengerCounts.children,
+          infants: passengerCounts.infants,
+          total: passengers.length
+        });
+        console.log("  - flight details:", {
+          outbound: {
+            flight_id: selection.outbound.flight_id,
+            flight_number: selection.outbound.flight_number,
+            pricing: selection.outbound.pricing
+          },
+          inbound: selection.inbound ? {
+            flight_id: selection.inbound.flight_id,
+            flight_number: selection.inbound.flight_number,
+            pricing: selection.inbound.pricing
+          } : null
+        });
+        console.log("  - addons breakdown:", {
+          services: addons.services,
+          extraBaggageKg: addons.extraBaggageKg,
+          individualBaggage: passengers.map(p => ({
+            passenger: `${p.firstName} ${p.lastName}`,
+            baggage: p.extraBaggage
+          }))
+        });
+      }
+
+      // Call API with audit logging
+      console.log("📡 SENDING BOOKING REQUEST:", {
+        timestamp: new Date().toISOString(),
+        userId: user?.id,
+        payloadSize: JSON.stringify(payload).length,
+        totalPrice: payload.total_price
+      });
+
       const response = await createBooking(payload);
+
+      // COMPREHENSIVE API RESPONSE VALIDATION
+      console.log("📡 BOOKING API RESPONSE RECEIVED:", {
+        timestamp: new Date().toISOString(),
+        status: response.status,
+        hasData: !!response.data,
+        responseSize: JSON.stringify(response).length
+      });
 
       if (response.status) {
         // Success - convert to our BookingRecord format
         const apiBooking = response.data;
         if (apiBooking) {
+          // CRITICAL PRICE VALIDATION AGAINST API RESPONSE USING UTILITY
+          const apiPriceValidation = PriceValidator.validateApiResponsePrice(
+            totalPriceWithAddons,
+            apiBooking.total_price || 0,
+            apiBooking.booking_id.toString(),
+            selection.currency
+          );
+
+          if (apiPriceValidation.shouldInvestigate) {
+            // Log detailed breakdown for debugging when investigation is needed
+            console.error("💰 DETAILED PRICE BREAKDOWN FOR INVESTIGATION:", {
+              selection: {
+                totalPrice: selection.totalPrice,
+                outboundPricing: selection.outbound.pricing,
+                inboundPricing: selection.inbound?.pricing
+              },
+              addons: {
+                baggageTotal,
+                servicesTotal,
+                addonsTotal,
+                individualBaggage: passengers.map(p => p.extraBaggage)
+              },
+              calculations: {
+                frontendTotal: totalPriceWithAddons,
+                payloadTotal: payload.total_price,
+                apiTotal: apiBooking.total_price
+              },
+              validationResult: apiPriceValidation
+            });
+          }
+
+          const priceDifference = apiPriceValidation.auditLog.difference as number;
+
           const newBookingRecord: BookingRecord = {
             bookingId: apiBooking.booking_id.toString(),
             status:
@@ -249,41 +397,65 @@ const BookingFlow: React.FC = () => {
               email: contactEmail,
               phone: contactPhone,
             },
-            // Use the same price calculation as in BookingOverview
-            totalPrice: selection.totalPrice + addons.extraPrice,
+            // IMPORTANT: Use frontend calculated price to maintain consistency with what user saw
+            // This prevents confusion when user sees different price in My Bookings
+            totalPrice: totalPriceWithAddons,
             currency: selection.currency,
             // Set placeholder payment method for pending bookings
             paymentMethod:
               apiBooking.status === "pending_payment" ? "office" : "vnpay",
             note,
-            addons,
-            addonExtraPrice: addons.extraPrice,
+            addons: addonsWithPrice,
+            addonExtraPrice: addonsTotal,
             selectedFlights: {
               outbound: selection.outbound,
               inbound: selection.inbound,
             },
           };
 
+          // FINAL BOOKING RECORD VALIDATION
+          const finalAudit = {
+            timestamp: new Date().toISOString(),
+            step: "final_booking_record",
+            bookingId: newBookingRecord.bookingId,
+            recordTotalPrice: newBookingRecord.totalPrice,
+            apiTotalPrice: apiBooking.total_price,
+            consistencyMaintained: newBookingRecord.totalPrice === totalPriceWithAddons,
+            status: newBookingRecord.status
+          };
+
+          console.log("🔍 PRICE AUDIT TRAIL - FINAL RECORD:", finalAudit);
+
           setBookingRecord(newBookingRecord);
 
-          // Save booking to localStorage
+          // Save booking to localStorage with audit
           const existingBookings = loadBookings();
           const updatedBookings = [...existingBookings, newBookingRecord];
           saveBookings(updatedBookings);
 
+          console.log("💾 BOOKING SAVED TO LOCALSTORAGE:", {
+            timestamp: new Date().toISOString(),
+            bookingId: newBookingRecord.bookingId,
+            totalBookings: updatedBookings.length,
+            savedPrice: newBookingRecord.totalPrice
+          });
+
           if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
             console.log("✅ Booking created successfully:", newBookingRecord);
-            console.log("💾 Booking saved to localStorage");
-            console.log("📊 API Response:", apiBooking);
+            console.log("📊 Complete API Response:", apiBooking);
             console.log("🔍 Booking Status:", newBookingRecord.status);
-            console.log("💰 Price Calculation:");
-            console.log("  - Selection price:", selection.totalPrice);
-            console.log("  - Addons price:", addons.extraPrice);
-            console.log(
-              "  - Final total:",
-              selection.totalPrice + addons.extraPrice
-            );
-            console.log("  - API returned price:", apiBooking.total_price);
+            console.log("💰 COMPREHENSIVE PRICE AUDIT SUMMARY:");
+            console.log("  ✅ Frontend calculation:", totalPriceWithAddons);
+            console.log("  📤 Sent to API:", payload.total_price);
+            console.log("  📥 API returned:", apiBooking.total_price);
+            console.log("  💾 Saved in record:", newBookingRecord.totalPrice);
+            console.log("  🎯 Price consistency maintained:", newBookingRecord.totalPrice === totalPriceWithAddons);
+            
+            if (priceDifference > 1) {
+              console.log("  ⚠️ DISCREPANCY DETECTED - Investigation needed");
+            } else {
+              console.log("  ✅ Price validation passed");
+            }
           }
 
           // Set success state
@@ -460,8 +632,7 @@ const BookingFlow: React.FC = () => {
             passengers={passengers}
             contact={{ name: contactName, email: contactEmail, phone: contactPhone }}
             contactAddress={contactAddress}
-            addons={addons}
-            totalPrice={selection.totalPrice + addons.extraPrice}
+            addons={addonsWithPrice}
             currency={selection.currency}
             booking={bookingRecord}
             note={note}

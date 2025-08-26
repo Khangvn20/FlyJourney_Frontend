@@ -206,7 +206,6 @@ export const flightSearchService = async (
   }
 
   if (params.tripType === "roundTrip") {
-    // TODO: Implement round trip with correct response structure
     throw new Error(
       "Round trip search not yet implemented with new API structure"
     );
@@ -286,51 +285,6 @@ export const mapFormToApiParams = (formData: {
     sortBy: "price",
     sortOrder: "asc",
   };
-};
-
-/**
- * Format price from VND to display format
- */
-export const formatPrice = (priceVND: number): string => {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-  }).format(priceVND);
-};
-
-/**
- * Convert ISO datetime to display format
- */
-export const formatDateTime = (
-  isoString: string
-): {
-  date: string;
-  time: string;
-} => {
-  const date = new Date(isoString);
-  return {
-    date: date.toLocaleDateString("vi-VN"),
-    time: date.toLocaleTimeString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  };
-};
-
-/**
- * Calculate flight duration in human readable format
- */
-export const formatDuration = (minutes: number): string => {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-
-  if (hours === 0) {
-    return `${mins}m`;
-  }
-  if (mins === 0) {
-    return `${hours}h`;
-  }
-  return `${hours}h ${mins}m`;
 };
 
 // Export the main service for backward compatibility

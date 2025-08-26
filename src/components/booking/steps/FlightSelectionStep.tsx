@@ -1,6 +1,6 @@
 import React from "react";
 import type { BookingSelection } from "../BookingSummary";
-import { formatDateTime } from "../../../services/flightApiService";
+import { formatDateTime } from "../../../shared/utils/format";
 
 interface FlightSelectionStepProps {
   selection: BookingSelection;

@@ -309,24 +309,6 @@ const PassengerInformationForm: React.FC<PassengerInformationFormProps> = ({
             )}
           </CardContent>
         </Card>
-
-        {/* Regulation info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="text-sm font-semibold text-blue-900 mb-3">
-            Quy định độ tuổi tại Việt Nam
-          </h4>
-          <div className="text-sm text-blue-800 space-y-2">
-            <div>
-              <strong>Trẻ sơ sinh (dưới 2 tuổi):</strong> Có thể không cần vé riêng, ngồi cùng người lớn
-            </div>
-            <div>
-              <strong>Trẻ em (2-13 tuổi):</strong> Cần có người lớn đi cùng và mang theo giấy khai sinh
-            </div>
-            <div>
-              <strong>Người lớn (từ 14 tuổi):</strong> Có thể tự mình đặt vé và làm thủ tục như người lớn
-            </div>
-          </div>
-        </div>
       </div>
     );
   }
@@ -450,24 +432,6 @@ const PassengerInformationForm: React.FC<PassengerInformationFormProps> = ({
             HK {index + 1}
           </button>
         ))}
-      </div>
-
-      {/* Regulation info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-sm font-semibold text-blue-900 mb-3">
-          Quy định độ tuổi tại Việt Nam
-        </h4>
-        <div className="text-sm text-blue-800 space-y-2">
-          <div>
-            <strong>Trẻ sơ sinh (dưới 2 tuổi):</strong> Có thể không cần vé riêng, ngồi cùng người lớn
-          </div>
-          <div>
-            <strong>Trẻ em (2-13 tuổi):</strong> Cần có người lớn đi cùng và mang theo giấy khai sinh
-          </div>
-          <div>
-            <strong>Người lớn (từ 14 tuổi):</strong> Có thể tự mình đặt vé và làm thủ tục như người lớn
-          </div>
-        </div>
       </div>
     </div>
   );

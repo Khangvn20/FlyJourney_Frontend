@@ -39,7 +39,7 @@ export const apiEndpoints: ApiEndpoints = {
   },
   user: {
     profile: "/users/",
-    bookings: "/user/bookings",
+    bookings: "/booking/user",
     preferences: "/user/preferences",
   },
 };

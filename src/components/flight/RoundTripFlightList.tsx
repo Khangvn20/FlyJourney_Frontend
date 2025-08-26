@@ -3,7 +3,7 @@ import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Plane, CheckCircle2 } from "lucide-react";
 import FlightCard from "./FlightCard";
-import { formatPrice, formatDateTime } from "../../services/flightApiService";
+import { formatPrice, formatDateTime } from "../../shared/utils/format";
 import type {
   FlightSearchApiResult,
   FlightSearchResponseData,
