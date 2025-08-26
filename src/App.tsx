@@ -1,5 +1,5 @@
 import type React from "react";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Outlet } from "react-router-dom";
 import "./App.css";
 
 import Home from "./pages/Home";
@@ -10,6 +10,7 @@ import Blog from "./pages/Blog";
 import News from "./pages/News";
 import MyBookings from "./pages/MyBookings";
 import BookingDetail from "./pages/BookingDetail";
+import ErrorPage from "./pages/Error";
 
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
@@ -17,56 +18,70 @@ import ScrollToTop from "./components/layout/ScrollToTop";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { useScrollToTop } from "./hooks/useScrollToTop";
 import ChatBox from "./components/common/ChatBox";
+import { useLocation } from "react-router-dom";
+
+const Layout: React.FC = () => (
+  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <Header />
+    <main className="container mx-auto px-4 py-8 min-h-[calc(100vh-140px)]">
+      <Outlet />
+    </main>
+    <Footer />
+  </div>
+);
 
 const App: React.FC = () => {
   useScrollToTop();
+  const location = useLocation();
+  
+  // Xác định nếu đang ở trang error dựa trên route matching của React Router
+  // Nếu route không match bất kỳ route nào được định nghĩa, React Router sẽ render route "*"
+  const isErrorPage = location.pathname !== "/" &&
+    location.pathname !== "/search" &&
+    location.pathname !== "/blog" &&
+    location.pathname !== "/news" &&
+    location.pathname !== "/booking" &&
+    location.pathname !== "/register" &&
+    location.pathname !== "/my-bookings" &&
+    !location.pathname.startsWith("/my-bookings/");
 
   return (
     <>
       <Routes>
         {/* Register page without Header/Footer */}
         <Route path="/register" element={<Register />} />
-
-        {/* Other pages with Header/Footer */}
-        <Route
-          path="*"
-          element={
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-              <Header />
-              <main className="container mx-auto px-4 py-8 min-h-[calc(100vh-140px)]">
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/search" element={<Search />} />
-                  <Route path="/blog" element={<Blog />} />
-                  <Route path="/news" element={<News />} />
-                  <Route path="/booking" element={<Booking />} />
-                  <Route
-                    path="/my-bookings/:id"
-                    element={
-                      <ProtectedRoute>
-                        <BookingDetail />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/my-bookings"
-                    element={
-                      <ProtectedRoute>
-                        <MyBookings />
-                      </ProtectedRoute>
-                    }
-                  />
-                </Routes>
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+        {/* Main app routes with Header/Footer */}
+        <Route element={<Layout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/news" element={<News />} />
+          <Route path="/booking" element={<Booking />} />
+          <Route
+            path="/my-bookings/:id"
+            element={
+              <ProtectedRoute>
+                <BookingDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-bookings"
+            element={
+              <ProtectedRoute>
+                <MyBookings />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
+        {/* Error page for unmatched routes (no header/footer) */}
+        <Route path="*" element={<ErrorPage />} />
       </Routes>
 
       {/* Global ScrollToTop button */}
       <ScrollToTop />
-      <ChatBox />
+      {/* Ẩn ChatBox khi ở trang lỗi */}
+      {!isErrorPage && <ChatBox />}
     </>
   );
 };

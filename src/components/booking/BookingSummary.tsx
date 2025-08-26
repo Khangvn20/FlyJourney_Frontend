@@ -1,6 +1,6 @@
 import React from "react";
 import type { FlightSearchApiResult } from "../../shared/types/search-api.types";
-import { formatDateTime, formatPrice } from "../../services/flightApiService";
+import { formatDateTime, formatPrice } from "../../shared/utils/format";
 import { Button } from "../ui/button";
 import {
   PlaneTakeoff,

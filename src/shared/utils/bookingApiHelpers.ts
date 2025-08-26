@@ -74,7 +74,7 @@ export function convertPassengerToApiFormat(
   passenger: PassengerFormData,
   flightClassId: number,
   returnFlightClassId: number | undefined,
-  basePrice: number
+  price: number
 ): BookingPassengerDetailRequest {
   const age = calculateAge(passenger.dateOfBirth);
 
@@ -82,7 +82,7 @@ export function convertPassengerToApiFormat(
     passenger_age: age,
     passenger_gender: passenger.gender || "other",
     flight_class_id: flightClassId,
-    price: basePrice,
+    price,
     last_name: passenger.lastName.trim(),
     first_name: passenger.firstName.trim(),
     date_of_birth: formatDateForApi(passenger.dateOfBirth || ""),
@@ -174,27 +174,33 @@ export function createBookingPayload(
 ): BookingCreateRequest {
   const flightClassId = selection.outbound.flight_class_id || 1;
   const returnFlightClassId = selection.inbound?.flight_class_id;
+  const outboundPrices = selection.outbound.pricing?.total_prices || {};
+  const inboundPrices = selection.inbound?.pricing?.total_prices || {};
 
-  // Calculate base price per passenger (excluding addons)
-  const basePrice = Math.round(
-    (selection.totalPrice - globalAddons.extraPrice) / passengers.length
-  );
-
-  // Convert passengers to API format
-  const details = passengers.map((passenger) =>
-    convertPassengerToApiFormat(
-      passenger,
+  // Convert passengers to API format using per-type pricing from API
+  const details = passengers.map((p) => {
+    // Use individual passenger pricing from flight API
+    const outboundPrice = outboundPrices[p.type as keyof typeof outboundPrices] || 0;
+    const inboundPrice = inboundPrices[p.type as keyof typeof inboundPrices] || 0;
+    const totalPassengerPrice = outboundPrice + inboundPrice;
+    
+    return convertPassengerToApiFormat(
+      p,
       flightClassId,
       returnFlightClassId,
-      basePrice
-    )
-  );
+      totalPassengerPrice
+    );
+  });
 
   // Convert addons to ancillaries
   const ancillaries = convertAddonsToAncillaries(passengers, globalAddons);
 
   // Use the first passenger's phone as contact phone if not provided
   const finalContactPhone = contactPhone || passengers[0]?.phone || "";
+
+  // IMPORTANT: Use selection.totalPrice (from flight search API) + addons
+  // This ensures consistency with what user saw during booking flow
+  const finalTotalPrice = selection.totalPrice + globalAddons.extraPrice;
 
   const payload: BookingCreateRequest = {
     flight_id: selection.outbound.flight_id,
@@ -203,7 +209,7 @@ export function createBookingPayload(
     contact_phone: finalContactPhone,
     contact_address: contactAddress,
     note: note || undefined,
-    total_price: selection.totalPrice + globalAddons.extraPrice,
+    total_price: finalTotalPrice,
     details,
     ancillaries: ancillaries.length > 0 ? ancillaries : undefined,
   };

@@ -36,10 +36,10 @@ import {
   FlightClass as flightClassData,
   SpecialRequirement as specialRequirementData,
 } from "../../mocks/flightData";
-import { airlines } from "../../mocks";
 import type { Airport } from "../../shared/types";
 import { useFlightSearchForm } from "../../hooks/useFlightSearchForm";
 import { DEV_CONFIG } from "../../shared/config/devConfig";
+import { AIRLINE_LIST } from "../../shared/constants/airlines";
 const { RangePicker } = DatePicker;
 
 const MAX_PAX = 8;
@@ -125,11 +125,13 @@ export default function FlightSearchForm() {
     }
   }, [formData.tripType, setFormData]);
 
-  const vietnameseAirlines = airlines.map((a) => ({
+  // Use real airline mapping instead of mock data
+  const vietnameseAirlines = AIRLINE_LIST.map((a) => ({
     id: a.name.toLowerCase().replace(/\s+/g, "-"),
     name: a.name,
-    logo: a.logo,
-    code: a.name.substring(0, 2).toUpperCase(),
+    logo: a.logo || `/airlines/${a.name.toLowerCase().replace(/\s+/g, "-")}.png`,
+    code: a.code,
+    dbId: a.id, // Add database ID for API requests
   }));
 
   const quickAirports = useMemo(
@@ -224,7 +226,17 @@ export default function FlightSearchForm() {
   };
 
   const handleSearchWithValidation = () => {
-    if (validateForm()) handleSearch();
+    if (validateForm()) {
+      // Convert selected airlines to database IDs
+      const selectedAirlineIds = selectedAirlines
+        .map(airlineId => {
+          const airline = vietnameseAirlines.find(a => a.id === airlineId);
+          return airline?.dbId;
+        })
+        .filter((id): id is number => id !== undefined);
+      
+      handleSearch(selectedAirlineIds);
+    }
   };
 
   const setTripType = (newType: "one-way" | "round-trip") => {

@@ -19,6 +19,7 @@ interface SimpleSearchRequest {
   limit: number;
   sort_by: string;
   sort_order: string;
+  airline_ids?: number[]; // Add airline filtering
 }
 
 // Round-trip search request interface
@@ -37,6 +38,7 @@ interface RoundTripSearchRequest {
   limit: number;
   sort_by: string;
   sort_order: string;
+  airline_ids?: number[]; // Add airline filtering
 }
 
 // Function to load saved search data from localStorage
@@ -301,7 +303,7 @@ export const useFlightSearchForm = () => {
     }
   };
 
-  const handleSearch = async () => {
+  const handleSearch = async (airlineIds?: number[]) => {
     // Validation
     if (!formData.departureDate) {
       setSearchError("Vui lòng chọn ngày khởi hành");
@@ -398,6 +400,7 @@ export const useFlightSearchForm = () => {
           limit: 50,
           sort_by: "price",
           sort_order: "asc",
+          airline_ids: airlineIds && airlineIds.length > 0 ? airlineIds : undefined,
         };
         // Backend compatibility: some implementations expect singular 'passenger'
         // Clone and attach if needed without altering type
@@ -436,6 +439,7 @@ export const useFlightSearchForm = () => {
           limit: 50,
           sort_by: "price",
           sort_order: "asc",
+          airline_ids: airlineIds && airlineIds.length > 0 ? airlineIds : undefined,
         };
         apiRequest = oneWayRequest;
       }
@@ -522,6 +526,7 @@ export const useFlightSearchForm = () => {
               ...(apiRequest as SimpleSearchRequest),
               departure_date: formatDateForApiRequest(currentDate),
               page: 1,
+              airline_ids: airlineIds && airlineIds.length > 0 ? airlineIds : undefined,
             };
             try {
               currentAbortController.current?.abort();
@@ -639,6 +644,7 @@ export const useFlightSearchForm = () => {
             limit: 50,
             sort_by: "price",
             sort_order: "asc",
+            airline_ids: airlineIds && airlineIds.length > 0 ? airlineIds : undefined,
           };
           currentAbortController.current?.abort();
           currentAbortController.current = new AbortController();

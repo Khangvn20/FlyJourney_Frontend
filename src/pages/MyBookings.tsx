@@ -1,17 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { loadBookings, saveBookings } from "../services/bookingStorage";
 import type { BookingRecord } from "../shared/types/passenger.types";
+import { bookingService } from "../services/bookingService";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { DEV_CONFIG } from "../shared/config/devConfig";
 import { Button } from "../components/ui/button";
+import { testBookingAPI, testBackendHealth } from "../debug/simpleApiTest";
 import {
   RefreshCcw,
   Filter,
   Plane,
-  ArchiveX,
   Calendar,
   CreditCard,
   Hash,
@@ -20,51 +20,133 @@ import {
 
 const MyBookings: React.FC = () => {
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
-  const { isAuthenticated } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated, user, token } = useAuth();
   const navigate = useNavigate();
+
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate("/register", {
-        replace: true,
-        state: { redirectTo: "/my-bookings", intent: "view-bookings" },
-      });
+    if (!isAuthenticated || !user?.id || !token) {
+      setLoading(false);
       return;
     }
-    // Load + auto-expire holds older than 2h
-    const list = loadBookings().map((b) => {
-      if (b.status === "PENDING" && b.holdExpiresAt) {
-        if (new Date(b.holdExpiresAt).getTime() < Date.now()) {
-          return { ...b, status: "CANCELLED" as const };
+
+    const fetchBookings = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && !DEV_CONFIG.REDUCE_DUPLICATE_LOGS) {
+          console.log("🚀 Starting to fetch bookings for user:", user.id);
         }
+        
+        const list = await bookingService.getBookingsByUser(user.id, token ?? undefined);
+        
+        // Validate the returned data
+        if (!Array.isArray(list)) {
+          throw new Error(`API returned invalid data format: expected array, got ${typeof list}`);
+        }
+        
+        setBookings(list);
+        
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS) {
+          console.log("✅ Successfully loaded bookings from API:", {
+            count: list.length,
+            bookings: DEV_CONFIG.REDUCE_DUPLICATE_LOGS ? `[${list.length} items]` : list
+          });
+          
+          if (list.length > 0 && !DEV_CONFIG.REDUCE_DUPLICATE_LOGS) {
+            console.log("🔍 First booking details:", {
+              bookingId: list[0]?.bookingId,
+              status: list[0]?.status,
+              totalPrice: list[0]?.totalPrice,
+              currency: list[0]?.currency,
+              hasPassengers: Array.isArray(list[0]?.passengers),
+              passengersCount: list[0]?.passengers?.length
+            });
+          }
+        }
+      } catch (error) {
+        console.error("❌ Failed to fetch bookings from API:", error);
+        
+        // Enhanced error logging
+        if (error instanceof Error) {
+          console.error("❌ Error details:", {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          });
+        }
+        
+        // Set error message for user
+        const errorMessage = error instanceof Error
+          ? error.message
+          : "Không thể tải danh sách đặt chỗ từ server";
+        setError(errorMessage);
+        
+        // Try fallback to localStorage with validation
+        try {
+          const fallbackData = localStorage.getItem("userBookings");
+          if (!fallbackData) {
+            console.log("📦 No fallback data in localStorage");
+            setBookings([]);
+            return;
+          }
+          
+          const fallback = JSON.parse(fallbackData);
+          
+          // Validate fallback data
+          if (!Array.isArray(fallback)) {
+            console.error("❌ Invalid fallback data format:", typeof fallback);
+            setBookings([]);
+            return;
+          }
+          
+          // Filter out invalid booking records
+          const validBookings = fallback.filter((booking: unknown) => {
+            return (
+              typeof booking === 'object' &&
+              booking !== null &&
+              'bookingId' in booking &&
+              'status' in booking &&
+              'totalPrice' in booking &&
+              'passengers' in booking &&
+              'createdAt' in booking
+            );
+          }) as BookingRecord[];
+          
+          if (validBookings.length > 0) {
+            setBookings(validBookings);
+            setError(`${errorMessage}. Đang hiển thị ${validBookings.length} đặt chỗ từ dữ liệu đã lưu cục bộ.`);
+            
+            if (DEV_CONFIG.ENABLE_CONSOLE_LOGS) {
+              console.log("📦 Using validated fallback bookings:", {
+                original: fallback.length,
+                valid: validBookings.length,
+                bookings: DEV_CONFIG.REDUCE_DUPLICATE_LOGS ? `[${validBookings.length} items]` : validBookings
+              });
+            }
+          } else {
+            console.log("📦 No valid bookings in fallback data");
+            setBookings([]);
+          }
+        } catch (localError) {
+          console.error("❌ Failed to load fallback bookings:", localError);
+          setBookings([]);
+        }
+      } finally {
+        setLoading(false);
       }
-      return b;
-    });
-    saveBookings(list);
-    setBookings(list);
+    };
 
-    // Debug log for development
-    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && list.length > 0) {
-      console.log("📋 Loaded bookings:", list);
-      console.log("🔍 First booking status:", list[0]?.status);
-      console.log(
-        "💰 First booking price:",
-        list[0]?.totalPrice,
-        list[0]?.currency
-      );
-    }
+    void fetchBookings();
 
-    // Interval to refresh expiration countdown every minute
     const id = setInterval(() => {
       setBookings((cur) =>
         cur.map((b) => {
           if (b.status === "PENDING" && b.holdExpiresAt) {
             if (new Date(b.holdExpiresAt).getTime() < Date.now()) {
-              const updated = { ...b, status: "CANCELLED" as const };
-              const stored = loadBookings().map((x) =>
-                x.bookingId === b.bookingId ? updated : x
-              );
-              saveBookings(stored);
-              return updated;
+              return { ...b, status: "CANCELLED" as const };
             }
           }
           return b;
@@ -72,24 +154,13 @@ const MyBookings: React.FC = () => {
       );
     }, 60 * 1000);
     return () => clearInterval(id);
-  }, [isAuthenticated, navigate]);
-
-  const handleDelete = (bookingId: string) => {
-    const filtered = bookings.filter((b) => b.bookingId !== bookingId);
-    saveBookings(filtered);
-    setBookings(filtered);
-  };
-
-  const handleDeleteAll = () => {
-    saveBookings([]);
-    setBookings([]);
-  };
+  }, [isAuthenticated, user?.id, token]);
 
   // Filters & sorting state
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [methodFilter, setMethodFilter] = useState<string>("all");
   const [tripFilter, setTripFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("createdAt-desc");
+  const [sortBy, setSortBy] = useState<string>("bookingId-desc");
   const [searchId, setSearchId] = useState("");
 
   const localizedPayment = (m: string) =>
@@ -121,6 +192,12 @@ const MyBookings: React.FC = () => {
         return dir === "asc"
           ? a.createdAt.localeCompare(b.createdAt)
           : b.createdAt.localeCompare(a.createdAt);
+      if (field === "bookingId") {
+        // Extract numeric part from booking ID for proper numeric sorting
+        const aNum = parseInt(a.bookingId.replace(/\D/g, '')) || 0;
+        const bNum = parseInt(b.bookingId.replace(/\D/g, '')) || 0;
+        return dir === "asc" ? aNum - bNum : bNum - aNum;
+      }
       return 0;
     });
     return list;
@@ -155,7 +232,7 @@ const MyBookings: React.FC = () => {
               setStatusFilter("all");
               setMethodFilter("all");
               setTripFilter("all");
-              setSortBy("createdAt-desc");
+              setSortBy("bookingId-desc");
               setSearchId("");
             }}>
             Reset bộ lọc
@@ -165,10 +242,39 @@ const MyBookings: React.FC = () => {
     </div>
   );
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="py-20 flex flex-col items-center justify-center gap-5 text-center">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="space-y-2">
+          <h3 className="text-base font-semibold text-gray-800">
+            Đang tải danh sách đặt chỗ...
+          </h3>
+          <p className="text-xs text-gray-500">
+            Vui lòng chờ trong giây lát
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (filtered.length === 0) return EmptyState;
 
   return (
     <div className="space-y-6">
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-5 h-5 text-amber-600 mt-0.5">⚠️</div>
+            <div>
+              <h4 className="font-medium text-amber-800 mb-1">Thông báo</h4>
+              <p className="text-sm text-amber-700">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">
@@ -189,15 +295,6 @@ const MyBookings: React.FC = () => {
               className="pl-7 pr-3 py-1.5 text-xs rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
             />
           </div>
-          {!DEV_CONFIG.HIDE_DEV_CONTROLS && bookings.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDeleteAll}
-              className="text-xs inline-flex items-center gap-1">
-              <ArchiveX className="w-3.5 h-3.5" /> Xóa tất cả
-            </Button>
-          )}
           <Button
             variant="outline"
             size="sm"
@@ -206,80 +303,107 @@ const MyBookings: React.FC = () => {
               setStatusFilter("all");
               setMethodFilter("all");
               setTripFilter("all");
-              setSortBy("createdAt-desc");
+              setSortBy("bookingId-desc");
               setSearchId("");
             }}>
             <RefreshCcw className="w-3.5 h-3.5" /> Reset
           </Button>
+          {DEV_CONFIG.ENABLE_CONSOLE_LOGS && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs inline-flex items-center gap-1 bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                onClick={() => {
+                  if (user?.id && token) {
+                    testBookingAPI(user.id, token);
+                  } else {
+                    console.log("❌ No user ID or token available for debug");
+                  }
+                }}>
+                🔍 Debug API
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs inline-flex items-center gap-1 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+                onClick={() => {
+                  testBackendHealth();
+                }}>
+                🚀 Test Backend
+              </Button>
+            </>
+          )}
         </div>
       </div>
       {/* Filters */}
-      <div className="p-4 bg-white border rounded-xl shadow-sm grid md:grid-cols-5 gap-4 text-[11px] items-start">
-        <div className="space-y-1">
-          <label className="font-semibold text-gray-600 flex items-center gap-1">
-            <Hash className="w-3.5 h-3.5 text-gray-400" /> Trạng thái
-          </label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300">
-            <option value="all">Tất cả</option>
-            <option value="CONFIRMED">CONFIRMED</option>
-            <option value="PENDING">PENDING</option>
-            <option value="CANCELLED">CANCELLED</option>
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="font-semibold text-gray-600 flex items-center gap-1">
-            <CreditCard className="w-3.5 h-3.5 text-gray-400" /> Thanh toán
-          </label>
-          <select
-            value={methodFilter}
-            onChange={(e) => setMethodFilter(e.target.value)}
-            className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300">
-            <option value="all">Tất cả</option>
-            <option value="vnpay">VNPay QR</option>
-            <option value="card">Thẻ</option>
-            <option value="office">Văn phòng</option>
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="font-semibold text-gray-600 flex items-center gap-1">
-            <Plane className="w-3.5 h-3.5 text-gray-400" /> Loại
-          </label>
-          <select
-            value={tripFilter}
-            onChange={(e) => setTripFilter(e.target.value)}
-            className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300">
-            <option value="all">Tất cả</option>
-            <option value="round">Khứ hồi</option>
-            <option value="one">Một chiều</option>
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="font-semibold text-gray-600 flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5 text-gray-400" /> Sắp xếp
-          </label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300">
-            <option value="createdAt-desc">Mới nhất</option>
-            <option value="createdAt-asc">Cũ nhất</option>
-            <option value="price-desc">Giá cao → thấp</option>
-            <option value="price-asc">Giá thấp → cao</option>
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="font-semibold text-gray-600 flex items-center gap-1">
-            <SearchIcon className="w-3.5 h-3.5 text-gray-400" /> Tìm mã
-          </label>
-          <input
-            value={searchId}
-            onChange={(e) => setSearchId(e.target.value)}
-            placeholder="Nhập mã"
-            className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300"
-          />
+      <div className="p-4 bg-white border rounded-xl shadow-sm">
+        <div className="grid md:grid-cols-4 gap-4 text-sm">
+          <div className="space-y-2">
+            <label className="font-medium text-gray-700 flex items-center gap-1">
+              <Hash className="w-4 h-4 text-gray-500" /> Trạng thái
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="all">Tất cả ({bookings.length})</option>
+              <option value="CONFIRMED">
+                Đã xác nhận ({bookings.filter(b => b.status === 'CONFIRMED').length})
+              </option>
+              <option value="PENDING">
+                Chờ xử lý ({bookings.filter(b => b.status === 'PENDING').length})
+              </option>
+              <option value="CANCELLED">
+                Đã hủy ({bookings.filter(b => b.status === 'CANCELLED').length})
+              </option>
+            </select>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="font-medium text-gray-700 flex items-center gap-1">
+              <Plane className="w-4 h-4 text-gray-500" /> Loại chuyến
+            </label>
+            <select
+              value={tripFilter}
+              onChange={(e) => setTripFilter(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="all">Tất cả ({bookings.length})</option>
+              <option value="round">
+                Khứ hồi ({bookings.filter(b => b.tripType === 'round-trip').length})
+              </option>
+              <option value="one">
+                Một chiều ({bookings.filter(b => b.tripType === 'one-way').length})
+              </option>
+            </select>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="font-medium text-gray-700 flex items-center gap-1">
+              <Calendar className="w-4 h-4 text-gray-500" /> Sắp xếp
+            </label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="bookingId-desc">Mã booking giảm dần</option>
+              <option value="bookingId-asc">Mã booking tăng dần</option>
+              <option value="price-desc">Giá cao → thấp</option>
+              <option value="price-asc">Giá thấp → cao</option>
+            </select>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="font-medium text-gray-700 flex items-center gap-1">
+              <SearchIcon className="w-4 h-4 text-gray-500" /> Tìm kiếm
+            </label>
+            <input
+              value={searchId}
+              onChange={(e) => setSearchId(e.target.value)}
+              placeholder="Nhập mã booking..."
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
         </div>
       </div>
       {filtered.map((b) => {
@@ -353,45 +477,71 @@ const MyBookings: React.FC = () => {
               <div className="grid lg:grid-cols-3 gap-6">
                 {/* Left Column - Flight Info */}
                 <div className="lg:col-span-1">
-                  {b.selectedFlights?.outbound && (
+                  {b.selectedFlights?.outbound ? (
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-3">
                         <Plane className="w-4 h-4 text-blue-600" />
                         <span className="font-semibold text-gray-800">
-                          {b.selectedFlights.outbound.flight_number}
+                          {b.selectedFlights.outbound.flight_number || `Flight #${b.outboundFlightId}`}
                         </span>
                       </div>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Tuyến bay:</span>
                           <span className="font-medium">
-                            {b.selectedFlights.outbound.departure_airport_code}{" "}
-                            → {b.selectedFlights.outbound.arrival_airport_code}
+                            {b.selectedFlights.outbound.departure_airport_code || "---"}{" "}
+                            → {b.selectedFlights.outbound.arrival_airport_code || "---"}
                           </span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Ngày bay:</span>
-                          <span className="font-medium">
-                            {new Date(
-                              b.selectedFlights.outbound.departure_time
-                            ).toLocaleDateString("vi-VN")}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Giờ:</span>
-                          <span className="font-medium">
-                            {new Date(
-                              b.selectedFlights.outbound.departure_time
-                            ).toLocaleTimeString("vi-VN", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </div>
+                        {b.selectedFlights.outbound.departure_time && (
+                          <>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Ngày bay:</span>
+                              <span className="font-medium">
+                                {new Date(
+                                  b.selectedFlights.outbound.departure_time
+                                ).toLocaleDateString("vi-VN")}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Giờ khởi hành:</span>
+                              <span className="font-medium">
+                                {new Date(
+                                  b.selectedFlights.outbound.departure_time
+                                ).toLocaleTimeString("vi-VN", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        {b.selectedFlights.outbound.arrival_time && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Giờ đến:</span>
+                            <span className="font-medium">
+                              {new Date(
+                                b.selectedFlights.outbound.arrival_time
+                              ).toLocaleTimeString("vi-VN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                        )}
+                        {b.selectedFlights.outbound.duration_minutes && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Thời gian bay:</span>
+                            <span className="font-medium">
+                              {Math.floor(b.selectedFlights.outbound.duration_minutes / 60)}h{" "}
+                              {b.selectedFlights.outbound.duration_minutes % 60}m
+                            </span>
+                          </div>
+                        )}
                         <div className="flex justify-between">
                           <span className="text-gray-600">Hãng bay:</span>
                           <span className="font-medium text-xs">
-                            {b.selectedFlights.outbound.airline_name}
+                            {b.selectedFlights.outbound.airline_name || "Chưa xác định"}
                           </span>
                         </div>
                       </div>
@@ -405,6 +555,19 @@ const MyBookings: React.FC = () => {
                           </div>
                         </div>
                       )}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Plane className="w-4 h-4 text-gray-400" />
+                        <span className="font-semibold text-gray-600">
+                          Flight #{b.outboundFlightId}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        <p>Thông tin chuyến bay đang được cập nhật...</p>
+                        <p className="text-xs mt-1">Booking ID: {b.bookingId}</p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -514,13 +677,6 @@ const MyBookings: React.FC = () => {
                       className="w-full px-4 py-2 rounded-lg bg-blue-100 text-blue-700 font-medium hover:bg-blue-200 transition-colors">
                       Xem chi tiết
                     </button>
-                    {!DEV_CONFIG.HIDE_DEV_CONTROLS && (
-                      <button
-                        onClick={() => handleDelete(b.bookingId)}
-                        className="w-full px-4 py-2 rounded-lg bg-red-100 text-red-600 font-medium hover:bg-red-200 transition-colors text-sm">
-                        Xóa (test)
-                      </button>
-                    )}
                   </div>
 
                   {/* Debug info */}

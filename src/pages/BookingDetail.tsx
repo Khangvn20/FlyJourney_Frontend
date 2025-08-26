@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { loadBookings } from "../services/bookingStorage";
+import { bookingService } from "../services/bookingService";
+import { useAuth } from "../hooks/useAuth";
 import type { BookingRecord } from "../shared/types/passenger.types";
 import BookingOverview from "../components/booking/BookingOverview";
 import PaymentFlow from "../components/booking/PaymentFlow";
 import { Button } from "../components/ui/button";
 import { ArrowLeft, CreditCard } from "lucide-react";
 import type { FlightSearchApiResult } from "../shared/types/search-api.types";
+import { DEV_CONFIG } from "../shared/config/devConfig";
 
 // Placeholder flight builder due to lack of persisted flight details.
 const buildPlaceholderFlight = (id: number): FlightSearchApiResult => ({
@@ -46,16 +49,65 @@ const buildPlaceholderFlight = (id: number): FlightSearchApiResult => ({
 const BookingDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, token } = useAuth();
   const [record, setRecord] = useState<BookingRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showPaymentFlow, setShowPaymentFlow] = useState(false);
 
   useEffect(() => {
-    const list = loadBookings();
-    const found = list.find((b) => b.bookingId === id) || null;
-    setRecord(found);
-  }, [id]);
+    const fetchBookingDetail = async () => {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
 
-  if (!record) {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Try to fetch from API first if user is authenticated
+        if (user?.id && token) {
+          try {
+            const bookingDetail = await bookingService.getBookingById(id, token);
+            
+            if (bookingDetail) {
+              setRecord(bookingDetail);
+              if (DEV_CONFIG.ENABLE_CONSOLE_LOGS) {
+                console.log("📋 Loaded booking detail from API:", bookingDetail);
+              }
+              return;
+            }
+          } catch (apiError) {
+            console.warn("⚠️ Failed to fetch from API, trying localStorage:", apiError);
+          }
+        }
+
+        // Fallback to localStorage
+        const localBookings = loadBookings();
+        const found = localBookings.find((b) => b.bookingId === id) || null;
+        setRecord(found);
+        
+        if (found && DEV_CONFIG.ENABLE_CONSOLE_LOGS) {
+          console.log("📦 Loaded booking detail from localStorage:", found);
+        }
+        
+        if (!found) {
+          setError("Không tìm thấy thông tin đặt chỗ");
+        }
+      } catch (error) {
+        console.error("❌ Error loading booking detail:", error);
+        setError("Có lỗi xảy ra khi tải thông tin đặt chỗ");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchBookingDetail();
+  }, [id, user?.id, token]);
+
+  // Loading state
+  if (loading) {
     return (
       <div className="space-y-4">
         <Button
@@ -64,8 +116,42 @@ const BookingDetail: React.FC = () => {
           className="inline-flex items-center gap-2">
           <ArrowLeft className="w-4 h-4" /> Quay lại
         </Button>
-        <div className="p-6 border rounded-xl bg-white shadow-sm text-sm">
-          Không tìm thấy đặt chỗ.
+        <div className="p-6 border rounded-xl bg-white shadow-sm text-center">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-sm text-gray-600">Đang tải thông tin đặt chỗ...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error or not found state
+  if (!record || error) {
+    return (
+      <div className="space-y-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2">
+          <ArrowLeft className="w-4 h-4" /> Quay lại
+        </Button>
+        <div className="p-6 border rounded-xl bg-white shadow-sm">
+          {error ? (
+            <div className="text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-red-600 text-xl">⚠️</span>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Có lỗi xảy ra</h3>
+              <p className="text-sm text-gray-600">{error}</p>
+            </div>
+          ) : (
+            <div className="text-center">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-gray-600 text-xl">📋</span>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Không tìm thấy đặt chỗ</h3>
+              <p className="text-sm text-gray-600">Thông tin đặt chỗ không tồn tại hoặc đã bị xóa.</p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -117,7 +203,6 @@ const BookingDetail: React.FC = () => {
           services: record.addons?.services || [],
           extraPrice: record.addonExtraPrice || 0,
         }}
-        totalPrice={record.totalPrice}
         currency={record.currency}
         booking={record}
         onFinish={() => navigate("/my-bookings")}

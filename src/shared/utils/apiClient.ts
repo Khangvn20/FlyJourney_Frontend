@@ -105,10 +105,21 @@ class ApiClient {
           const error: ApiError = {
             message:
               data?.message ||
+              data?.errorMessage ||
               `HTTP ${response.status}: ${response.statusText}`,
             code: response.status,
             details: data,
           };
+          
+          if (apiSettings.enableLogging && apiSettings.isDevelopment) {
+            console.error(`❌ API Error Response:`, {
+              status: response.status,
+              statusText: response.statusText,
+              data,
+              url: response.url,
+            });
+          }
+          
           throw error;
         }
 

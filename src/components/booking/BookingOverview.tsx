@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import type { BookingSelection } from "./BookingSummary";
 import type {
   PassengerFormData,
@@ -17,7 +17,7 @@ import {
   Boxes,
   ShieldCheck,
 } from "lucide-react";
-import { formatDateTime } from "../../services/flightApiService";
+import { formatDateTime } from "../../shared/utils/format";
 import { Button } from "../ui/button";
 import { SERVICE_OPTIONS } from "./bookingAddons.constants";
 
@@ -26,7 +26,6 @@ interface BookingOverviewProps {
   passengers: PassengerFormData[];
   contact: { email: string; phone?: string; name?: string };
   addons: { extraBaggageKg: number; services: string[]; extraPrice: number };
-  totalPrice: number;
   currency: string;
   booking: BookingRecord | null;
   onFinish?: () => void;
@@ -42,7 +41,6 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
   passengers,
   contact,
   addons,
-  totalPrice,
   currency,
   booking,
   onFinish,
@@ -73,6 +71,61 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
     }
     return null;
   })();
+
+  const {
+    baseFare,
+    surcharges,
+    baggageTotal,
+    baggageKg,
+    servicesTotal,
+  } = useMemo(() => {
+    const flights = [
+      selection.outbound,
+      ...(selection.tripType === "round-trip" && selection.inbound
+        ? [selection.inbound]
+        : []),
+    ];
+    const counts = passengers.reduce(
+      (acc, p) => {
+        if (p.type === "adult") acc.adults++;
+        else if (p.type === "child") acc.children++;
+        else if (p.type === "infant") acc.infants++;
+        return acc;
+      },
+      { adults: 0, children: 0, infants: 0 }
+    );
+    const baseFare = flights.reduce((sum, flight) => {
+      const bp = flight.pricing?.base_prices || {};
+      return (
+        sum +
+        (bp.adult || 0) * counts.adults +
+        (bp.child || 0) * counts.children +
+        (bp.infant || 0) * counts.infants
+      );
+    }, 0);
+    const surcharges = selection.totalPrice - baseFare;
+    const baggageTotal = passengers.reduce(
+      (sum, p) => sum + (p.extraBaggage?.price || 0),
+      0
+    );
+    const baggageKg = passengers.reduce(
+      (sum, p) => sum + (p.extraBaggage?.extraKg || 0),
+      0
+    );
+    const servicesTotal = addons.services.reduce((sum, id) => {
+      const svc = SERVICE_OPTIONS.find((s) => s.id === id);
+      return sum + (svc?.price || 0) * passengers.length;
+    }, 0);
+    return {
+      baseFare,
+      surcharges,
+      baggageTotal,
+      baggageKg,
+      servicesTotal,
+    };
+  }, [selection, passengers, addons.services]);
+
+  const finalTotal = selection.totalPrice + baggageTotal + servicesTotal;
 
   return (
     <div className="space-y-8 animate-[fadeIn_.4s_ease]">
@@ -122,16 +175,50 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
               Tổng giá
             </div>
             <div className="text-3xl font-extrabold text-gray-900">
-              {totalPrice.toLocaleString("vi-VN")} {currency}
+              {finalTotal.toLocaleString("vi-VN")} {currency}
             </div>
-            {addons.extraPrice > 0 && (
-              <div className="text-[11px] text-gray-500">
-                Giá gốc:{" "}
-                {(totalPrice - addons.extraPrice).toLocaleString("vi-VN")}{" "}
-                {currency} • Phụ thu: +
-                {addons.extraPrice.toLocaleString("vi-VN")} {currency}
-              </div>
-            )}
+          </div>
+        </div>
+      </div>
+      {/* Price Breakdown */}
+      <div className="rounded-2xl border bg-white p-6 shadow-sm">
+        <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+          <Boxes className="w-4 h-4 text-blue-600" /> Chi tiết giá
+        </h3>
+        <div className="space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span>Giá gốc</span>
+            <span>
+              {baseFare.toLocaleString("vi-VN")} {currency}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>Phụ phí</span>
+            <span>
+              {surcharges.toLocaleString("vi-VN")} {currency}
+            </span>
+          </div>
+          {baggageTotal > 0 && (
+            <div className="flex justify-between">
+              <span>Hành lý</span>
+              <span>
+                {baggageTotal.toLocaleString("vi-VN")} {currency}
+              </span>
+            </div>
+          )}
+          {servicesTotal > 0 && (
+            <div className="flex justify-between">
+              <span>Dịch vụ</span>
+              <span>
+                {servicesTotal.toLocaleString("vi-VN")} {currency}
+              </span>
+            </div>
+          )}
+          <div className="border-t pt-2 mt-2 flex justify-between font-semibold">
+            <span>Tổng cuối</span>
+            <span>
+              {finalTotal.toLocaleString("vi-VN")} {currency}
+            </span>
           </div>
         </div>
       </div>
@@ -324,8 +411,7 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
       </div>
       {/* Fare included services & Addons combined */}
       {(selection.outbound?.fare_class_details ||
-        addons.extraPrice > 0 ||
-        addons.extraBaggageKg > 0 ||
+        baggageTotal > 0 ||
         addons.services.length > 0) && (
         <div className="grid md:grid-cols-2 gap-6">
           {selection.outbound?.fare_class_details && (
@@ -379,18 +465,16 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
               </div>
             </div>
           )}
-          {(addons.extraPrice > 0 ||
-            addons.extraBaggageKg > 0 ||
-            addons.services.length > 0) && (
+          {(baggageTotal > 0 || addons.services.length > 0) && (
             <div className="rounded-2xl border bg-white p-6 shadow-sm flex flex-col h-full">
               <div className="flex items-center gap-2 font-semibold text-gray-800 text-sm mb-4">
                 <Boxes className="w-4 h-4 text-blue-600" />
                 <span>Dịch vụ mua thêm</span>
               </div>
               <div className="flex flex-wrap gap-2 text-[11px] mb-4">
-                {addons.extraBaggageKg > 0 && (
+                {baggageKg > 0 && (
                   <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">
-                    +{addons.extraBaggageKg}kg hành lý
+                    +{baggageKg}kg hành lý
                   </span>
                 )}
                 {addons.services.map((serviceId) => {
@@ -415,7 +499,7 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
               <div className="mt-auto text-[12px] font-medium text-gray-700 flex items-center gap-2">
                 <span className="text-gray-500">Tổng phụ thu:</span>
                 <span className="text-base font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">
-                  +{addons.extraPrice.toLocaleString("vi-VN")} {currency}
+                  +{(baggageTotal + servicesTotal).toLocaleString("vi-VN")} {currency}
                 </span>
               </div>
             </div>

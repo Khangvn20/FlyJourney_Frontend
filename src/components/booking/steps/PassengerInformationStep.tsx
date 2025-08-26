@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import type { PassengerFormData } from "../../../shared/types/passenger.types";
 import ContactInformationForm from "../ContactInformationForm";
 import PassengerInformationForm from "../PassengerInformationForm";
@@ -137,30 +137,39 @@ export const PassengerInformationStep: React.FC<
       passengerCounts.children +
       passengerCounts.infants;
 
-    // Giả định: selection.totalPrice đã bao gồm thuế & phí
-    // Ta tách 70% là fare cơ bản, 30% là thuế/phí để hiển thị rõ ràng.
-    const baseFareTotal = Math.floor(selection.totalPrice * 0.7);
+    const flights = [
+      selection.outbound,
+      ...(selection.inbound ? [selection.inbound] : []),
+    ];
+
+    const baseFareTotal = flights.reduce((sum, flight) => {
+      const bp = flight.pricing?.base_prices || {};
+      return (
+        sum +
+        (bp.adult || 0) * passengerCounts.adults +
+        (bp.child || 0) * passengerCounts.children +
+        (bp.infant || 0) * passengerCounts.infants
+      );
+    }, 0);
+
     const taxesAndFees = selection.totalPrice - baseFareTotal;
 
-    // Phân bổ minh họa theo hệ số (adult:1, child:0.75, infant:0.1)
-    const weightAdults = passengerCounts.adults;
-    const weightChildren = passengerCounts.children * 0.75;
-    const weightInfants = passengerCounts.infants * 0.1;
-    const totalWeight = Math.max(
-      1,
-      weightAdults + weightChildren + weightInfants
-    );
-
-    const perUnit = baseFareTotal / totalWeight;
-
-    const adultsFare = Math.floor(perUnit * weightAdults);
-    const childrenFare = Math.floor(perUnit * passengerCounts.children * 0.75);
-    const infantsFare = Math.floor(perUnit * passengerCounts.infants * 0.1);
-
     const paxAllocation = {
-      adults: adultsFare,
-      children: childrenFare,
-      infants: infantsFare,
+      adults:
+        flights.reduce(
+          (sum, f) => sum + (f.pricing?.base_prices?.adult || 0),
+          0
+        ) * passengerCounts.adults,
+      children:
+        flights.reduce(
+          (sum, f) => sum + (f.pricing?.base_prices?.child || 0),
+          0
+        ) * passengerCounts.children,
+      infants:
+        flights.reduce(
+          (sum, f) => sum + (f.pricing?.base_prices?.infant || 0),
+          0
+        ) * passengerCounts.infants,
     };
 
     // Dịch vụ chung: tính lại từ SERVICE_OPTIONS để đảm bảo chính xác
@@ -199,9 +208,16 @@ export const PassengerInformationStep: React.FC<
   }, [
     addons.services,
     passengerCounts,
-    selection.totalPrice,
+    selection,
     totalBaggagePrice,
   ]);
+
+  useEffect(() => {
+    const newExtra = totalBaggagePrice + servicesTotal;
+    if (addons.extraPrice !== newExtra) {
+      onAddonsChange({ ...addons, extraPrice: newExtra });
+    }
+  }, [totalBaggagePrice, servicesTotal, addons, onAddonsChange]);
 
   return (
     <div className="grid gap-8 md:grid-cols-12">

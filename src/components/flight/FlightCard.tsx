@@ -16,7 +16,7 @@ import {
   formatPrice,
   formatDateTime,
   formatDuration,
-} from "../../services/flightApiService";
+} from "../../shared/utils/format";
 import type { FlightSearchApiResult } from "../../shared/types/search-api.types";
 
 interface FlightCardProps {
