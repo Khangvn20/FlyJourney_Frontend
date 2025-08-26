@@ -7,7 +7,6 @@ import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { DEV_CONFIG } from "../shared/config/devConfig";
 import { Button } from "../components/ui/button";
-import { testBookingAPI, testBackendHealth } from "../debug/simpleApiTest";
 import {
   RefreshCcw,
   Filter,
@@ -308,32 +307,6 @@ const MyBookings: React.FC = () => {
             }}>
             <RefreshCcw className="w-3.5 h-3.5" /> Reset
           </Button>
-          {DEV_CONFIG.ENABLE_CONSOLE_LOGS && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs inline-flex items-center gap-1 bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
-                onClick={() => {
-                  if (user?.id && token) {
-                    testBookingAPI(user.id, token);
-                  } else {
-                    console.log("❌ No user ID or token available for debug");
-                  }
-                }}>
-                🔍 Debug API
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs inline-flex items-center gap-1 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
-                onClick={() => {
-                  testBackendHealth();
-                }}>
-                🚀 Test Backend
-              </Button>
-            </>
-          )}
         </div>
       </div>
       {/* Filters */}
