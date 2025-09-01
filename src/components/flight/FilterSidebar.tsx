@@ -159,7 +159,8 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   if (
                     flightResults.length > 0 &&
                     DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-                    shouldShowDevControls()
+                    shouldShowDevControls() &&
+                    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
                   ) {
                     console.log("FilterSidebar Debug - Sample flight times:");
                     console.log(

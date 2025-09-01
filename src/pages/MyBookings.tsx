@@ -5,8 +5,11 @@ import type { BookingRecord } from "../shared/types/passenger.types";
 import { bookingService } from "../services/bookingService";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { DEV_CONFIG } from "../shared/config/devConfig";
+import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
 import { Button } from "../components/ui/button";
+import { testBookingAPI, testBackendHealth } from "../debug/simpleApiTest";
+import { getServiceMapping } from "../shared/constants/serviceMapping";
+import { formatRouteFromApiData } from "../shared/constants/airportMapping";
 import {
   RefreshCcw,
   Filter,
@@ -34,103 +37,152 @@ const MyBookings: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        
-        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && !DEV_CONFIG.REDUCE_DUPLICATE_LOGS) {
+
+        if (
+          DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+          !DEV_CONFIG.REDUCE_DUPLICATE_LOGS &&
+          shouldShowDevControls()
+        ) {
           console.log("🚀 Starting to fetch bookings for user:", user.id);
         }
-        
-        const list = await bookingService.getBookingsByUser(user.id, token ?? undefined);
-        
+
+        const list = await bookingService.getBookingsByUser(
+          user.id!,
+          token ?? undefined
+        );
+
         // Validate the returned data
         if (!Array.isArray(list)) {
-          throw new Error(`API returned invalid data format: expected array, got ${typeof list}`);
+          throw new Error(
+            `API returned invalid data format: expected array, got ${typeof list}`
+          );
         }
-        
+
         setBookings(list);
-        
-        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS) {
+
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
           console.log("✅ Successfully loaded bookings from API:", {
             count: list.length,
-            bookings: DEV_CONFIG.REDUCE_DUPLICATE_LOGS ? `[${list.length} items]` : list
+            bookings: DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+              ? `[${list.length} items]`
+              : list,
           });
-          
-          if (list.length > 0 && !DEV_CONFIG.REDUCE_DUPLICATE_LOGS) {
+
+          // Debug flight data specifically
+          if (list.length > 0 && list[0]?.selectedFlights?.outbound) {
+            console.log("🛫 First booking flight data:", {
+              departure_airport:
+                list[0].selectedFlights.outbound.departure_airport,
+              departure_airport_code:
+                list[0].selectedFlights.outbound.departure_airport_code,
+              arrival_airport: list[0].selectedFlights.outbound.arrival_airport,
+              arrival_airport_code:
+                list[0].selectedFlights.outbound.arrival_airport_code,
+            });
+          }
+
+          if (
+            list.length > 0 &&
+            !DEV_CONFIG.REDUCE_DUPLICATE_LOGS &&
+            DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+            shouldShowDevControls()
+          ) {
             console.log("🔍 First booking details:", {
               bookingId: list[0]?.bookingId,
               status: list[0]?.status,
               totalPrice: list[0]?.totalPrice,
               currency: list[0]?.currency,
               hasPassengers: Array.isArray(list[0]?.passengers),
-              passengersCount: list[0]?.passengers?.length
+              passengersCount: list[0]?.passengers?.length,
             });
           }
         }
       } catch (error) {
-        console.error("❌ Failed to fetch bookings from API:", error);
-        
-        // Enhanced error logging
-        if (error instanceof Error) {
-          console.error("❌ Error details:", {
-            name: error.name,
-            message: error.message,
-            stack: error.stack
-          });
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+          console.error("❌ Failed to fetch bookings from API:", error);
         }
-        
+
+        // Enhanced error logging
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+          if (error instanceof Error) {
+            console.error("❌ Error details:", {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            });
+          }
+        }
+
         // Set error message for user
-        const errorMessage = error instanceof Error
-          ? error.message
-          : "Không thể tải danh sách đặt chỗ từ server";
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Không thể tải danh sách đặt chỗ từ server";
         setError(errorMessage);
-        
+
         // Try fallback to localStorage with validation
         try {
           const fallbackData = localStorage.getItem("userBookings");
           if (!fallbackData) {
-            console.log("📦 No fallback data in localStorage");
+            if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+              console.log("📦 No fallback data in localStorage");
+            }
             setBookings([]);
             return;
           }
-          
+
           const fallback = JSON.parse(fallbackData);
-          
+
           // Validate fallback data
           if (!Array.isArray(fallback)) {
-            console.error("❌ Invalid fallback data format:", typeof fallback);
+            if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+              console.error(
+                "❌ Invalid fallback data format:",
+                typeof fallback
+              );
+            }
             setBookings([]);
             return;
           }
-          
+
           // Filter out invalid booking records
           const validBookings = fallback.filter((booking: unknown) => {
             return (
-              typeof booking === 'object' &&
+              typeof booking === "object" &&
               booking !== null &&
-              'bookingId' in booking &&
-              'status' in booking &&
-              'totalPrice' in booking &&
-              'passengers' in booking &&
-              'createdAt' in booking
+              "bookingId" in booking &&
+              "status" in booking &&
+              "totalPrice" in booking &&
+              "passengers" in booking &&
+              "createdAt" in booking
             );
           }) as BookingRecord[];
-          
+
           if (validBookings.length > 0) {
             setBookings(validBookings);
-            setError(`${errorMessage}. Đang hiển thị ${validBookings.length} đặt chỗ từ dữ liệu đã lưu cục bộ.`);
-            
-            if (DEV_CONFIG.ENABLE_CONSOLE_LOGS) {
+            setError(
+              `${errorMessage}. Đang hiển thị ${validBookings.length} đặt chỗ từ dữ liệu đã lưu cục bộ.`
+            );
+
+            if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
               console.log("📦 Using validated fallback bookings:", {
                 original: fallback.length,
                 valid: validBookings.length,
-                bookings: DEV_CONFIG.REDUCE_DUPLICATE_LOGS ? `[${validBookings.length} items]` : validBookings
+                bookings: DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+                  ? `[${validBookings.length} items]`
+                  : validBookings,
               });
             }
           } else {
-            console.log("📦 No valid bookings in fallback data");
+            if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+              console.log("📦 No valid bookings in fallback data");
+            }
             setBookings([]);
           }
         } catch (localError) {
-          console.error("❌ Failed to load fallback bookings:", localError);
+          if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+            console.error("❌ Failed to load fallback bookings:", localError);
+          }
           setBookings([]);
         }
       } finally {
@@ -185,16 +237,16 @@ const MyBookings: React.FC = () => {
     list.sort((a, b) => {
       if (field === "price")
         return dir === "asc"
-          ? a.totalPrice - b.totalPrice
-          : b.totalPrice - a.totalPrice;
+          ? Number(a.totalPrice || 0) - Number(b.totalPrice || 0)
+          : Number(b.totalPrice || 0) - Number(a.totalPrice || 0);
       if (field === "createdAt")
         return dir === "asc"
           ? a.createdAt.localeCompare(b.createdAt)
           : b.createdAt.localeCompare(a.createdAt);
       if (field === "bookingId") {
         // Extract numeric part from booking ID for proper numeric sorting
-        const aNum = parseInt(a.bookingId.replace(/\D/g, '')) || 0;
-        const bNum = parseInt(b.bookingId.replace(/\D/g, '')) || 0;
+        const aNum = parseInt(a.bookingId.replace(/\D/g, "")) || 0;
+        const bNum = parseInt(b.bookingId.replace(/\D/g, "")) || 0;
         return dir === "asc" ? aNum - bNum : bNum - aNum;
       }
       return 0;
@@ -250,9 +302,7 @@ const MyBookings: React.FC = () => {
           <h3 className="text-base font-semibold text-gray-800">
             Đang tải danh sách đặt chỗ...
           </h3>
-          <p className="text-xs text-gray-500">
-            Vui lòng chờ trong giây lát
-          </p>
+          <p className="text-xs text-gray-500">Vui lòng chờ trong giây lát</p>
         </div>
       </div>
     );
@@ -307,6 +357,37 @@ const MyBookings: React.FC = () => {
             }}>
             <RefreshCcw className="w-3.5 h-3.5" /> Reset
           </Button>
+          {DEV_CONFIG.ENABLE_CONSOLE_LOGS && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs inline-flex items-center gap-1 bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                onClick={() => {
+                  if (user?.id && token) {
+                    testBookingAPI(user.id, token);
+                  } else {
+                    if (
+                      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+                      shouldShowDevControls()
+                    ) {
+                      console.log("❌ No user ID or token available for debug");
+                    }
+                  }
+                }}>
+                🔍 Debug API
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs inline-flex items-center gap-1 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+                onClick={() => {
+                  testBackendHealth();
+                }}>
+                🚀 Test Backend
+              </Button>
+            </>
+          )}
         </div>
       </div>
       {/* Filters */}
@@ -322,17 +403,20 @@ const MyBookings: React.FC = () => {
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
               <option value="all">Tất cả ({bookings.length})</option>
               <option value="CONFIRMED">
-                Đã xác nhận ({bookings.filter(b => b.status === 'CONFIRMED').length})
+                Đã xác nhận (
+                {bookings.filter((b) => b.status === "CONFIRMED").length})
               </option>
               <option value="PENDING">
-                Chờ xử lý ({bookings.filter(b => b.status === 'PENDING').length})
+                Chờ xử lý (
+                {bookings.filter((b) => b.status === "PENDING").length})
               </option>
               <option value="CANCELLED">
-                Đã hủy ({bookings.filter(b => b.status === 'CANCELLED').length})
+                Đã hủy (
+                {bookings.filter((b) => b.status === "CANCELLED").length})
               </option>
             </select>
           </div>
-          
+
           <div className="space-y-2">
             <label className="font-medium text-gray-700 flex items-center gap-1">
               <Plane className="w-4 h-4 text-gray-500" /> Loại chuyến
@@ -343,14 +427,16 @@ const MyBookings: React.FC = () => {
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
               <option value="all">Tất cả ({bookings.length})</option>
               <option value="round">
-                Khứ hồi ({bookings.filter(b => b.tripType === 'round-trip').length})
+                Khứ hồi (
+                {bookings.filter((b) => b.tripType === "round-trip").length})
               </option>
               <option value="one">
-                Một chiều ({bookings.filter(b => b.tripType === 'one-way').length})
+                Một chiều (
+                {bookings.filter((b) => b.tripType === "one-way").length})
               </option>
             </select>
           </div>
-          
+
           <div className="space-y-2">
             <label className="font-medium text-gray-700 flex items-center gap-1">
               <Calendar className="w-4 h-4 text-gray-500" /> Sắp xếp
@@ -365,7 +451,7 @@ const MyBookings: React.FC = () => {
               <option value="price-asc">Giá thấp → cao</option>
             </select>
           </div>
-          
+
           <div className="space-y-2">
             <label className="font-medium text-gray-700 flex items-center gap-1">
               <SearchIcon className="w-4 h-4 text-gray-500" /> Tìm kiếm
@@ -438,7 +524,8 @@ const MyBookings: React.FC = () => {
                 </div>
                 <div className="text-right">
                   <div className="text-blue-600 font-bold text-xl tracking-tight">
-                    {b.totalPrice.toLocaleString("vi-VN")} {b.currency}
+                    {Number(b.totalPrice || 0).toLocaleString("vi-VN")}{" "}
+                    {b.currency || "VND"}
                   </div>
                   <div className="text-xs text-gray-500">
                     {b.passengers.length} hành khách
@@ -455,15 +542,21 @@ const MyBookings: React.FC = () => {
                       <div className="flex items-center gap-2 mb-3">
                         <Plane className="w-4 h-4 text-blue-600" />
                         <span className="font-semibold text-gray-800">
-                          {b.selectedFlights.outbound.flight_number || `Flight #${b.outboundFlightId}`}
+                          {b.selectedFlights.outbound.flight_number ||
+                            `Flight #${b.outboundFlightId}`}
                         </span>
                       </div>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Tuyến bay:</span>
                           <span className="font-medium">
-                            {b.selectedFlights.outbound.departure_airport_code || "---"}{" "}
-                            → {b.selectedFlights.outbound.arrival_airport_code || "---"}
+                            {formatRouteFromApiData(
+                              b.selectedFlights.outbound.departure_airport,
+                              b.selectedFlights.outbound.departure_airport_code,
+                              b.selectedFlights.outbound.arrival_airport,
+                              b.selectedFlights.outbound.arrival_airport_code,
+                              true // showCityNames=true để hiển thị theo thành phố
+                            )}
                           </span>
                         </div>
                         {b.selectedFlights.outbound.departure_time && (
@@ -477,7 +570,9 @@ const MyBookings: React.FC = () => {
                               </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Giờ khởi hành:</span>
+                              <span className="text-gray-600">
+                                Giờ khởi hành:
+                              </span>
                               <span className="font-medium">
                                 {new Date(
                                   b.selectedFlights.outbound.departure_time
@@ -504,17 +599,24 @@ const MyBookings: React.FC = () => {
                         )}
                         {b.selectedFlights.outbound.duration_minutes && (
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Thời gian bay:</span>
+                            <span className="text-gray-600">
+                              Thời gian bay:
+                            </span>
                             <span className="font-medium">
-                              {Math.floor(b.selectedFlights.outbound.duration_minutes / 60)}h{" "}
-                              {b.selectedFlights.outbound.duration_minutes % 60}m
+                              {Math.floor(
+                                b.selectedFlights.outbound.duration_minutes / 60
+                              )}
+                              h{" "}
+                              {b.selectedFlights.outbound.duration_minutes % 60}
+                              m
                             </span>
                           </div>
                         )}
                         <div className="flex justify-between">
                           <span className="text-gray-600">Hãng bay:</span>
                           <span className="font-medium text-xs">
-                            {b.selectedFlights.outbound.airline_name || "Chưa xác định"}
+                            {b.selectedFlights.outbound.airline_name ||
+                              "Chưa xác định"}
                           </span>
                         </div>
                       </div>
@@ -539,7 +641,9 @@ const MyBookings: React.FC = () => {
                       </div>
                       <div className="text-sm text-gray-500">
                         <p>Thông tin chuyến bay đang được cập nhật...</p>
-                        <p className="text-xs mt-1">Booking ID: {b.bookingId}</p>
+                        <p className="text-xs mt-1">
+                          Booking ID: {b.bookingId}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -631,6 +735,50 @@ const MyBookings: React.FC = () => {
                       )}
                     </div>
                   </div>
+
+                  {/* Dịch vụ thêm */}
+                  {(b.addons?.extraBaggageKg ||
+                    (b.addons?.services && b.addons.services.length > 0)) && (
+                    <div className="bg-indigo-50 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
+                          🧳
+                        </div>
+                        <span className="font-semibold text-indigo-800 text-sm">
+                          Dịch vụ thêm
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-xs">
+                        {!!b.addons?.extraBaggageKg && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">
+                              Hành lý mua thêm:
+                            </span>
+                            <span className="font-medium">
+                              +{b.addons.extraBaggageKg}kg
+                            </span>
+                          </div>
+                        )}
+                        {b.addons?.services && b.addons.services.length > 0 && (
+                          <div>
+                            <div className="text-gray-600">Dịch vụ:</div>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {b.addons.services.map((svcId) => {
+                                const serviceMapping = getServiceMapping(svcId);
+                                return (
+                                  <span
+                                    key={svcId}
+                                    className="px-2 py-0.5 rounded bg-white text-indigo-700 border border-indigo-200">
+                                    {serviceMapping?.label || svcId}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Right Column - Actions */}

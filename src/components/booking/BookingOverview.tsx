@@ -20,6 +20,17 @@ import {
 import { formatDateTime } from "../../shared/utils/format";
 import { Button } from "../ui/button";
 import { SERVICE_OPTIONS } from "./bookingAddons.constants";
+import { getServiceMapping } from "../../shared/constants/serviceMapping";
+import { PriceDebugger } from "../../shared/utils/priceDebugger";
+import {
+  formatAirportFromApiData,
+  formatAirportNameOnly,
+} from "../../shared/constants/airportMapping";
+import { getAirportTimeBadge } from "../../shared/utils/airportUtils";
+import {
+  DEV_CONFIG,
+  shouldShowDevControls,
+} from "../../shared/config/devConfig";
 
 interface BookingOverviewProps {
   selection: BookingSelection;
@@ -72,58 +83,86 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
     return null;
   })();
 
-  const {
-    baseFare,
-    surcharges,
-    baggageTotal,
-    baggageKg,
-    servicesTotal,
-  } = useMemo(() => {
-    const flights = [
-      selection.outbound,
-      ...(selection.tripType === "round-trip" && selection.inbound
-        ? [selection.inbound]
-        : []),
-    ];
-    const counts = passengers.reduce(
-      (acc, p) => {
-        if (p.type === "adult") acc.adults++;
-        else if (p.type === "child") acc.children++;
-        else if (p.type === "infant") acc.infants++;
-        return acc;
-      },
-      { adults: 0, children: 0, infants: 0 }
-    );
-    const baseFare = flights.reduce((sum, flight) => {
-      const bp = flight.pricing?.base_prices || {};
-      return (
-        sum +
-        (bp.adult || 0) * counts.adults +
-        (bp.child || 0) * counts.children +
-        (bp.infant || 0) * counts.infants
+  const { baseFare, surcharges, baggageTotal, baggageKg, servicesTotal } =
+    useMemo(() => {
+      const flights = [
+        selection.outbound,
+        ...(selection.tripType === "round-trip" && selection.inbound
+          ? [selection.inbound]
+          : []),
+      ];
+      const counts = passengers.reduce(
+        (acc, p) => {
+          if (p.type === "adult") acc.adults++;
+          else if (p.type === "child") acc.children++;
+          else if (p.type === "infant") acc.infants++;
+          return acc;
+        },
+        { adults: 0, children: 0, infants: 0 }
       );
-    }, 0);
-    const surcharges = selection.totalPrice - baseFare;
-    const baggageTotal = passengers.reduce(
-      (sum, p) => sum + (p.extraBaggage?.price || 0),
-      0
-    );
-    const baggageKg = passengers.reduce(
-      (sum, p) => sum + (p.extraBaggage?.extraKg || 0),
-      0
-    );
-    const servicesTotal = addons.services.reduce((sum, id) => {
-      const svc = SERVICE_OPTIONS.find((s) => s.id === id);
-      return sum + (svc?.price || 0) * passengers.length;
-    }, 0);
-    return {
-      baseFare,
-      surcharges,
-      baggageTotal,
-      baggageKg,
-      servicesTotal,
-    };
-  }, [selection, passengers, addons.services]);
+      // Tính baseFare từ base_prices nếu có; nếu không có dữ liệu, fallback hợp lý
+      let baseFare = flights.reduce((sum, flight) => {
+        const bp = flight.pricing?.base_prices || {};
+        return (
+          sum +
+          (bp.adult || 0) * counts.adults +
+          (bp.child || 0) * counts.children +
+          (bp.infant || 0) * counts.infants
+        );
+      }, 0);
+
+      // Nếu không có base_prices (baseFare=0) thì không thể tách chi tiết chính xác
+      // Fallback: coi toàn bộ là giá gốc và phụ phí = 0 để tránh hiển thị sai
+      let surcharges = selection.totalPrice - baseFare;
+      if (baseFare === 0) {
+        baseFare = selection.totalPrice;
+        surcharges = 0;
+      }
+      // Totals from selections (pre-booking)
+      let baggageTotal = passengers.reduce(
+        (sum, p) => sum + (p.extraBaggage?.price || 0),
+        0
+      );
+      let baggageKg = passengers.reduce(
+        (sum, p) => sum + (p.extraBaggage?.extraKg || 0),
+        0
+      );
+      let servicesTotal = addons.services.reduce((sum, id) => {
+        const svc = SERVICE_OPTIONS.find((s) => s.id === id);
+        return sum + (svc?.price || 0) * passengers.length;
+      }, 0);
+
+      // If backend ancillaries exist (after booking), prefer them for display
+      if (
+        booking?.backendAncillaries &&
+        booking.backendAncillaries.length > 0
+      ) {
+        const apiBaggage = booking.backendAncillaries.filter(
+          (a) => a.type === "baggage"
+        );
+        const apiServices = booking.backendAncillaries.filter(
+          (a) => a.type !== "baggage"
+        );
+        const apiBaggageTotal = apiBaggage.reduce(
+          (s, a) => s + (a.price || 0),
+          0
+        );
+        const apiBaggageKg = apiBaggage.reduce(
+          (s, a) => s + (a.quantity || 0),
+          0
+        );
+        const apiServicesTotal = apiServices.reduce(
+          (s, a) => s + (a.price || 0),
+          0
+        );
+        // Override if API has values
+        baggageTotal = apiBaggageTotal || baggageTotal;
+        baggageKg = apiBaggageKg || baggageKg;
+        servicesTotal = apiServicesTotal || servicesTotal;
+      }
+
+      return { baseFare, surcharges, baggageTotal, baggageKg, servicesTotal };
+    }, [selection, passengers, addons.services, booking?.backendAncillaries]);
 
   const finalTotal = selection.totalPrice + baggageTotal + servicesTotal;
 
@@ -228,6 +267,14 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
           const dep = formatDateTime(f.departure_time);
           const arr = formatDateTime(f.arrival_time);
           const durationH = (f.duration_minutes / 60).toFixed(1);
+          const depBadge = getAirportTimeBadge(
+            f.departure_airport,
+            f.departure_airport_code
+          );
+          const arrBadge = getAirportTimeBadge(
+            f.arrival_airport,
+            f.arrival_airport_code
+          );
           return (
             <div
               key={f.flight_id}
@@ -274,14 +321,24 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
                           {dep.time}
                         </span>
                         <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">
-                          {f.departure_airport_code}
+                          {depBadge}
                         </span>
                       </div>
                       <div className="text-[11px] text-gray-500">
                         {dep.date}
                       </div>
                       <div className="text-[11px] text-gray-600 line-clamp-2">
-                        {f.departure_airport}
+                        {depBadge
+                          ? formatAirportNameOnly(f.departure_airport) !== "---"
+                            ? formatAirportNameOnly(f.departure_airport)
+                            : formatAirportFromApiData(
+                                f.departure_airport,
+                                f.departure_airport_code
+                              )
+                          : formatAirportFromApiData(
+                              f.departure_airport,
+                              f.departure_airport_code
+                            )}
                       </div>
                     </div>
                     <div className="hidden md:flex items-center justify-center relative">
@@ -303,14 +360,24 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
                           {arr.time}
                         </span>
                         <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">
-                          {f.arrival_airport_code}
+                          {arrBadge}
                         </span>
                       </div>
                       <div className="text-[11px] text-gray-500">
                         {arr.date}
                       </div>
                       <div className="text-[11px] text-gray-600 line-clamp-2">
-                        {f.arrival_airport}
+                        {arrBadge
+                          ? formatAirportNameOnly(f.arrival_airport) !== "---"
+                            ? formatAirportNameOnly(f.arrival_airport)
+                            : formatAirportFromApiData(
+                                f.arrival_airport,
+                                f.arrival_airport_code
+                              )
+                          : formatAirportFromApiData(
+                              f.arrival_airport,
+                              f.arrival_airport_code
+                            )}
                       </div>
                     </div>
                   </div>
@@ -465,7 +532,9 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
               </div>
             </div>
           )}
-          {(baggageTotal > 0 || addons.services.length > 0) && (
+          {(baggageTotal > 0 ||
+            addons.services.length > 0 ||
+            (booking?.backendAncillaries?.length || 0) > 0) && (
             <div className="rounded-2xl border bg-white p-6 shadow-sm flex flex-col h-full">
               <div className="flex items-center gap-2 font-semibold text-gray-800 text-sm mb-4">
                 <Boxes className="w-4 h-4 text-blue-600" />
@@ -478,11 +547,13 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
                   </span>
                 )}
                 {addons.services.map((serviceId) => {
+                  const serviceMapping = getServiceMapping(serviceId);
                   const service = SERVICE_OPTIONS.find(
                     (o) => o.id === serviceId
                   );
-                  const label = service?.label || serviceId;
-                  const price = service?.price || 0;
+                  const label =
+                    serviceMapping?.label || service?.label || serviceId;
+                  const price = serviceMapping?.price || service?.price || 0;
                   return (
                     <span
                       key={serviceId}
@@ -499,7 +570,8 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
               <div className="mt-auto text-[12px] font-medium text-gray-700 flex items-center gap-2">
                 <span className="text-gray-500">Tổng phụ thu:</span>
                 <span className="text-base font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">
-                  +{(baggageTotal + servicesTotal).toLocaleString("vi-VN")} {currency}
+                  +{(baggageTotal + servicesTotal).toLocaleString("vi-VN")}{" "}
+                  {currency}
                 </span>
               </div>
             </div>
@@ -519,6 +591,87 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
 
         {/* Right side - Main actions */}
         <div className="flex gap-3">
+          {/* Debug Button - Always show for debugging */}
+          <Button
+            variant="outline"
+            onClick={() => {
+              const logs = PriceDebugger.getDebugLogs();
+
+              if (logs.length === 0) {
+                alert(
+                  "❌ No debug logs available. Please complete a booking first."
+                );
+                return;
+              }
+
+              const latest = logs[logs.length - 1];
+
+              // Check for backend issues
+              const hasBackendIssue =
+                latest.backend && latest.comparison?.issue === "backend_higher";
+
+              const message = hasBackendIssue
+                ? `🚨 BACKEND PRICE ISSUE DETECTED!\n\n📤 Frontend Sent: ${
+                    latest.payload?.totalPrice?.toLocaleString() || "N/A"
+                  } VND\n📥 Backend Returned: ${
+                    latest.backend?.totalPrice?.toLocaleString() || "N/A"
+                  } VND\n⚠️ Difference: +${
+                    latest.comparison?.difference?.toLocaleString() || "N/A"
+                  } VND\n📊 Increase: ${
+                    latest.comparison?.percentageDifference || "N/A"
+                  }\n\n🔍 Check Console for detailed breakdown!`
+                : `✅ Price Analysis:\n\n📤 Frontend Sent: ${
+                    latest.payload?.totalPrice?.toLocaleString() || "N/A"
+                  } VND\n📥 Backend Returned: ${
+                    latest.backend?.totalPrice?.toLocaleString() || "N/A"
+                  } VND\n${
+                    latest.comparison?.difference !== 0
+                      ? `⚠️ Difference: ${
+                          latest.comparison?.difference?.toLocaleString() ||
+                          "N/A"
+                        } VND`
+                      : "✅ No difference detected"
+                  }`;
+
+              alert(message);
+
+              // Always show detailed console logs
+              if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+                console.group("🔍 PRICE DEBUG ANALYSIS");
+                console.log("Latest Debug Log:", latest);
+                console.log("All Debug Logs:", logs);
+                console.log("Export Data:", PriceDebugger.exportLogs());
+                console.groupEnd();
+              }
+
+              // If backend issue detected, show additional analysis
+              if (
+                hasBackendIssue &&
+                DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+                shouldShowDevControls()
+              ) {
+                console.group("🚨 BACKEND PRICE INFLATION ANALYSIS");
+                console.log(
+                  "This indicates backend is recalculating prices incorrectly!"
+                );
+                console.log("Possible causes:");
+                console.log(
+                  "1. Backend recalculating flight prices from database"
+                );
+                console.log("2. Backend double-counting ancillaries");
+                console.log("3. Backend applying additional fees/taxes");
+                console.log("4. Backend using different pricing logic");
+                console.log("\n💡 Next steps:");
+                console.log("1. Check backend flight pricing logic");
+                console.log("2. Verify ancillary calculation in backend");
+                console.log("3. Compare frontend vs backend pricing formulas");
+                console.groupEnd();
+              }
+            }}
+            className="shadow-sm text-xs"
+            title="Analyze Price Issues">
+            � Analyze
+          </Button>
           {booking?.status !== "CONFIRMED" && onPay && (
             <>
               <Button

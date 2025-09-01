@@ -43,9 +43,26 @@ const FlightCard: React.FC<FlightCardProps> = ({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isSelected: _isSelected,
 }) => {
-  const departureTime = formatDateTime(flight.departure_time);
-  const arrivalTime = formatDateTime(flight.arrival_time);
-  const duration = formatDuration(flight.duration_minutes);
+  // Defensive fallbacks in case some fields are missing on suggestion items
+  const safeFare = (flight as Partial<FlightSearchApiResult>).fare_class_details || {
+    fare_class_code: "",
+    cabin_class: flight.flight_class || "economy",
+    refundable: false,
+    changeable: false,
+    baggage_kg: "",
+    description: "",
+  };
+  const safePricing = (flight as Partial<FlightSearchApiResult>).pricing || {
+    base_prices: { adult: 0, child: 0, infant: 0 },
+    total_prices: { adult: 0, child: 0, infant: 0 },
+    taxes: { adult: 0 },
+    grand_total: 0,
+    currency: "VND",
+  };
+
+  const departureTime = formatDateTime(flight.departure_time || "");
+  const arrivalTime = formatDateTime(flight.arrival_time || "");
+  const duration = formatDuration(flight.duration_minutes || 0);
 
   return (
     <Card className="hover:shadow-md transition-shadow border border-gray-200">
@@ -69,10 +86,10 @@ const FlightCard: React.FC<FlightCardProps> = ({
                   {flight.flight_number}
                 </div>
                 <div className="text-xs text-gray-500 text-center">
-                  {flight.fare_class_details.cabin_class}
+                  {safeFare.cabin_class}
                 </div>
                 <div className="text-xs text-blue-600 text-center">
-                  {flight.fare_class_details.baggage_kg}
+                  {safeFare.baggage_kg}
                 </div>
               </div>
 
@@ -144,17 +161,17 @@ const FlightCard: React.FC<FlightCardProps> = ({
                       ? "text-green-600 bg-green-50 px-2 py-1 rounded"
                       : "text-orange-600"
                   }`}>
-                  {formatPrice(flight.pricing.grand_total)}
+                  {formatPrice(safePricing.grand_total)}
                   {sortBy === "price" && (
                     <span className="text-xs ml-1">📊</span>
                   )}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {flight.fare_class_details.refundable
+                  {safeFare.refundable
                     ? "Hoàn tiền"
                     : "Không hoàn tiền"}{" "}
                   •{" "}
-                  {flight.fare_class_details.changeable
+                  {safeFare.changeable
                     ? "Đổi được"
                     : "Không đổi"}
                 </div>
@@ -345,30 +362,30 @@ const FlightCard: React.FC<FlightCardProps> = ({
                             Giá cơ bản (Người lớn):
                           </span>
                           <span className="font-medium">
-                            {formatPrice(flight.pricing.base_prices.adult)}
+                            {formatPrice(safePricing.base_prices.adult)}
                           </span>
                         </div>
-                        {flight.pricing.base_prices.child > 0 && (
+                        {safePricing.base_prices.child > 0 && (
                           <div className="flex justify-between">
                             <span className="text-gray-600">
                               Giá cơ bản (Trẻ em):
                             </span>
                             <span className="font-medium">
-                              {formatPrice(flight.pricing.base_prices.child)}
+                              {formatPrice(safePricing.base_prices.child)}
                             </span>
                           </div>
                         )}
                         <div className="flex justify-between">
                           <span className="text-gray-600">Thuế và phí:</span>
                           <span className="font-medium">
-                            {formatPrice(flight.pricing.taxes.adult)}
+                            {formatPrice(safePricing.taxes.adult)}
                           </span>
                         </div>
                         <div className="border-t border-gray-200 pt-2 mt-2">
                           <div className="flex justify-between font-semibold text-base">
                             <span className="text-gray-900">Tổng cộng:</span>
                             <span className="text-orange-600">
-                              {formatPrice(flight.pricing.grand_total)}
+                              {formatPrice(safePricing.grand_total)}
                             </span>
                           </div>
                         </div>
@@ -429,9 +446,7 @@ const FlightCard: React.FC<FlightCardProps> = ({
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Hạng ghế:</span>
-                          <span className="font-medium">
-                            {flight.fare_class_details.cabin_class}
-                          </span>
+                          <span className="font-medium">{safeFare.cabin_class}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">
@@ -441,12 +456,10 @@ const FlightCard: React.FC<FlightCardProps> = ({
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Hành lý ký gửi:</span>
-                          <span className="font-medium">
-                            {flight.fare_class_details.baggage_kg}
-                          </span>
+                          <span className="font-medium">{safeFare.baggage_kg}</span>
                         </div>
                         <div className="text-xs text-gray-500 mt-2">
-                          {flight.fare_class_details.description}
+                          {safeFare.description}
                         </div>
                       </div>
                     </div>
@@ -462,11 +475,11 @@ const FlightCard: React.FC<FlightCardProps> = ({
                           <span className="text-gray-600">Hoàn vé:</span>
                           <span
                             className={`font-medium ${
-                              flight.fare_class_details.refundable
+                              safeFare.refundable
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}>
-                            {flight.fare_class_details.refundable
+                            {safeFare.refundable
                               ? "Được hoàn"
                               : "Không hoàn"}
                           </span>
@@ -475,11 +488,11 @@ const FlightCard: React.FC<FlightCardProps> = ({
                           <span className="text-gray-600">Đổi vé:</span>
                           <span
                             className={`font-medium ${
-                              flight.fare_class_details.changeable
+                              safeFare.changeable
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}>
-                            {flight.fare_class_details.changeable
+                            {safeFare.changeable
                               ? "Được đổi"
                               : "Không đổi"}
                           </span>
@@ -487,7 +500,7 @@ const FlightCard: React.FC<FlightCardProps> = ({
                         <div className="flex justify-between">
                           <span className="text-gray-600">Mã hạng vé:</span>
                           <span className="font-medium">
-                            {flight.fare_class_details.fare_class_code}
+                            {safeFare.fare_class_code}
                           </span>
                         </div>
                         <div className="text-xs text-gray-500 mt-2">
@@ -512,7 +525,7 @@ const FlightCard: React.FC<FlightCardProps> = ({
                   <Button
                     className="bg-orange-600 hover:bg-orange-700 px-8"
                     onClick={onSelect}>
-                    Đặt chỗ ngay - {formatPrice(flight.pricing.grand_total)}
+                    Đặt chỗ ngay - {formatPrice(safePricing.grand_total)}
                   </Button>
                 </div>
               </div>

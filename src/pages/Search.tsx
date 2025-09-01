@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import FlightSearchForm from "../components/flight/FlightSearchForm";
 import FilterSidebar from "../components/flight/FilterSidebar";
@@ -11,6 +11,7 @@ import FlightCardSkeleton from "../components/flight/FlightCardSkeleton";
 import MonthOverview from "../components/flight/MonthOverview";
 import { useFlightSearch } from "../hooks/useFlightSearch";
 import type { FlightSearchApiResult } from "../shared/types/search-api.types";
+// Filtering/sorting handled by hooks and utilities
 
 const Search: React.FC = () => {
   const navigate = useNavigate();
@@ -38,9 +39,11 @@ const Search: React.FC = () => {
     setSelectedInboundFlight,
     handleLoadMore,
     isLoadingMore,
+    lastLoadMoreAdded,
     handleAirlineToggle,
     clearSelectedFlight,
     handleTabChange,
+    flightResults,
     filteredFlights,
     filteredReturnFlights,
     filteredPerDayResults,
@@ -49,6 +52,8 @@ const Search: React.FC = () => {
     displayOneWayFlights,
     vietnameseAirlines,
   } = useFlightSearch();
+
+  const [showOtherAirlines, setShowOtherAirlines] = useState(false);
 
   const proceedToBooking = (flight: FlightSearchApiResult) => {
     const bookingSelection = {
@@ -103,6 +108,27 @@ const Search: React.FC = () => {
       proceedToBooking(flight);
     }
   };
+
+  // Suggestions fetched from API (all airlines): show regardless of current non-airline filters
+  const otherAirlineSuggestions = useMemo(() => {
+    if (!selectedAirlines || selectedAirlines.length === 0)
+      return [] as FlightSearchApiResult[];
+    const selectedSet = new Set(selectedAirlines);
+    const visibleIds = new Set(displayOneWayFlights.map((f) => f.flight_id));
+    return (flightResults || [])
+      .filter((f) => {
+        const slug = (f.airline_name || "").toLowerCase().replace(/\s+/g, "-");
+        return !selectedSet.has(slug);
+      })
+      .filter((f) => !visibleIds.has(f.flight_id));
+  }, [selectedAirlines, flightResults, displayOneWayFlights]);
+
+  const visibleOneWayFlights = useMemo(() => {
+    if (tripType === "round-trip") return [] as FlightSearchApiResult[];
+    return showOtherAirlines
+      ? [...displayOneWayFlights, ...otherAirlineSuggestions]
+      : displayOneWayFlights;
+  }, [tripType, showOtherAirlines, displayOneWayFlights, otherAirlineSuggestions]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/40 to-gray-50">
@@ -250,7 +276,7 @@ const Search: React.FC = () => {
               </div>
             ) : (
               <OneWayFlightList
-                flights={displayOneWayFlights}
+                flights={visibleOneWayFlights}
                 sortBy={filters.sortBy}
                 vietnameseAirlines={vietnameseAirlines}
                 onFlightSelect={handleFlightSelection}
@@ -273,13 +299,33 @@ const Search: React.FC = () => {
               <LoadMoreButton
                 searchInfo={searchInfo}
                 filteredFlights={filteredFlights}
+                suggestionsCount={selectedAirlines.length > 0 ? otherAirlineSuggestions.length : undefined}
+                onShowSuggestions={selectedAirlines.length > 0 ? () => {
+                  // Show other airlines and clear FE filter so counts/buttons update
+                  setShowOtherAirlines(true);
+                  setSelectedAirlines([]);
+                  try {
+                    localStorage.setItem("selectedAirlines", JSON.stringify([]));
+                  } catch (e) {
+                    // Ignore storage failures (e.g., private mode)
+                    if (import.meta.env?.DEV) {
+                      console.debug("(debug) Unable to persist selectedAirlines", e);
+                    }
+                  }
+                } : undefined}
                 onLoadMore={handleLoadMore}
                 loading={isLoadingMore}
+                infoText={
+                  lastLoadMoreAdded === 0
+                    ? "Không có chuyến bay mới để hiển thị"
+                    : undefined
+                }
               />
             )}
           </div>
         </div>
       </div>
+      {/* Debug console moved to App-level for global availability */}
     </div>
   );
 };
