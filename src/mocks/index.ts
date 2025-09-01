@@ -7,4 +7,3 @@ export * from "./airlines";
 export * from "./flightData";
 export * from "./newsData";
 export * from "./travelItineraries";
-export * from "./checkin";
