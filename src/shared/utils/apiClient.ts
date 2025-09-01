@@ -83,35 +83,6 @@ class ApiClient {
           console.log(`📋 Request Config:`, config);
         }
 
-        // Dispatch global debug event for request and store last request
-        try {
-          const method = (config.method || "GET").toUpperCase();
-          const headers = config.headers as Record<string, string> | undefined;
-          const bodyText =
-            typeof config.body === "string"
-              ? config.body
-              : config.body
-              ? JSON.stringify(config.body)
-              : undefined;
-          const curlParts = [
-            `curl -X ${method} '${url}'`,
-            ...(headers
-              ? Object.entries(headers).map(([k, v]) => `-H '${k}: ${String(v)}'`)
-              : []),
-            bodyText ? `-d '${bodyText.replace(/'/g, "'\\''")}'` : undefined,
-          ].filter(Boolean) as string[];
-          const curl = curlParts.join(" ");
-          const debugReq = { url, method, headers, body: bodyText ? JSON.parse(bodyText) : undefined, curl };
-          (window as unknown as Record<string, unknown>)["__FJ_DEBUG_LAST_REQUEST__"] = debugReq;
-          window.dispatchEvent(
-            new CustomEvent("FJ_DEBUG_API", { detail: { phase: "request", data: debugReq } })
-          );
-        } catch (e) {
-          if (apiSettings.enableLogging && apiSettings.isDevelopment) {
-            console.debug("(debug) apiClient could not emit request instrumentation", e);
-          }
-        }
-
         const response = await fetch(url, config);
         clearTimeout(timeoutId);
 
@@ -128,19 +99,6 @@ class ApiClient {
 
         if (apiSettings.enableLogging && apiSettings.isDevelopment) {
           console.log(`✅ API Response: ${response.status}`, data);
-        }
-
-        // Dispatch global debug event for response and store last response
-        try {
-          const debugRes = { url: response.url, status: response.status, ok: response.ok, data };
-          (window as unknown as Record<string, unknown>)["__FJ_DEBUG_LAST_RESPONSE__"] = debugRes;
-          window.dispatchEvent(
-            new CustomEvent("FJ_DEBUG_API", { detail: { phase: "response", data: debugRes } })
-          );
-        } catch (e) {
-          if (apiSettings.enableLogging && apiSettings.isDevelopment) {
-            console.debug("(debug) apiClient could not emit response instrumentation", e);
-          }
         }
 
         if (!response.ok) {

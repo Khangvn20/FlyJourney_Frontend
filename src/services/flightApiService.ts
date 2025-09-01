@@ -36,11 +36,7 @@ class FlightApiError extends Error {
 const handleApiResponse = async <T>(response: Response): Promise<T> => {
   if (!response.ok) {
     const errorText = await response.text();
-    if (
-      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-      shouldShowDevControls() &&
-      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-    ) {
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
       console.error(`❌ HTTP Error ${response.status}:`, errorText);
     }
     throw new FlightApiError(
@@ -51,38 +47,12 @@ const handleApiResponse = async <T>(response: Response): Promise<T> => {
   }
 
   const data: FlightApiResponse<T> = await response.json();
-  // Debug: expose last parsed response + event for in-browser inspection
-  try {
-    (window as unknown as Record<string, unknown>)[
-      "__FJ_DEBUG_LAST_RESPONSE__"
-    ] = data;
-    window.dispatchEvent(
-      new CustomEvent("FJ_DEBUG_API", { detail: { phase: "response", data } })
-    );
-  } catch (e) {
-    // Non-fatal: debugging instrumentation may be unavailable in some environments
-    if (
-      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-      shouldShowDevControls() &&
-      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-    ) {
-      console.debug("(debug) Unable to dispatch response debug event", e);
-    }
-  }
-  if (
-    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-    shouldShowDevControls() &&
-    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-  ) {
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
     console.log(`✅ API Response data:`, data);
   }
 
   if (!data.status) {
-    if (
-      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-      shouldShowDevControls() &&
-      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-    ) {
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
       console.error(`❌ API Error:`, data);
     }
     throw new FlightApiError(
@@ -101,58 +71,9 @@ const makeApiRequest = async <T>(
   const url = `${flightApiConfig.baseUrl}${endpoint}`;
 
   try {
-    if (
-      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-      shouldShowDevControls() &&
-      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-    ) {
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
       console.log(`🌐 Making API request to: ${url}`);
       console.log(`📋 Request options:`, options);
-    }
-
-    // Debug: expose last request with normalized shape and cURL
-    try {
-      const method = (options?.method || "GET").toUpperCase();
-      const headers = {
-        "Content-Type": "application/json",
-        ...(options?.headers as Record<string, string> | undefined),
-      };
-      const bodyText =
-        typeof options?.body === "string"
-          ? options?.body
-          : options?.body
-          ? JSON.stringify(options.body)
-          : undefined;
-      const curlParts = [
-        `curl -X ${method} '${url}'`,
-        ...Object.entries(headers).map(([k, v]) => `-H '${k}: ${v}'`),
-        bodyText ? `-d '${bodyText.replace(/'/g, "'\\''")}'` : undefined,
-      ].filter(Boolean) as string[];
-      const curl = curlParts.join(" ");
-      const debugReq = {
-        url,
-        method,
-        headers,
-        body: bodyText ? JSON.parse(bodyText) : undefined,
-        curl,
-      };
-      (window as unknown as Record<string, unknown>)[
-        "__FJ_DEBUG_LAST_REQUEST__"
-      ] = debugReq;
-      window.dispatchEvent(
-        new CustomEvent("FJ_DEBUG_API", {
-          detail: { phase: "request", data: debugReq },
-        })
-      );
-    } catch (e) {
-      // Non-fatal: fail silently if constructing debug payload/cURL fails
-      if (
-        DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-        shouldShowDevControls() &&
-        !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-      ) {
-        console.debug("(debug) Unable to prepare request instrumentation", e);
-      }
     }
 
     const response = await fetch(url, {
@@ -163,11 +84,7 @@ const makeApiRequest = async <T>(
       },
     });
 
-    if (
-      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-      shouldShowDevControls() &&
-      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-    ) {
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
       console.log(
         `📈 Response status: ${response.status} ${response.statusText}`
       );
@@ -178,11 +95,7 @@ const makeApiRequest = async <T>(
       throw error;
     }
 
-    if (
-      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-      shouldShowDevControls() &&
-      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-    ) {
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
       console.error("Flight API Request failed:", error);
     }
     throw new FlightApiError(
@@ -200,11 +113,7 @@ const makeApiRequest = async <T>(
 export const searchOneWayFlights = async (
   params: FlightSearchOneWayRequest
 ): Promise<FlightSearchOneWayResponse> => {
-  if (
-    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-    shouldShowDevControls() &&
-    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-  ) {
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
     console.log("🔍 Searching one-way flights with params:", params);
     console.log("📤 Request body:", JSON.stringify(params, null, 2));
   }
@@ -221,11 +130,7 @@ export const searchOneWayFlights = async (
 export const searchRoundTripFlights = async (
   params: FlightSearchRoundTripRequest
 ): Promise<FlightSearchRoundTripResponse> => {
-  if (
-    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-    shouldShowDevControls() &&
-    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-  ) {
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
     console.log("🔄 Searching round-trip flights:", params);
   }
 
@@ -242,11 +147,7 @@ export const searchRoundTripFlights = async (
  * 3. Get Flight by ID
  */
 export const getFlightById = async (id: number): Promise<FlightDetail> => {
-  if (
-    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-    shouldShowDevControls() &&
-    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-  ) {
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
     console.log("🆔 Getting flight by ID:", id);
   }
 
@@ -263,11 +164,7 @@ export const getFlightsByAirline = async (
   page = 1,
   limit = 10
 ): Promise<FlightsByAirlineResponse> => {
-  if (
-    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-    shouldShowDevControls() &&
-    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-  ) {
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
     console.log("✈️ Getting flights by airline:", { airlineId, page, limit });
   }
 
@@ -285,11 +182,7 @@ export const getFlightsByStatus = async (
   page = 1,
   limit = 10
 ): Promise<FlightsByStatusResponse> => {
-  if (
-    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-    shouldShowDevControls() &&
-    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-  ) {
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
     console.log("🚦 Getting flights by status:", { status, page, limit });
   }
 
@@ -308,11 +201,7 @@ export const getFlightsByStatus = async (
 export const flightSearchService = async (
   params: FlightSearchParams
 ): Promise<FlightSearchApiWrapper> => {
-  if (
-    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-    shouldShowDevControls() &&
-    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-  ) {
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
     console.log("🚀 Unified flight search:", params);
   }
 
@@ -326,7 +215,7 @@ export const flightSearchService = async (
       departure_airport_code: params.from,
       arrival_airport_code: params.to,
       departure_date: params.departureDate,
-      flight_class: params.flightClass, // Use flight class from params for consistency
+      flight_class: "all", // Use "all" to get all available flights as in Postman
       passenger: {
         adults: params.passengers.adults,
         children: params.passengers.children || 0,
@@ -336,17 +225,9 @@ export const flightSearchService = async (
       limit: params.limit || 50,
       sort_by: params.sortBy || "price",
       sort_order: params.sortOrder || "asc",
-      // Only include airline_ids if provided
-      ...(params.airline_ids && params.airline_ids.length
-        ? { airline_ids: params.airline_ids }
-        : {}),
-    } as const;
+    };
 
-    if (
-      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-      shouldShowDevControls() &&
-      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
-    ) {
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
       console.log("🔍 Final one-way request params:", oneWayParams);
     }
     return makeApiRequest<FlightSearchApiWrapper>("/flights/search", {

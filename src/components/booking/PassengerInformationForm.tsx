@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { ChevronLeft, ChevronRight, Zap, User, Calendar, IdCard, PackagePlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import type { PassengerFormData } from "../../shared/types/passenger.types";
 import { shouldShowDevControls } from "../../shared/config/devConfig";
 import { BAGGAGE_OPTIONS } from "./bookingAddons.constants";
@@ -262,19 +262,15 @@ const PassengerInformationForm: React.FC<PassengerInformationFormProps> = ({
     return (
       <div className="space-y-6">
         {/* Enhanced Header for single passenger */}
-        <div className="relative overflow-hidden border border-blue-100 rounded-lg p-4 bg-white">
-          <div className="pointer-events-none absolute inset-0 opacity-70 bg-[radial-gradient(circle_at_15%_20%,rgba(59,130,246,0.10),transparent_60%)]" />
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-white shadow">
-                <User className="h-4 w-4" />
-              </span>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Thông tin hành khách</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  {passengerCounts.adults} người lớn • {passengerCounts.children} trẻ em • {passengerCounts.infants} trẻ sơ sinh
-                </p>
-              </div>
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Thông tin hành khách
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {passengerCounts.adults} người lớn • {passengerCounts.children} trẻ em • {passengerCounts.infants} trẻ sơ sinh
+              </p>
             </div>
             {/* Dev Mode Auto Fill Button */}
             {shouldShowDevControls() && (
@@ -321,19 +317,15 @@ const PassengerInformationForm: React.FC<PassengerInformationFormProps> = ({
   return (
     <div className="space-y-6">
       {/* Header with passenger counter */}
-      <div className="relative overflow-hidden border border-blue-100 rounded-lg p-4 bg-white">
-        <div className="pointer-events-none absolute inset-0 opacity-70 bg-[radial-gradient(circle_at_15%_20%,rgba(59,130,246,0.10),transparent_60%)]" />
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-white shadow">
-              <User className="h-4 w-4" />
-            </span>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Thông tin hành khách</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                {passengerCounts.adults} người lớn • {passengerCounts.children} trẻ em • {passengerCounts.infants} trẻ sơ sinh
-              </p>
-            </div>
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Thông tin hành khách
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              {passengerCounts.adults} người lớn • {passengerCounts.children} trẻ em • {passengerCounts.infants} trẻ sơ sinh
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <div className="text-sm font-medium text-blue-700 bg-blue-100 px-3 py-1 rounded-full">
@@ -461,97 +453,38 @@ const PassengerForm: React.FC<{
   onFieldChange,
   onBaggageChange,
 }) => {
-  const [touched, setTouched] = React.useState({
-    lastName: false,
-    firstName: false,
-    dateOfBirth: false,
-    gender: false,
-    passportNumber: false,
-    passportExpiry: false,
-  });
-
-  const inputErrorClass = (t: boolean, err: string) =>
-    t && err ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2" : "";
-
-  const today = new Date().toISOString().split("T")[0];
-  const isFuture = (iso: string) => iso && iso > today;
-
-  const errors = {
-    lastName: passenger.lastName?.trim() ? "" : "Vui lòng nhập họ và tên đệm",
-    firstName: passenger.firstName?.trim() ? "" : "Vui lòng nhập tên",
-    dateOfBirth: passenger.dateOfBirth
-      ? isFuture(passenger.dateOfBirth)
-        ? "Ngày sinh không hợp lệ"
-        : ""
-      : "Vui lòng nhập ngày sinh",
-    gender: passenger.gender ? "" : "Vui lòng chọn giới tính",
-    passportNumber: passenger.passportNumber?.trim() ? "" : "Vui lòng nhập số giấy tờ",
-    passportExpiry:
-      passenger.documentType === "passport"
-        ? passenger.passportExpiry
-          ? ""
-          : "Vui lòng nhập ngày hết hạn hộ chiếu"
-        : "",
-  } as const;
   return (
     <div className="space-y-6">
-      {/* Section: Personal info header */}
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">
-        <User className="w-4 h-4" />
-        <span className="text-sm font-semibold">Thông tin cá nhân</span>
-      </div>
       {/* Name Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor={`lastName-${index}`} className="text-sm font-medium text-gray-700">
             Họ và tên đệm *
           </Label>
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <User className="h-4 w-4" />
-            </div>
-            <Input
-              id={`lastName-${index}`}
-              value={passenger.lastName}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                onFieldChange(index, "lastName", e.target.value)
-              }
-              onBlur={() => setTouched((t) => ({ ...t, lastName: true }))}
-              placeholder="Nguyễn Văn"
-              aria-invalid={touched.lastName && !!errors.lastName}
-              aria-describedby={`lastName-error-${index}`}
-              className={`h-11 pl-9 bg-gray-50 focus:bg-white transition-colors ${inputErrorClass(touched.lastName, errors.lastName)}`}
-            />
-          </div>
-          {touched.lastName && errors.lastName && (
-            <p id={`lastName-error-${index}`} className="text-xs text-red-600 mt-1">{errors.lastName}</p>
-          )}
+          <Input
+            id={`lastName-${index}`}
+            value={passenger.lastName}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onFieldChange(index, "lastName", e.target.value)
+            }
+            placeholder="Nguyễn Văn"
+            className="h-11"
+          />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor={`firstName-${index}`} className="text-sm font-medium text-gray-700">
             Tên *
           </Label>
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <User className="h-4 w-4" />
-            </div>
-            <Input
-              id={`firstName-${index}`}
-              value={passenger.firstName}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                onFieldChange(index, "firstName", e.target.value)
-              }
-              onBlur={() => setTouched((t) => ({ ...t, firstName: true }))}
-              placeholder="An"
-              aria-invalid={touched.firstName && !!errors.firstName}
-              aria-describedby={`firstName-error-${index}`}
-              className={`h-11 pl-9 bg-gray-50 focus:bg-white transition-colors ${inputErrorClass(touched.firstName, errors.firstName)}`}
-            />
-          </div>
-          {touched.firstName && errors.firstName && (
-            <p id={`firstName-error-${index}`} className="text-xs text-red-600 mt-1">{errors.firstName}</p>
-          )}
+          <Input
+            id={`firstName-${index}`}
+            value={passenger.firstName}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onFieldChange(index, "firstName", e.target.value)
+            }
+            placeholder="An"
+            className="h-11"
+          />
         </div>
       </div>
 
@@ -561,27 +494,16 @@ const PassengerForm: React.FC<{
           <Label htmlFor={`dob-${index}`} className="text-sm font-medium text-gray-700">
             Ngày sinh *
           </Label>
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <Calendar className="h-4 w-4" />
-            </div>
-            <Input
-              id={`dob-${index}`}
-              type="date"
-              value={passenger.dateOfBirth}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                onFieldChange(index, "dateOfBirth", e.target.value)
-              }
-              onBlur={() => setTouched((t) => ({ ...t, dateOfBirth: true }))}
-              className={`h-11 pl-9 bg-gray-50 focus:bg-white transition-colors ${inputErrorClass(touched.dateOfBirth, errors.dateOfBirth)}`}
-              aria-invalid={touched.dateOfBirth && !!errors.dateOfBirth}
-              aria-describedby={`dob-error-${index}`}
-              max={new Date().toISOString().split("T")[0]}
-            />
-          </div>
-          {touched.dateOfBirth && errors.dateOfBirth && (
-            <p id={`dob-error-${index}`} className="text-xs text-red-600 mt-1">{errors.dateOfBirth}</p>
-          )}
+          <Input
+            id={`dob-${index}`}
+            type="date"
+            value={passenger.dateOfBirth}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onFieldChange(index, "dateOfBirth", e.target.value)
+            }
+            className="h-11"
+            max={new Date().toISOString().split("T")[0]}
+          />
         </div>
 
         {/* Giới tính */}
@@ -594,7 +516,7 @@ const PassengerForm: React.FC<{
             onValueChange={(value: string) =>
               onFieldChange(index, "gender", value)
             }>
-            <SelectTrigger className={`h-11 bg-gray-50 focus:bg-white transition-colors ${inputErrorClass(touched.gender, errors.gender)}`} onBlur={() => setTouched((t) => ({ ...t, gender: true }))}>
+            <SelectTrigger className="h-11">
               <SelectValue placeholder="Chọn giới tính" />
             </SelectTrigger>
             <SelectContent>
@@ -615,7 +537,7 @@ const PassengerForm: React.FC<{
             onValueChange={(value: string) =>
               onFieldChange(index, "nationality", value)
             }>
-            <SelectTrigger className="h-11 bg-gray-50 focus:bg-white transition-colors">
+            <SelectTrigger className="h-11">
               <SelectValue placeholder="Chọn quốc tịch" />
             </SelectTrigger>
             <SelectContent>
@@ -643,7 +565,7 @@ const PassengerForm: React.FC<{
             onFieldChange(index, "phone", e.target.value)
           }
           placeholder="0912345678"
-          className="h-11 bg-gray-50 focus:bg-white transition-colors"
+          className="h-11"
           type="tel"
         />
         <p className="text-xs text-gray-500">
@@ -652,11 +574,10 @@ const PassengerForm: React.FC<{
       </div>
 
       {/* Thông tin giấy tờ */}
-      <div className="space-y-4 pt-4 mt-2 border-t border-gray-100">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">
-          <IdCard className="w-4 h-4" />
-          <span className="text-sm font-semibold">Thông tin giấy tờ tùy thân</span>
-        </div>
+      <div className="space-y-4">
+        <h5 className="text-sm font-semibold text-gray-800">
+          Thông tin giấy tờ tùy thân
+        </h5>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Loại giấy tờ */}
           <div className="space-y-2">
@@ -683,29 +604,18 @@ const PassengerForm: React.FC<{
             <Label className="text-sm font-medium text-gray-700">
               Số giấy tờ *
             </Label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                <IdCard className="h-4 w-4" />
-              </div>
-              <Input
-                value={passenger.passportNumber || ""}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  onFieldChange(index, "passportNumber", e.target.value)
-                }
-                onBlur={() => setTouched((t) => ({ ...t, passportNumber: true }))}
-                placeholder={
-                  passenger.documentType === "passport"
-                    ? "Số hộ chiếu"
-                    : "Số CCCD/CMND"
-                }
-                aria-invalid={touched.passportNumber && !!errors.passportNumber}
-                aria-describedby={`docnum-error-${index}`}
-                className={`h-11 pl-9 bg-gray-50 focus:bg-white transition-colors ${inputErrorClass(touched.passportNumber, errors.passportNumber)}`}
-              />
-            </div>
-            {touched.passportNumber && errors.passportNumber && (
-              <p id={`docnum-error-${index}`} className="text-xs text-red-600 mt-1">{errors.passportNumber}</p>
-            )}
+            <Input
+              value={passenger.passportNumber || ""}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                onFieldChange(index, "passportNumber", e.target.value)
+              }
+              placeholder={
+                passenger.documentType === "passport"
+                  ? "Số hộ chiếu"
+                  : "Số CCCD/CMND"
+              }
+              className="h-11"
+            />
           </div>
 
           {/* Ngày hết hạn */}
@@ -713,39 +623,27 @@ const PassengerForm: React.FC<{
             <Label className="text-sm font-medium text-gray-700">
               Ngày hết hạn {passenger.documentType === "passport" ? "*" : "(tùy chọn)"}
             </Label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                <Calendar className="h-4 w-4" />
-              </div>
             <Input
               type="date"
               value={passenger.passportExpiry || ""}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 onFieldChange(index, "passportExpiry", e.target.value)
               }
-              onBlur={() => setTouched((t) => ({ ...t, passportExpiry: true }))}
-              aria-invalid={touched.passportExpiry && !!errors.passportExpiry}
-              aria-describedby={`docexp-error-${index}`}
-              className={`h-11 pl-9 bg-gray-50 focus:bg-white transition-colors ${inputErrorClass(touched.passportExpiry, errors.passportExpiry)}`}
+              className="h-11"
               min={new Date().toISOString().split("T")[0]}
             />
-            </div>
-            {touched.passportExpiry && errors.passportExpiry && (
-              <p id={`docexp-error-${index}`} className="text-xs text-red-600 mt-1">{errors.passportExpiry}</p>
-            )}
           </div>
         </div>
       </div>
 
       {/* Individual Baggage Selection */}
-      <div className="space-y-4 pt-4 mt-2 border-t border-gray-100">
+      <div className="space-y-4">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">
-            <PackagePlus className="w-4 h-4" />
-            <span className="text-sm font-semibold">Chọn hành lý ký gửi (cá nhân)</span>
-          </div>
-          <p className="text-xs text-gray-600 mt-2">
-            Mỗi hành khách có thể chọn hành lý ký gửi riêng biệt. Phí (nếu có) sẽ hiển thị trong phần tổng quan.
+          <h5 className="text-sm font-semibold text-gray-800">
+            Chọn hành lý ký gửi (cá nhân)
+          </h5>
+          <p className="text-xs text-gray-600 mt-1">
+            Mỗi hành khách có thể chọn hành lý ký gửi riêng biệt. Giá đã bao gồm 7kg xách tay + 20kg ký gửi cơ bản.
           </p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -758,10 +656,10 @@ const PassengerForm: React.FC<{
                 key={option.id}
                 type="button"
                 onClick={() => onBaggageChange(index, option.id)}
-                className={`relative p-3 rounded-lg border text-left text-xs font-medium transition group shadow-sm ${
+                className={`relative p-3 rounded-lg border text-left text-xs font-medium transition group ${
                   isSelected
-                    ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
-                    : "border-gray-200 bg-white hover:border-blue-400 hover:bg-blue-50/40"
+                    ? "border-blue-500 bg-blue-50 shadow-sm ring-2 ring-blue-200"
+                    : "border-gray-200 hover:border-blue-400 hover:bg-blue-50/40"
                 }`}>
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-xs font-medium text-gray-800">
@@ -773,6 +671,11 @@ const PassengerForm: React.FC<{
                     </div>
                   )}
                 </div>
+                <div className="mt-1 text-[10px] text-gray-500">
+                  {option.price === 0
+                    ? "Đã bao gồm"
+                    : `+${option.price.toLocaleString("vi-VN")} ₫`}
+                </div>
                 {option.extraKg > 0 && (
                   <div className="mt-1 text-[10px] text-blue-600 font-medium">
                     +{option.extraKg}kg
@@ -783,7 +686,17 @@ const PassengerForm: React.FC<{
           })}
         </div>
 
-        {/* Selected baggage info removed to avoid duplication; summary handled elsewhere */}
+        {/* Selected baggage info */}
+        {passenger.extraBaggage && passenger.extraBaggage.extraKg > 0 && (
+          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+            <div className="text-xs font-medium text-blue-800">
+              Đã chọn: +{passenger.extraBaggage.extraKg}kg hành lý ký gửi
+            </div>
+            <div className="text-xs text-blue-600">
+              Phụ thu: {passenger.extraBaggage.price.toLocaleString("vi-VN")} ₫
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Special notes */}
@@ -792,9 +705,6 @@ const PassengerForm: React.FC<{
           <h6 className="text-sm font-semibold text-yellow-800 mb-2">
             Lưu ý cho trẻ em
           </h6>
-          {touched.gender && errors.gender && (
-            <p className="text-xs text-red-600 mt-1">{errors.gender}</p>
-          )}
           <p className="text-sm text-yellow-700">
             Trẻ em dưới 14 tuổi cần mang theo <strong>giấy khai sinh bản gốc</strong> và phải có <strong>người lớn đi cùng</strong> trong suốt chuyến bay.
           </p>

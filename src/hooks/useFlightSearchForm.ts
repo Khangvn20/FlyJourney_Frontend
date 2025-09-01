@@ -85,27 +85,6 @@ const callApiDirectly = async (
     console.log("📤 Request body:", JSON.stringify(params, null, 2));
     console.log("🔄 Trip type:", isRoundTrip ? "Round-trip" : "One-way");
   }
-  try {
-    const method = "POST";
-    const headers = { "Content-Type": "application/json" } as const;
-    const bodyText = JSON.stringify(params);
-    const curl = [
-      `curl -X ${method} '${url}'`,
-      `-H 'Content-Type: application/json'`,
-      `-d '${bodyText.replace(/'/g, "'\\''")}'`,
-    ].join(" ");
-    const debugReq = { url, method, headers, body: params, curl };
-    (window as unknown as Record<string, unknown>)[
-      "__FJ_DEBUG_LAST_REQUEST__"
-    ] = debugReq;
-    window.dispatchEvent(
-      new CustomEvent("FJ_DEBUG_API", {
-        detail: { phase: "request", data: debugReq },
-      })
-    );
-  } catch {
-    // no-op
-  }
 
   try {
     const response = await fetch(url, {
@@ -134,16 +113,6 @@ const callApiDirectly = async (
     const data = await response.json();
     if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
       console.log("✅ Raw API Response:", data);
-    }
-    try {
-      (window as unknown as Record<string, unknown>)[
-        "__FJ_DEBUG_LAST_RESPONSE__"
-      ] = data;
-      window.dispatchEvent(
-        new CustomEvent("FJ_DEBUG_API", { detail: { phase: "response", data } })
-      );
-    } catch {
-      // no-op
     }
 
     return data;
@@ -418,13 +387,20 @@ export const useFlightSearchForm = () => {
           flight_class: "all",
           passengers: {
             adults: formData.passengers.adults,
-            children: formData.passengers.children || 0,
-            infants: formData.passengers.infants || 0,
+            children:
+              formData.passengers.children > 0
+                ? formData.passengers.children
+                : undefined,
+            infants:
+              formData.passengers.infants > 0
+                ? formData.passengers.infants
+                : undefined,
           },
           page: 1,
           limit: 50,
           sort_by: "price",
           sort_order: "asc",
+          airline_ids: airlineIds && airlineIds.length > 0 ? airlineIds : undefined,
         };
         // Backend compatibility: some implementations expect singular 'passenger'
         // Clone and attach if needed without altering type
@@ -450,13 +426,20 @@ export const useFlightSearchForm = () => {
           flight_class: "all",
           passenger: {
             adults: formData.passengers.adults,
-            children: formData.passengers.children || 0,
-            infants: formData.passengers.infants || 0,
+            children:
+              formData.passengers.children > 0
+                ? formData.passengers.children
+                : undefined,
+            infants:
+              formData.passengers.infants > 0
+                ? formData.passengers.infants
+                : undefined,
           },
           page: 1,
           limit: 50,
           sort_by: "price",
           sort_order: "asc",
+          airline_ids: airlineIds && airlineIds.length > 0 ? airlineIds : undefined,
         };
         apiRequest = oneWayRequest;
       }
@@ -543,8 +526,7 @@ export const useFlightSearchForm = () => {
               ...(apiRequest as SimpleSearchRequest),
               departure_date: formatDateForApiRequest(currentDate),
               page: 1,
-              airline_ids:
-                airlineIds && airlineIds.length > 0 ? airlineIds : undefined,
+              airline_ids: airlineIds && airlineIds.length > 0 ? airlineIds : undefined,
             };
             try {
               currentAbortController.current?.abort();
@@ -662,6 +644,7 @@ export const useFlightSearchForm = () => {
             limit: 50,
             sort_by: "price",
             sort_order: "asc",
+            airline_ids: airlineIds && airlineIds.length > 0 ? airlineIds : undefined,
           };
           currentAbortController.current?.abort();
           currentAbortController.current = new AbortController();

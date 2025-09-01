@@ -9,7 +9,6 @@ import {
   getServiceMapping,
   getBaggageApiDescription,
 } from "../constants/serviceMapping";
-import { DEV_CONFIG, shouldShowDevControls } from "../config/devConfig";
 
 /**
  * Convert date from MM/DD/YYYY or YYYY-MM-DD to dd/MM/yyyy format for API
@@ -36,9 +35,7 @@ export function formatDateForApi(dateString: string): string {
   }
 
   if (isNaN(date.getTime())) {
-    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
-      console.warn("Invalid date format:", dateString);
-    }
+    console.warn("Invalid date format:", dateString);
     return "";
   }
 
@@ -183,12 +180,10 @@ export function createBookingPayload(
   // Convert passengers to API format using per-type pricing from API
   const details = passengers.map((p) => {
     // Use individual passenger pricing from flight API
-    const outboundPrice =
-      outboundPrices[p.type as keyof typeof outboundPrices] || 0;
-    const inboundPrice =
-      inboundPrices[p.type as keyof typeof inboundPrices] || 0;
+    const outboundPrice = outboundPrices[p.type as keyof typeof outboundPrices] || 0;
+    const inboundPrice = inboundPrices[p.type as keyof typeof inboundPrices] || 0;
     const totalPassengerPrice = outboundPrice + inboundPrice;
-
+    
     return convertPassengerToApiFormat(
       p,
       flightClassId,
@@ -207,26 +202,6 @@ export function createBookingPayload(
   // This ensures consistency with what user saw during booking flow
   const finalTotalPrice = selection.totalPrice + globalAddons.extraPrice;
 
-  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
-    console.log("🔍 BOOKING PAYLOAD PRICE CALCULATION:", {
-      selectionTotalPrice: selection.totalPrice,
-      globalAddonsExtraPrice: globalAddons.extraPrice,
-      finalTotalPrice,
-      selectionDetails: {
-        outboundFlightId: selection.outbound.flight_id,
-        outboundPricing: selection.outbound.pricing,
-        inboundFlightId: selection.inbound?.flight_id,
-        inboundPricing: selection.inbound?.pricing,
-      },
-      globalAddons: {
-        extraBaggageKg: globalAddons.extraBaggageKg,
-        services: globalAddons.services,
-        extraPrice: globalAddons.extraPrice,
-      },
-      passengersCount: passengers.length,
-    });
-  }
-
   const payload: BookingCreateRequest = {
     flight_id: selection.outbound.flight_id,
     contact_name: contactName,
@@ -242,22 +217,6 @@ export function createBookingPayload(
   // Add return flight ID for round-trip bookings
   if (selection.inbound) {
     payload.return_flight_id = selection.inbound.flight_id;
-  }
-
-  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
-    console.log("🔍 FINAL BOOKING PAYLOAD:", {
-      payloadTotalPrice: payload.total_price,
-      payloadFlightId: payload.flight_id,
-      payloadReturnFlightId: payload.return_flight_id,
-      payloadDetailsCount: payload.details.length,
-      payloadAncillariesCount: payload.ancillaries?.length || 0,
-      payloadAncillaries: payload.ancillaries?.map((a) => ({
-        type: a.type,
-        description: a.description,
-        quantity: a.quantity,
-        price: a.price,
-      })),
-    });
   }
 
   return payload;

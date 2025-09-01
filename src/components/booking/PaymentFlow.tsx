@@ -23,16 +23,7 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ booking, onCancel }) => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>("vnpay");
 
-  const rawPassengers = Array.isArray(booking.passengers)
-    ? booking.passengers
-    : [];
-  const totalPassengers = rawPassengers.length;
-  const seatEligibleCount = React.useMemo(() => {
-    const nonInfants = rawPassengers.filter((p) => p?.type !== "infant");
-    // Fallback to at least 1 to prevent zero-seat deadlock if data missing
-    const computed = nonInfants.length || rawPassengers.length || 0;
-    return Math.max(1, computed);
-  }, [rawPassengers]);
+  const totalPassengers = booking.passengers.length;
 
 
 
@@ -125,10 +116,10 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ booking, onCancel }) => {
         return prev.filter((id) => id !== seatId);
       } else {
         // Select seat
-        if (prev.length >= seatEligibleCount) {
+        if (prev.length >= totalPassengers) {
           notification.warning({
             message: "Giới Hạn Chỗ Ngồi",
-            description: `Bạn chỉ có thể chọn tối đa ${seatEligibleCount} ghế (theo số hành khách cần ghế)`,
+            description: `Bạn chỉ có thể chọn tối đa ${totalPassengers} ghế (theo số hành khách)`,
             placement: "top",
             duration: 3
           });
@@ -140,7 +131,7 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ booking, onCancel }) => {
   };
 
   const validateSeatSelection = () => {
-    return selectedSeats.length === seatEligibleCount;
+    return selectedSeats.length === totalPassengers;
   };
 
   const proceedToPayment = () => {
@@ -846,22 +837,18 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ booking, onCancel }) => {
 
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Chọn ghế ngồi</h1>
         <p className="text-gray-600">
-          {seatEligibleCount > 0
-            ? <>Chọn {seatEligibleCount} ghế cho booking {booking.bookingId}</>
-            : <>Không cần chọn ghế (không có hành khách cần ghế riêng)</>}
+          Chọn {totalPassengers} ghế cho booking {booking.bookingId}
         </p>
 
-        {seatEligibleCount > 0 && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex items-center gap-2 text-sm text-blue-800">
-              <span className="font-medium">💡 Lưu ý:</span>
-              <span>
-                Bạn cần chọn đúng {seatEligibleCount} ghế mới có thể tiếp tục (
-                {selectedSeats.length}/{seatEligibleCount} ghế đã chọn)
-              </span>
-            </div>
+        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center gap-2 text-sm text-blue-800">
+            <span className="font-medium">💡 Lưu ý:</span>
+            <span>
+              Bạn cần chọn đúng {totalPassengers} ghế mới có thể tiếp tục (
+              {selectedSeats.length}/{totalPassengers} ghế đã chọn)
+            </span>
           </div>
-        )}
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
@@ -870,7 +857,7 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ booking, onCancel }) => {
           <SimpleSeatMap
             onSeatSelect={handleSeatSelect}
             selectedSeats={selectedSeats}
-            maxSeats={seatEligibleCount}
+            maxSeats={totalPassengers}
           />
         </div>
 
@@ -902,21 +889,17 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ booking, onCancel }) => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Số hành khách:</span>
-                <span className="font-medium">{Math.max(1, totalPassengers)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Cần ghế:</span>
-                <span className="font-medium">{seatEligibleCount}</span>
+                <span className="font-medium">{totalPassengers}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Ghế đã chọn:</span>
                 <span
                   className={`font-medium ${
-                    selectedSeats.length === seatEligibleCount
+                    selectedSeats.length === totalPassengers
                       ? "text-green-600"
                       : "text-red-600"
                   }`}>
-                  {selectedSeats.length}/{seatEligibleCount}
+                  {selectedSeats.length}/{totalPassengers}
                 </span>
               </div>
             </div>
@@ -960,8 +943,10 @@ const PaymentFlow: React.FC<PaymentFlowProps> = ({ booking, onCancel }) => {
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}>
                 {validateSeatSelection()
-                  ? `Tiếp tục thanh toán (${finalTotal.toLocaleString()} ${booking.currency})`
-                  : `Chọn thêm ${Math.max(0, seatEligibleCount - selectedSeats.length)} ghế`}
+                  ? `Tiếp tục thanh toán (${finalTotal.toLocaleString()} ${
+                      booking.currency
+                    })`
+                  : `Chọn thêm ${totalPassengers - selectedSeats.length} ghế`}
               </button>
             </div>
           </div>

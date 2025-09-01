@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { PackagePlus, Check, ChevronDown, Info, X } from "lucide-react";
+import { PackagePlus, Check, ChevronDown, Info } from "lucide-react";
 import { SERVICE_OPTIONS } from "./bookingAddons.constants";
 
 export interface BaggageOption {
@@ -69,8 +69,6 @@ const AddonsSelector: React.FC<AddonsSelectorProps> = ({
     });
   };
 
-  const clearAll = () => setServices(new Set());
-
   return (
     <div className="space-y-5">
       {/* Services Only - Baggage selection is handled individually per passenger */}
@@ -93,25 +91,15 @@ const AddonsSelector: React.FC<AddonsSelectorProps> = ({
             openServices ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
           } duration-300`}>
           <div className="overflow-hidden">
-            <div className="p-4 space-y-4 bg-indigo-50/40">
-              <div className="flex items-center justify-between">
-                <div className="text-[11px] text-gray-600 flex items-start gap-2">
-                  <Info className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    Chọn các dịch vụ bổ sung áp dụng cho tất cả hành khách.
-                    <br />
-                    <strong>Lưu ý:</strong> Hành lý ký gửi được chọn riêng cho
-                    từng hành khách ở phần trên.
-                  </div>
+            <div className="p-4 space-y-4">
+              <div className="text-[11px] text-gray-600 flex items-start gap-2">
+                <Info className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  Chọn các dịch vụ bổ sung áp dụng cho tất cả hành khách.
+                  <br />
+                  <strong>Lưu ý:</strong> Hành lý ký gửi được chọn riêng cho
+                  từng hành khách ở phần trên.
                 </div>
-                {services.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearAll}
-                    className="text-[11px] inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100">
-                    <X className="w-3.5 h-3.5" /> Bỏ chọn
-                  </button>
-                )}
               </div>
               <div className="grid md:grid-cols-4 gap-3">
                 {SERVICE_OPTIONS.map((svc) => {
@@ -121,11 +109,10 @@ const AddonsSelector: React.FC<AddonsSelectorProps> = ({
                       key={svc.id}
                       type="button"
                       onClick={() => toggleService(svc.id)}
-                      aria-pressed={active}
-                      className={`relative p-3 rounded-lg border text-left text-xs font-medium transition group focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-sm ${
+                      className={`relative p-3 rounded-lg border text-left text-xs font-medium transition group ${
                         active
-                          ? "border-indigo-500 bg-white ring-2 ring-indigo-200"
-                          : "border-gray-200 bg-white hover:border-indigo-400 hover:bg-indigo-50/40"
+                          ? "border-indigo-500 bg-indigo-50 shadow-sm"
+                          : "border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/40"
                       }`}>
                       <div className="flex items-start justify-between gap-2">
                         <span>{svc.label}</span>
@@ -135,6 +122,16 @@ const AddonsSelector: React.FC<AddonsSelectorProps> = ({
                       </div>
                       <div className="mt-1 text-[10px] text-gray-500">
                         +{svc.price.toLocaleString("vi-VN")} ₫/người
+                        {totalPassengers > 1 && (
+                          <span className="text-blue-600">
+                            {" "}
+                            (
+                            {(svc.price * totalPassengers).toLocaleString(
+                              "vi-VN"
+                            )}{" "}
+                            ₫ tổng)
+                          </span>
+                        )}
                       </div>
                       <div
                         className={`absolute inset-0 rounded-lg border-2 pointer-events-none ${
@@ -146,13 +143,11 @@ const AddonsSelector: React.FC<AddonsSelectorProps> = ({
                   );
                 })}
               </div>
-              <div className="pt-2 border-t text-[11px] text-gray-600">
-                {services.size > 0 ? (
-                  <>Đã chọn: {servicesList.map((s) => s.label).join(", ")}</>
-                ) : (
-                  <span className="text-gray-400">Chưa chọn dịch vụ thêm</span>
-                )}
-              </div>
+              {services.size > 0 && (
+                <div className="text-[11px] text-gray-600">
+                  Đã chọn: {servicesList.map((s) => s.label).join(", ")}
+                </div>
+              )}
             </div>
           </div>
         </div>
