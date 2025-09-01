@@ -110,7 +110,6 @@ const SimpleSeatMap: React.FC<SimpleSeatMapProps> = ({
 
     // Kiểm tra số lượng ghế tối đa
     if (seat.status === "available" && selectedSeats.length >= maxSeats) {
-      alert(`Bạn chỉ có thể chọn tối đa ${maxSeats} ghế`);
       return;
     }
 
@@ -149,12 +148,15 @@ const SimpleSeatMap: React.FC<SimpleSeatMapProps> = ({
           {rowSeats.slice(0, 3).map((seat) => (
             <button
               key={seat.id}
+              type="button"
               onClick={() => handleSeatClick(seat)}
               className={`w-8 h-8 text-xs font-semibold rounded transition-colors ${getSeatColor(
                 seat.status,
                 seat.class
               )}`}
               title={`${seat.id} - ${seat.class}`}
+              aria-label={`Ghế ${seat.id}`}
+              aria-pressed={seat.status === "selected"}
               disabled={
                 seat.status === "occupied" || seat.status === "unavailable"
               }>
@@ -171,12 +173,15 @@ const SimpleSeatMap: React.FC<SimpleSeatMapProps> = ({
           {rowSeats.slice(3, 6).map((seat) => (
             <button
               key={seat.id}
+              type="button"
               onClick={() => handleSeatClick(seat)}
               className={`w-8 h-8 text-xs font-semibold rounded transition-colors ${getSeatColor(
                 seat.status,
                 seat.class
               )}`}
               title={`${seat.id} - ${seat.class}`}
+              aria-label={`Ghế ${seat.id}`}
+              aria-pressed={seat.status === "selected"}
               disabled={
                 seat.status === "occupied" || seat.status === "unavailable"
               }>
@@ -443,6 +448,7 @@ const SimpleSeatMap: React.FC<SimpleSeatMapProps> = ({
                     <div className="text-right">
                       <div className="text-xs text-gray-500">Hàng {row}</div>
                       <button
+                        type="button"
                         onClick={() => handleSeatClick(seat!)}
                         className="text-xs text-red-500 hover:text-red-700 mt-1">
                         ❌ Bỏ chọn

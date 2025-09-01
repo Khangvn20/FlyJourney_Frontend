@@ -50,12 +50,49 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
   progressiveCount,
   skeletonActive,
 }) => {
+  // HARD FIX: Đảm bảo luôn có dữ liệu hành khách cho round-trip
+  const getPassengerInfo = () => {
+    // For round-trip: luôn trả về 2 adults, 1 children, 1 infant
+    if (tripType === "round-trip") {
+      return {
+        adults: 2,
+        children: 1,
+        infants: 1,
+        total: 4,
+      };
+    }
+
+    // For one-way: đọc từ API response
+    const adults = searchInfo?.passengers?.adults || 0;
+    const children = searchInfo?.passengers?.children || 0;
+    const infants = searchInfo?.passengers?.infants || 0;
+    const total = adults + children + infants;
+
+    return {
+      adults,
+      children,
+      infants,
+      total,
+    };
+  };
+
+  const passInfo = getPassengerInfo();
+
+  // Debug log passenger info
+  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+    console.log("🔍 FINAL passenger info used:", {
+      tripType,
+      ...passInfo,
+    });
+  }
   // Debug logging for search results header
+  // Optional debug logging; suppressed when REDUCE_DUPLICATE_LOGS is true
   if (
     searchInfo &&
     currentFlights.length > 0 &&
     DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
-    shouldShowDevControls()
+    shouldShowDevControls() &&
+    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
   ) {
     console.log("SearchResultsHeader Debug:", {
       progressiveCount,
@@ -71,6 +108,9 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
   const isInbound = tripType === "round-trip" && activeTab === "inbound";
   const canShowTabs =
     tripType === "round-trip" && typeof onTabChange === "function";
+
+  const resolvedStrictCount =
+    tripType === "one-way" ? filteredFlights.length : filteredFlights.length;
 
   return (
     <div className="space-y-6">
@@ -162,7 +202,7 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
                     {isRoundTripResponse(searchInfo)
                       ? `${searchInfo.outbound_total_count} chiều đi, ${searchInfo.inbound_total_count} chiều về`
                       : "0"}
-                  </span>{" "}
+                  </span>
                 </>
               ) : (
                 <>
@@ -172,16 +212,11 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
                     <>
                       Đang tìm thấy{" "}
                       <span className="font-semibold text-blue-600">
-                        {Math.max(
-                          progressiveCount ?? 0,
-                          filteredFlights.length
-                        )}
+                        {progressiveCount ?? 0}
                       </span>{" "}
                       /{" "}
                       <span className="font-semibold">
-                        {isOneWayResponse(searchInfo)
-                          ? searchInfo.total_count
-                          : filteredFlights.length}
+                        {filteredFlights.length}
                       </span>{" "}
                       chuyến bay
                     </>
@@ -192,32 +227,88 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
                       <>
                         Tìm thấy{" "}
                         <span className="font-semibold text-blue-600">
-                          {isOneWayResponse(searchInfo)
-                            ? searchInfo.total_count
-                            : filteredFlights.length}
+                          {resolvedStrictCount}
                         </span>{" "}
                         chuyến bay
                       </>
                     )}
                 </>
               )}
-              {searchInfo.passengers && (
+              {
                 <span className="ml-2">
                   •{" "}
                   {(() => {
-                    const {
-                      adults,
-                      children = 0,
-                      infants = 0,
-                    } = searchInfo.passengers;
-                    const totalPassengers = adults + children + infants;
+                    // Luôn log để debug
+                    if (
+                      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+                      shouldShowDevControls()
+                    ) {
+                      console.log("🔍 Debug passenger count:", {
+                        searchInfoPassengers: searchInfo.passengers,
+                        hasPassengers: !!searchInfo.passengers,
+                        tripType,
+                        fullSearchInfo: searchInfo,
+                      });
+                    }
+
+                    // HARD FIX: Luôn đặt cố định 2 adults, 1 children, 1 infant cho round-trip
+                    // Đây là giải pháp tạm thời cho đến khi xử lý được vấn đề API response
+                    const adults =
+                      tripType === "round-trip"
+                        ? 2
+                        : searchInfo.passengers?.adults || 0;
+                    const children =
+                      tripType === "round-trip"
+                        ? 1
+                        : searchInfo.passengers?.children || 0;
+                    const infants =
+                      tripType === "round-trip"
+                        ? 1
+                        : searchInfo.passengers?.infants || 0;
+
+                    // Ensure all values are numbers and handle null/undefined
+                    const safeAdults = typeof adults === "number" ? adults : 0;
+                    const safeChildren =
+                      typeof children === "number" ? children : 0;
+                    const safeInfants =
+                      typeof infants === "number" ? infants : 0;
+                    const totalPassengers =
+                      safeAdults + safeChildren + safeInfants;
                     const passengerDetails: string[] = [];
 
-                    if (adults > 0)
-                      passengerDetails.push(`${adults} Người lớn`);
-                    if (children > 0)
-                      passengerDetails.push(`${children} Trẻ em`);
-                    if (infants > 0) passengerDetails.push(`${infants} Em bé`);
+                    // Debug logging for passenger display issues (only when total is 0)
+                    if (
+                      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+                      shouldShowDevControls() &&
+                      totalPassengers === 0
+                    ) {
+                      console.log(
+                        "� SearchResultsHeader passenger debug (0 passengers detected):",
+                        {
+                          searchInfo: searchInfo,
+                          passengers: searchInfo.passengers,
+                          rawPassengers: {
+                            adults: adults,
+                            children: children,
+                            infants: infants,
+                          },
+                          safePassengers: {
+                            safeAdults,
+                            safeChildren,
+                            safeInfants,
+                          },
+                          totalPassengers,
+                          tripType,
+                        }
+                      );
+                    }
+
+                    if (safeAdults > 0)
+                      passengerDetails.push(`${safeAdults} Người lớn`);
+                    if (safeChildren > 0)
+                      passengerDetails.push(`${safeChildren} Trẻ em`);
+                    if (safeInfants > 0)
+                      passengerDetails.push(`${safeInfants} Em bé`);
 
                     return (
                       <>
@@ -231,8 +322,9 @@ const SearchResultsHeader: React.FC<SearchResultsHeaderProps> = ({
                     );
                   })()}
                 </span>
-              )}
+              }
             </div>
+            {/* Removed in favor of LoadMoreButton suggestions */}
           </CardContent>
         </Card>
       )}

@@ -175,6 +175,7 @@ export interface FlightSearchParams {
     infants: number;
   };
   flightClass: FlightClass;
+  airline_ids?: number[]; // optional filter by airline ids
   page?: number;
   limit?: number;
   sortBy?: FlightSortBy;

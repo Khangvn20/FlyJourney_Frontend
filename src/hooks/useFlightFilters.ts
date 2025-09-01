@@ -15,7 +15,7 @@ export const useFlightFilters = ({
   flights,
   selectedAirlines,
   filters,
-}: UseFlightFiltersProps) => {
+}: UseFlightFiltersProps): { filteredFlights: FlightSearchApiResult[] } => {
   const filteredFlights = useMemo(
     () => filterAndSortFlights({ flights, selectedAirlines, filters }),
     [flights, selectedAirlines, filters]

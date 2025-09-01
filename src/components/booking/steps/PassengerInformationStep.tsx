@@ -304,54 +304,6 @@ export const PassengerInformationStep: React.FC<
           </div>
         </div>
 
-        {/* Validation Messages */}
-        {passengers.length === 0 && (
-          <div className="p-4 border border-yellow-300 bg-yellow-50 rounded-lg text-sm text-yellow-700">
-            Đang tải thông tin hành khách...
-          </div>
-        )}
-
-        {!contactName?.trim() && (
-          <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
-            ⚠️ Vui lòng nhập tên người liên hệ để tiếp tục
-          </div>
-        )}
-
-        {!contactEmail?.trim() && (
-          <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
-            ⚠️ Vui lòng nhập email liên hệ để tiếp tục
-          </div>
-        )}
-
-        {!contactPhone?.trim() && (
-          <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
-            ⚠️ Vui lòng nhập số điện thoại liên hệ để tiếp tục
-          </div>
-        )}
-
-        {!contactAddress?.trim() && (
-          <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
-            ⚠️ Vui lòng nhập địa chỉ liên hệ để tiếp tục
-          </div>
-        )}
-
-        {passengers.some(
-          (passenger) => !passenger.phone?.trim()
-        ) && (
-          <div className="p-4 border border-yellow-300 bg-yellow-50 rounded-lg text-sm text-yellow-700">
-            💡 Khuyến khích nhập số điện thoại cho các hành khách để liên hệ khẩn cấp
-          </div>
-        )}
-
-        {!selection.outbound.flight_class_id && (
-          <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
-            Thiếu mã hạng vé – vui lòng tìm lại chuyến bay.
-            <button onClick={onBack} className="underline font-medium ml-1">
-              Quay lại tìm kiếm
-            </button>
-          </div>
-        )}
-
         {/* Navigation */}
         <div className="flex justify-between pt-4">
           <button
