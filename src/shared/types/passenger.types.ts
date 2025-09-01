@@ -32,6 +32,7 @@ export interface ContactInfo {
 export type PaymentMethod = "vnpay" | "card" | "office";
 
 import type { FlightSearchApiResult } from "./search-api.types";
+import type { BookingAncillaryResponse } from "./booking-api.types";
 
 export interface BookingPayload {
   tripType: "one-way" | "round-trip";
@@ -66,4 +67,6 @@ export interface BookingRecord extends BookingPayload {
   holdExpiresAt?: string;
   /** Selected seat IDs after seat selection and payment */
   selectedSeats?: string[];
+  /** Ancillaries returned by backend for this booking (read-only mirror). */
+  backendAncillaries?: BookingAncillaryResponse[];
 }
