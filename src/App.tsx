@@ -11,6 +11,7 @@ import News from "./pages/News";
 import MyBookings from "./pages/MyBookings";
 import BookingDetail from "./pages/BookingDetail";
 import ErrorPage from "./pages/Error";
+import Checkin from "./pages/Checkin";
 
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
@@ -19,6 +20,8 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { useScrollToTop } from "./hooks/useScrollToTop";
 import ChatBox from "./components/common/ChatBox";
 import { useLocation } from "react-router-dom";
+import DebugConsole from "./components/dev/DebugConsole";
+import { shouldShowDevControls } from "./shared/config/devConfig";
 
 const Layout: React.FC = () => (
   <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -33,17 +36,26 @@ const Layout: React.FC = () => (
 const App: React.FC = () => {
   useScrollToTop();
   const location = useLocation();
-  
+
+  // Define valid paths to avoid hardcoding in isErrorPage logic
+  const validPaths = [
+    "/",
+    "/search",
+    "/blog",
+    "/news",
+    "/booking",
+    "/checkin",
+    "/register",
+    "/my-bookings",
+  ];
+
   // Xác định nếu đang ở trang error dựa trên route matching của React Router
   // Nếu route không match bất kỳ route nào được định nghĩa, React Router sẽ render route "*"
-  const isErrorPage = location.pathname !== "/" &&
-    location.pathname !== "/search" &&
-    location.pathname !== "/blog" &&
-    location.pathname !== "/news" &&
-    location.pathname !== "/booking" &&
-    location.pathname !== "/register" &&
-    location.pathname !== "/my-bookings" &&
-    !location.pathname.startsWith("/my-bookings/");
+  const isErrorPage = !validPaths.some(
+    (path) =>
+      location.pathname === path ||
+      location.pathname.startsWith("/my-bookings/")
+  );
 
   return (
     <>
@@ -57,6 +69,7 @@ const App: React.FC = () => {
           <Route path="/blog" element={<Blog />} />
           <Route path="/news" element={<News />} />
           <Route path="/booking" element={<Booking />} />
+          <Route path="/checkin" element={<Checkin />} />
           <Route
             path="/my-bookings/:id"
             element={
@@ -82,6 +95,8 @@ const App: React.FC = () => {
       <ScrollToTop />
       {/* Ẩn ChatBox khi ở trang lỗi */}
       {!isErrorPage && <ChatBox />}
+      {/* Global Debug Console (visible only when dev controls are NOT hidden) */}
+      {shouldShowDevControls() ? <DebugConsole /> : null}
     </>
   );
 };
