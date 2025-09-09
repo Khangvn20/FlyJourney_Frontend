@@ -786,11 +786,11 @@ const MyBookings: React.FC = () => {
                   <div className="space-y-3">
                     {b.status === "PENDING" && (
                       <button
-                        onClick={() => navigate(`/my-bookings/${b.bookingId}`)}
+                        onClick={() => navigate(`/my-bookings/${b.bookingId}?pay=1`)}
                         className="w-full px-4 py-3 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                         title="Xem chi tiết để chọn ghế và thanh toán">
                         <CreditCard className="w-4 h-4" />
-                        Chọn ghế & Thanh toán
+                        Thanh toán
                       </button>
                     )}
                     <button

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { loadBookings } from "../services/bookingStorage";
 import { bookingService } from "../services/bookingService";
 import { useAuth } from "../hooks/useAuth";
@@ -53,7 +53,10 @@ const BookingDetail: React.FC = () => {
   const [record, setRecord] = useState<BookingRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showPaymentFlow, setShowPaymentFlow] = useState(false);
+  const location = useLocation();
+  const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const autoPay = query.get("pay") === "1";
+  const [showPaymentFlow, setShowPaymentFlow] = useState<boolean>(autoPay);
 
   useEffect(() => {
     const fetchBookingDetail = async () => {
@@ -177,6 +180,7 @@ const BookingDetail: React.FC = () => {
       <PaymentFlow
         booking={record}
         onCancel={() => setShowPaymentFlow(false)}
+        initialStep="payment"
       />
     );
   }
@@ -228,7 +232,7 @@ const BookingDetail: React.FC = () => {
                 <Button
                   onClick={() => setShowPaymentFlow(true)}
                   className="bg-amber-600 hover:bg-amber-700 text-white">
-                  Chọn ghế và thanh toán
+                  Thanh toán
                 </Button>
                 <Button
                   variant="outline"

@@ -22,6 +22,7 @@ import ChatBox from "./components/common/ChatBox";
 import { useLocation } from "react-router-dom";
 import DebugConsole from "./components/dev/DebugConsole";
 import { shouldShowDevControls } from "./shared/config/devConfig";
+import { ToastContainer } from "./components/ui/toast";
 
 const Layout: React.FC = () => (
   <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -97,6 +98,7 @@ const App: React.FC = () => {
       {!isErrorPage && <ChatBox />}
       {/* Global Debug Console (visible only when dev controls are NOT hidden) */}
       {shouldShowDevControls() ? <DebugConsole /> : null}
+      <ToastContainer />
     </>
   );
 };

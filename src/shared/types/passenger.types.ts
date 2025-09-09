@@ -21,6 +21,12 @@ export interface PassengerFormData {
     extraKg: number;
     price: number;
   };
+  /** Pregnancy flag for exit-row eligibility */
+  isPregnant?: boolean;
+  /** Passenger traveling with an infant */
+  withInfant?: boolean;
+  /** Mobility assistance required */
+  reducedMobility?: boolean;
 }
 
 export interface ContactInfo {

@@ -19,6 +19,20 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error("Uncaught error:", error, errorInfo);
+    try {
+      const payload = {
+        message: error?.message ?? "Unknown error",
+        stack: error?.stack ?? null,
+        componentStack: errorInfo?.componentStack ?? null,
+        url: typeof window !== "undefined" ? window.location.href : null,
+        pathname: typeof window !== "undefined" ? window.location.pathname : null,
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+        timestamp: new Date().toISOString(),
+      };
+      sessionStorage.setItem("app_last_error", JSON.stringify(payload));
+    } catch {
+      /* no-op */
+    }
   }
 
   public render() {

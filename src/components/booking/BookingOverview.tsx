@@ -83,41 +83,7 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
     return null;
   })();
 
-  const { baseFare, surcharges, baggageTotal, baggageKg, servicesTotal } =
-    useMemo(() => {
-      const flights = [
-        selection.outbound,
-        ...(selection.tripType === "round-trip" && selection.inbound
-          ? [selection.inbound]
-          : []),
-      ];
-      const counts = passengers.reduce(
-        (acc, p) => {
-          if (p.type === "adult") acc.adults++;
-          else if (p.type === "child") acc.children++;
-          else if (p.type === "infant") acc.infants++;
-          return acc;
-        },
-        { adults: 0, children: 0, infants: 0 }
-      );
-      // Tính baseFare từ base_prices nếu có; nếu không có dữ liệu, fallback hợp lý
-      let baseFare = flights.reduce((sum, flight) => {
-        const bp = flight.pricing?.base_prices || {};
-        return (
-          sum +
-          (bp.adult || 0) * counts.adults +
-          (bp.child || 0) * counts.children +
-          (bp.infant || 0) * counts.infants
-        );
-      }, 0);
-
-      // Nếu không có base_prices (baseFare=0) thì không thể tách chi tiết chính xác
-      // Fallback: coi toàn bộ là giá gốc và phụ phí = 0 để tránh hiển thị sai
-      let surcharges = selection.totalPrice - baseFare;
-      if (baseFare === 0) {
-        baseFare = selection.totalPrice;
-        surcharges = 0;
-      }
+  const { baggageTotal, baggageKg, servicesTotal } = useMemo(() => {
       // Totals from selections (pre-booking)
       let baggageTotal = passengers.reduce(
         (sum, p) => sum + (p.extraBaggage?.price || 0),
@@ -161,10 +127,13 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
         servicesTotal = apiServicesTotal || servicesTotal;
       }
 
-      return { baseFare, surcharges, baggageTotal, baggageKg, servicesTotal };
+      return { baggageTotal, baggageKg, servicesTotal };
     }, [selection, passengers, addons.services, booking?.backendAncillaries]);
 
-  const finalTotal = selection.totalPrice + baggageTotal + servicesTotal;
+  // Theo yêu cầu: Tổng giá đã bao gồm thuế, hành lý và dịch vụ từ API
+  const finalTotal = selection.totalPrice;
+  // Giá vé được suy ra từ tổng giá trừ đi hành lý và dịch vụ
+  const derivedTicketFare = Math.max(finalTotal - baggageTotal - servicesTotal, 0);
 
   return (
     <div className="space-y-8 animate-[fadeIn_.4s_ease]">
@@ -226,15 +195,9 @@ const BookingOverview: React.FC<BookingOverviewProps> = ({
         </h3>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
-            <span>Giá gốc</span>
+            <span>Giá vé</span>
             <span>
-              {baseFare.toLocaleString("vi-VN")} {currency}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>Phụ phí</span>
-            <span>
-              {surcharges.toLocaleString("vi-VN")} {currency}
+              {derivedTicketFare.toLocaleString("vi-VN")} {currency}
             </span>
           </div>
           {baggageTotal > 0 && (

@@ -1,7 +1,6 @@
 export const DEV_CONFIG = {
   // Set to true to hide all dev controls in production or when testing is complete
   HIDE_DEV_CONTROLS: false, // Set to false for testing console suppression
-
   // Other dev settings can be added here
   ENABLE_CONSOLE_LOGS: true,
   // Reduce duplicate logs in development
@@ -12,7 +11,7 @@ export const DEV_CONFIG = {
   // Enable simple profanity / invalid token filtering on names
   ENABLE_NAME_PROFANITY_FILTER: true,
   // Allow bypassing passenger age validation (DOB vs type)
-  BYPASS_PASSENGER_AGE_VALIDATION: true,
+  BYPASS_PASSENGER_AGE_VALIDATION: false,
 } as const;
 
 /**
@@ -21,3 +20,8 @@ export const DEV_CONFIG = {
 export const shouldShowDevControls = (): boolean => {
   return !DEV_CONFIG.HIDE_DEV_CONTROLS;
 };
+
+/**
+ * Helper for Check-in page dev button
+ */
+// Keep check-in dev button gated only by master dev control
