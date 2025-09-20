@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SearchFormData, PassengerCounts } from "../shared/types";
+import type { FlightClass } from "../shared/types/flight-api.types";
 import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
 import type { FlightSearchApiResponse } from "../shared/types/search-api.types";
+import { toFlightClass } from "../lib/searchUtils";
 
 // Simple interface matching Postman exactly (from SimpleFlightSearchForm)
 interface SimpleSearchRequest {
   departure_airport_code: string;
   arrival_airport_code: string;
   departure_date: string; // dd/mm/yyyy format
-  flight_class: "all";
+  flight_class: FlightClass;
   passenger: {
     adults: number;
     children?: number;
@@ -28,7 +30,7 @@ interface RoundTripSearchRequest {
   arrival_airport_code: string;
   departure_date: string; // dd/mm/yyyy format
   return_date: string; // dd/mm/yyyy format for round-trip
-  flight_class: "all";
+  flight_class: FlightClass;
   passengers: {
     adults: number;
     children?: number;
@@ -233,8 +235,8 @@ export const useFlightSearchForm = () => {
         children: 0,
         infants: 0,
       },
-      flightClass: "economy" as const,
-      specialRequirements: "normal" as const,
+      flightClass: "all" as const,
+      specialRequirements: "none" as const,
       searchFullMonth: false,
     };
 
@@ -298,13 +300,27 @@ export const useFlightSearchForm = () => {
   };
 
   const getClassText = () => {
-    const classNames = {
+    const classNames: Record<string, string> = {
+      all: "Tất cả hạng vé",
       economy: "Phổ thông",
+      "premium-economy": "Phổ thông đặc biệt",
+      premium_economy: "Phổ thông đặc biệt",
       premium: "Phổ thông đặc biệt",
       business: "Thương gia",
       first: "Hạng nhất",
     };
-    return classNames[formData.flightClass as keyof typeof classNames];
+    const key = formData.flightClass?.toLowerCase?.() ?? "";
+    if (!key) return classNames.economy;
+
+    if (classNames[key]) return classNames[key];
+
+    const hyphenKey = key.replace(/_/g, "-");
+    if (classNames[hyphenKey]) return classNames[hyphenKey];
+
+    const underscoreKey = key.replace(/-/g, "_");
+    if (classNames[underscoreKey]) return classNames[underscoreKey];
+
+    return classNames.economy;
   };
 
   const swapLocations = () => {
@@ -335,6 +351,28 @@ export const useFlightSearchForm = () => {
   };
 
   const handleSearch = async (airlineIds?: number[]) => {
+    // Immediately dispatch event with current passenger data for components to use
+    const passengerData = {
+      adults: formData.passengers.adults,
+      children: formData.passengers.children,
+      infants: formData.passengers.infants,
+    };
+
+    // Always log this to help debug
+    console.log(
+      "🚀 DISPATCHING SEARCH EVENT with passenger data:",
+      passengerData
+    );
+
+    window.dispatchEvent(
+      new CustomEvent("flightSearchRequested", {
+        detail: {
+          passengers: passengerData,
+          tripType: formData.tripType,
+        },
+      })
+    );
+
     // Validation
     if (!formData.departureDate) {
       setSearchError("Vui lòng chọn ngày khởi hành");
@@ -406,6 +444,15 @@ export const useFlightSearchForm = () => {
       const currentTripType = tripTypeRef.current;
       const isRoundTrip = currentTripType === "round-trip";
 
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.log(
+          "🔍 Trip type debug:",
+          currentTripType,
+          "| isRoundTrip:",
+          isRoundTrip
+        );
+      }
+
       let apiRequest: SimpleSearchRequest | RoundTripSearchRequest;
 
       if (isRoundTrip && formData.returnDate) {
@@ -415,14 +462,14 @@ export const useFlightSearchForm = () => {
           arrival_airport_code: getAirportCode(formData.to),
           departure_date: formatDateForApiRequest(formData.departureDate),
           return_date: formatDateForApiRequest(formData.returnDate),
-          flight_class: "all",
+          flight_class: toFlightClass(formData.flightClass),
           passengers: {
             adults: formData.passengers.adults,
             children: formData.passengers.children || 0,
             infants: formData.passengers.infants || 0,
           },
           page: 1,
-          limit: 50,
+          limit: 100, // Increase from 50 to 100 to get more flights
           sort_by: "price",
           sort_order: "asc",
         };
@@ -440,6 +487,14 @@ export const useFlightSearchForm = () => {
                 ? formData.passengers.infants
                 : undefined,
           };
+
+        // Debug round-trip request
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+          console.log("🔍 Round-trip request:", {
+            passengersSent: roundTripRequest.passengers,
+          });
+        }
+
         apiRequest = roundTripRequest;
       } else {
         // Create one-way request (existing logic)
@@ -447,14 +502,14 @@ export const useFlightSearchForm = () => {
           departure_airport_code: getAirportCode(formData.from),
           arrival_airport_code: getAirportCode(formData.to),
           departure_date: formatDateForApiRequest(formData.departureDate),
-          flight_class: "all",
+          flight_class: toFlightClass(formData.flightClass),
           passenger: {
             adults: formData.passengers.adults,
             children: formData.passengers.children || 0,
             infants: formData.passengers.infants || 0,
           },
           page: 1,
-          limit: 50,
+          limit: 100, // Increase from 50 to 100 for one-way flights
           sort_by: "price",
           sort_order: "asc",
         };
@@ -652,14 +707,14 @@ export const useFlightSearchForm = () => {
             departure_airport_code: from,
             arrival_airport_code: to,
             departure_date: formatDateForApiRequest(d),
-            flight_class: "all",
+            flight_class: toFlightClass(formData.flightClass),
             passenger: {
               adults: formData.passengers.adults,
               children: formData.passengers.children || undefined,
               infants: formData.passengers.infants || undefined,
             },
             page: 1,
-            limit: 50,
+            limit: 100, // Increase from 50 to 100 for month view
             sort_by: "price",
             sort_order: "asc",
           };
@@ -777,6 +832,17 @@ export const useFlightSearchForm = () => {
 
       // Normal single search call
       const results = await callApiDirectly(apiRequest, isRoundTrip);
+
+      // Debug API results before storing
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.log("🔍 API results before storing:", {
+          results,
+          hasPassengers: results?.data?.passengers || results?.passengers,
+          resultType: isRoundTrip ? "round-trip" : "one-way",
+          apiRequest: apiRequest,
+        });
+      }
+
       // Normal search: no artificial 8s wait. Skeleton phase handled externally.
       sessionStorage.setItem("flightSearchResults", JSON.stringify(results));
       sessionStorage.setItem("tripType", currentTripType);

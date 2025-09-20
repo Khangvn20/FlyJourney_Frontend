@@ -10,7 +10,7 @@ import type {
 vi.mock('../../components/flight/FlightSearchForm', () => ({ default: () => null }));
 vi.mock('../../components/flight/FilterSidebar', () => ({ default: () => null }));
 vi.mock('../../components/flight/OneWayFlightList', () => ({ default: () => null }));
-vi.mock('../../components/flight/SearchResultsHeader', () => ({ default: () => null }));
+vi.mock('../../components/flight/FlightResultsOverview', () => ({ default: () => null }));
 vi.mock('../../components/common/LoadMoreButton', () => ({ default: () => null }));
 vi.mock('../../components/flight/FlightCardSkeleton', () => ({ default: () => null }));
 vi.mock('../../components/flight/MonthOverviewHeatmap', () => ({ default: () => null }));
@@ -116,3 +116,4 @@ describe('Search flight selection', () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/booking', expect.anything()));
   });
 });
+

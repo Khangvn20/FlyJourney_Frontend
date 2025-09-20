@@ -39,11 +39,29 @@ export interface MonthAggregatedWrapper {
 }
 
 const FLIGHT_CLASS_VALUES: FlightClass[] = [
+  "all",
   "economy",
   "premium_economy",
   "business",
   "first",
 ];
+
+const FLIGHT_CLASS_ALIASES: Record<string, FlightClass> = {
+  all: "all",
+  economy: "economy",
+  economy_class: "economy",
+  premium: "premium_economy",
+  premium_economy: "premium_economy",
+  premiumeconomy: "premium_economy",
+  premium_class: "premium_economy",
+  premium_economy_class: "premium_economy",
+  premiumeconomy_class: "premium_economy",
+  business: "business",
+  business_class: "business",
+  first: "first",
+  first_class: "first",
+};
+
 const SORT_BY_VALUES: FlightSortBy[] = ["price", "departure", "duration"];
 
 export function getStr(o: SafeObj, k: string): string | undefined {
@@ -69,9 +87,15 @@ function getArr<T = unknown>(o: SafeObj, k: string): T[] | undefined {
 }
 
 export function toFlightClass(value: string): FlightClass {
+  const normalized = value?.toLowerCase?.().trim() ?? "";
+  if (!normalized) return "economy";
+
+  const sanitized = normalized.replace(/[\s-]+/g, "_");
   return (
-    FLIGHT_CLASS_VALUES.includes(value as FlightClass) ? value : "economy"
-  ) as FlightClass;
+    FLIGHT_CLASS_ALIASES[sanitized] ??
+    FLIGHT_CLASS_ALIASES[normalized] ??
+    "economy"
+  );
 }
 
 export function toSortBy(v: string): FlightSortBy | undefined {

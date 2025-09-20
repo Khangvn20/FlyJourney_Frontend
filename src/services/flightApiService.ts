@@ -333,7 +333,7 @@ export const flightSearchService = async (
         infants: params.passengers.infants || 0,
       },
       page: params.page || 1,
-      limit: params.limit || 50,
+      limit: params.limit || 100, // Increase default from 50 to 100
       sort_by: params.sortBy || "price",
       sort_order: params.sortOrder || "asc",
       // Only include airline_ids if provided
@@ -382,13 +382,24 @@ export const mapFormToApiParams = (formData: {
 }): FlightSearchParams => {
   // Map flight class to API expected values
   const mapFlightClass = (frontendClass: string): FlightClass => {
-    const classMap: { [key: string]: FlightClass } = {
+    const normalized = frontendClass?.toLowerCase?.().trim() ?? "";
+    const sanitized = normalized.replace(/[\s-]+/g, "_");
+    const classMap: Record<string, FlightClass> = {
+      all: "all",
       economy: "economy",
+      economy_class: "economy",
       premium: "premium_economy",
+      premium_economy: "premium_economy",
+      premiumeconomy: "premium_economy",
+      premium_class: "premium_economy",
+      premium_economy_class: "premium_economy",
+      premiumeconomy_class: "premium_economy",
       business: "business",
+      business_class: "business",
       first: "first",
+      first_class: "first",
     };
-    return classMap[frontendClass] || "economy";
+    return classMap[sanitized] || classMap[normalized] || "economy";
   };
 
   return {
@@ -400,7 +411,7 @@ export const mapFormToApiParams = (formData: {
     passengers: formData.passengers,
     flightClass: mapFlightClass(formData.flightClass),
     page: 1,
-    limit: 50, // Increase limit to get more results
+    limit: 100, // Increase limit from 50 to 100 to get more results
     sortBy: "price",
     sortOrder: "asc",
   };

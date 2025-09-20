@@ -92,19 +92,8 @@ function normalizePassengersFromAny(input: unknown): {
   const children = Math.max(0, toNum(pRaw["children"], 0));
   const infants = Math.max(0, toNum(pRaw["infants"], 0));
 
-  // Debug logging for passenger normalization issues
-  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
-    console.log("🔍 Passenger normalization debug:", {
-      originalInput: input,
-      container: container,
-      maybePassengers: maybePassengers,
-      maybePassenger: maybePassenger,
-      maybePassengerCount: maybePassengerCount,
-      pRaw,
-      normalized: { adults, children, infants },
-      total: adults + children + infants,
-    });
-  }
+  // Note: API doesn't return passenger data, normalization may not be needed
+  // but keeping for compatibility with existing structure
 
   if (adults === 0 && children === 0 && infants === 0) {
     const hasAny = !!pRaw && Object.keys(pRaw).length > 0;
@@ -151,19 +140,7 @@ function normalizeRoundTripResponse(
   // Đảm bảo normalizePassengersFromAny nhận được giá trị
   const pax = normalizePassengersFromAny(src);
 
-  // Extra debug for round-trip passenger normalization
-  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
-    console.log("🔍 Round-trip passenger normalization:", {
-      originalData: data,
-      src,
-      normalizedPax: pax,
-      finalPassengers: {
-        adults: pax.adults,
-        children: pax.children,
-        infants: pax.infants,
-      },
-    });
-  }
+  // Note: Passenger normalization for compatibility, but API likely doesn't return passenger data
 
   return {
     ...data,
@@ -340,13 +317,15 @@ export const useFlightSearch = () => {
   /* ============ Load more (one-way only) ============ */
   const handleLoadMore = async () => {
     if (!searchInfo || !isOneWayResponse(searchInfo)) return;
-    // Project policy: always request page 1 (BE caps at first page ~<=40)
-    const nextPage = 1;
+    const currentLimit = searchInfo.limit || 20;
+    const nextLimit = currentLimit + 20; // Increase limit by 20 each time
+
     // Prefer IATA codes from results; fallback to searchInfo fields
     const fromCode =
       flightResults[0]?.departure_airport_code || searchInfo.departure_airport;
     const toCode =
       flightResults[0]?.arrival_airport_code || searchInfo.arrival_airport;
+
     setIsLoadingMore(true);
     try {
       const response = await flightSearchService({
@@ -356,14 +335,13 @@ export const useFlightSearch = () => {
         departureDate: searchInfo.departure_date,
         passengers: searchInfo.passengers,
         flightClass: toFlightClass(searchInfo.flight_class),
-        page: nextPage,
-        limit: searchInfo.limit,
+        page: 1, // Always use page=1 since API doesn't support page>1
+        limit: nextLimit,
         sortBy: toSortBy(searchInfo.sort_by) as unknown as ApiFlightSortBy,
         sortOrder: toSortOrder(searchInfo.sort_order),
       });
       if (response.status && response.data && isOneWayResponse(response.data)) {
         const incoming = response.data.search_results || [];
-        // Dedupe by flight_id to avoid duplication since page=1 is requested again
         let added = 0;
         setFlightResults((prev) => {
           const existing = new Set(prev.map((f) => f.flight_id));
@@ -377,14 +355,148 @@ export const useFlightSearch = () => {
           return dedup.length > 0 ? [...prev, ...dedup] : prev;
         });
         setLastLoadMoreAdded(added);
-        // Keep page=1 to reflect the service policy; use the one-way payload directly
         const oneWay = response.data; // narrowed by isOneWayResponse
-        setSearchInfo({ ...oneWay, page: 1 });
+        // Preserve total_count/total_pages from latest response, update limit
+        setSearchInfo({ ...oneWay, page: 1, limit: nextLimit });
       }
     } catch (err) {
       setError("Không thể tải thêm chuyến bay");
       if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
         console.error("Load more failed", err);
+      }
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  /** Ensure at least `minVisible` results are loaded in memory (one-way only).
+   * This will fetch subsequent pages until we have enough or there are no more pages.
+   */
+  const ensureLoadedCount = async (minVisible: number) => {
+    if (!searchInfo || !isOneWayResponse(searchInfo)) return;
+    if (flightResults.length >= minVisible) return;
+
+    // Prefer IATA codes from results; fallback to searchInfo fields
+    const fromCode =
+      flightResults[0]?.departure_airport_code || searchInfo.departure_airport;
+    const toCode =
+      flightResults[0]?.arrival_airport_code || searchInfo.arrival_airport;
+
+    const totalPages = searchInfo.total_pages ?? undefined;
+    const limit = searchInfo.limit || 20;
+    let loadedCount = flightResults.length;
+    const maxLoops = 10; // Safety: max 10 increments to avoid infinite loop
+    let loopCount = 0;
+    let currentLimit = limit; // Start with current limit
+
+    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+      console.log("🔄 ensureLoadedCount start (limit-based):", {
+        minVisible,
+        loadedCount,
+        currentLimit,
+        totalPages,
+        totalCount: searchInfo?.total_count,
+      });
+    }
+
+    setIsLoadingMore(true);
+    try {
+      // Loop to increase limit while we need more and haven't exceeded max loops
+      while (loadedCount < minVisible && loopCount < maxLoops) {
+        const nextLimit = currentLimit + 20; // Increase limit by 20 each time
+        if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+          console.log("🔄 ensureLoadedCount loop (limit-based):", {
+            loopCount,
+            loadedCount,
+            minVisible,
+            nextLimit,
+            totalCount: searchInfo?.total_count,
+          });
+        }
+        const response = await flightSearchService({
+          tripType: "oneWay",
+          from: fromCode,
+          to: toCode,
+          departureDate: searchInfo.departure_date,
+          passengers: searchInfo.passengers,
+          flightClass: toFlightClass(searchInfo.flight_class),
+          page: 1, // Always use page=1 since API doesn't support page>1
+          limit: nextLimit,
+          sortBy: toSortBy(searchInfo.sort_by) as unknown as ApiFlightSortBy,
+          sortOrder: toSortOrder(searchInfo.sort_order),
+        });
+        if (
+          response.status &&
+          response.data &&
+          isOneWayResponse(response.data)
+        ) {
+          const incoming = response.data.search_results || [];
+          let added = 0;
+          setFlightResults((prev) => {
+            const existing = new Set(prev.map((f) => f.flight_id));
+            const dedup = incoming.filter((f) => !existing.has(f.flight_id));
+            added = dedup.length;
+            return dedup.length > 0 ? [...prev, ...dedup] : prev;
+          });
+          loadedCount += added;
+          setProgressiveFlights((prev) => {
+            const existing = new Set(prev.map((f) => f.flight_id));
+            const dedup = incoming.filter((f) => !existing.has(f.flight_id));
+            return dedup.length > 0 ? [...prev, ...dedup] : prev;
+          });
+          setLastLoadMoreAdded(added);
+
+          const oneWay = response.data;
+          currentLimit = nextLimit;
+          setSearchInfo({ ...oneWay, page: 1, limit: currentLimit }); // Always page=1
+
+          if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+            console.log("🔄 ensureLoadedCount added (limit-based):", {
+              added,
+              loadedCount,
+              newTotalCount: oneWay.total_count,
+              newLimit: currentLimit,
+            });
+          }
+
+          // If server returned nothing new, break to avoid infinite loop
+          if (added === 0) {
+            if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+              console.log("🔄 ensureLoadedCount: no new results, breaking");
+            }
+            break;
+          }
+
+          // If we've reached the total available, break
+          if (loadedCount >= (oneWay.total_count || 0)) {
+            if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+              console.log(
+                "🔄 ensureLoadedCount: reached total count, breaking"
+              );
+            }
+            break;
+          }
+        } else {
+          if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+            console.log("🔄 ensureLoadedCount: API error, breaking");
+          }
+          break;
+        }
+        loopCount++;
+      }
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.log("🔄 ensureLoadedCount end (limit-based):", {
+          loadedCount,
+          minVisible,
+          loopCount,
+          finalLimit: currentLimit,
+        });
+      }
+    } catch (err) {
+      console.error("🔄 ensureLoadedCount API call failed:", err);
+      setError("Không thể tải thêm chuyến bay");
+      if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+        console.error("ensureLoadedCount failed", err);
       }
     } finally {
       setIsLoadingMore(false);
@@ -601,25 +713,10 @@ export const useFlightSearch = () => {
           setFlightResults(data.outbound_search_results || []);
           setReturnFlightResults(data.inbound_search_results || []);
 
-          // Debug: Check what passengers data we have before normalization
-          if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
-            const asRecord = data as unknown as Record<string, unknown>;
-            console.log("� Raw round-trip API response data:", {
-              data,
-              dataPassengers: data.passengers,
-              passengerCount: asRecord["passenger_count"],
-              passenger: asRecord["passenger"],
-              hasPassengers: "passengers" in data,
-              hasPassenger: "passenger" in asRecord,
-              hasPassengerCount: "passenger_count" in asRecord,
-              dataKeys: Object.keys(asRecord),
-              dataPath: asRecord.data
-                ? Object.keys(asRecord.data as Record<string, unknown>)
-                : [],
-            });
-          }
+          // Note: API doesn't return passenger data - normalization for compatibility
+          const normalizedSearchInfo = normalizeRoundTripResponse(data);
 
-          setSearchInfo(normalizeRoundTripResponse(data));
+          setSearchInfo(normalizedSearchInfo);
           setError(null);
           return;
         }
@@ -766,6 +863,16 @@ export const useFlightSearch = () => {
       setProgressiveFlights([]);
       return;
     }
+
+    // DEBUG: Temporarily disable progressive mode to fix infinite scroll
+    if (import.meta.env?.DEV) {
+      console.log(
+        "⚠️ DEBUG: Skipping progressive reveal for infinite scroll testing"
+      );
+      setProgressiveFlights([]);
+      return;
+    }
+
     if (
       sessionStorage.getItem("flightSearchProgressiveApplied") ===
       lastAppliedSearchIdRef.current
@@ -823,13 +930,32 @@ export const useFlightSearch = () => {
   const displayOneWayFlights = !monthMeta
     ? skeletonActive
       ? []
-      : progressiveFlights.length > 0 ||
+      : // When not in DEV mode, use progressive loading
+      !import.meta.env?.DEV &&
+        (progressiveFlights.length > 0 ||
+          (lastAppliedSearchIdRef.current &&
+            sessionStorage.getItem("flightSearchProgressiveApplied") ===
+              lastAppliedSearchIdRef.current))
+      ? filteredProgressiveFlights
+      : // In DEV mode or when progressive is disabled, use all filtered flights
+        filteredFlights
+    : filteredFlights;
+
+  // DEBUG: Check progressive flights logic
+  if (import.meta.env?.DEV && !monthMeta) {
+    console.log("🎭 displayOneWayFlights logic:", {
+      skeletonActive,
+      progressiveFlightsLength: progressiveFlights.length,
+      filteredProgressiveFlightsLength: filteredProgressiveFlights.length,
+      filteredFlightsLength: filteredFlights.length,
+      usingProgressive:
+        progressiveFlights.length > 0 ||
         (lastAppliedSearchIdRef.current &&
           sessionStorage.getItem("flightSearchProgressiveApplied") ===
-            lastAppliedSearchIdRef.current)
-      ? filteredProgressiveFlights
-      : filteredFlights
-    : filteredFlights;
+            lastAppliedSearchIdRef.current),
+      displayedLength: displayOneWayFlights.length,
+    });
+  }
 
   return {
     showFilters,
@@ -870,6 +996,7 @@ export const useFlightSearch = () => {
     displayOneWayFlights,
     handleAirlineToggle,
     handleLoadMore,
+    ensureLoadedCount,
     revealOtherAirlines,
     clearSelectedFlight,
     handleTabChange,
