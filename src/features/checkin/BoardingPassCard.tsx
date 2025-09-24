@@ -21,6 +21,9 @@ interface BoardingPassCardProps {
   arrivalAirport?: string;
   airlineName?: string;
   flightClass?: string;
+  boardingPassCode?: string;
+  checkinTime?: string;
+  boardingTime?: string;
 }
 
 const BoardingPassCard: React.FC<BoardingPassCardProps> = ({
@@ -34,6 +37,9 @@ const BoardingPassCard: React.FC<BoardingPassCardProps> = ({
   arrivalAirport,
   airlineName = "Flyfe Airlines",
   flightClass = "Economy",
+  boardingPassCode,
+  checkinTime,
+  boardingTime,
 }) => {
   const formatTime = (timeString?: string) => {
     if (!timeString) return "--:--";
@@ -220,22 +226,42 @@ const BoardingPassCard: React.FC<BoardingPassCardProps> = ({
                 </div>
               </div>
 
-              {/* Gate */}
+              {/* Checkin Time */}
               <div className="bg-gray-50 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <MapPin className="h-4 w-4 text-gray-600" />
+                  <Clock className="h-4 w-4 text-gray-600" />
                   <span className="text-xs font-semibold text-gray-600 uppercase">
-                    Cổng
+                    Check-in lúc
                   </span>
                 </div>
-                <div className="text-lg font-bold text-gray-900">A12</div>
+                <div className="text-lg font-bold text-gray-900">
+                  {checkinTime ? formatTime(checkinTime) : "--:--"}
+                </div>
               </div>
             </div>
+            
+            {/* Boarding Time */}
+            {boardingTime && (
+              <div className="bg-blue-50 rounded-xl p-4 mt-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <Clock className="h-5 w-5 text-blue-600" />
+                  <span className="text-xs font-semibold text-blue-800 uppercase">
+                    Giờ lên máy bay
+                  </span>
+                </div>
+                <div className="text-lg font-bold text-blue-900 flex items-center gap-2">
+                  <span>{formatTime(boardingTime)}</span>
+                  <span className="text-sm font-normal text-blue-700">
+                    ({formatDate(boardingTime)})
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Barcode Placeholder */}
             <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-xl p-4">
               <div className="text-center text-xs text-gray-600 mb-2 font-semibold">
-                MÃ VẠCH
+                MÃ BOARDING PASS
               </div>
               <div className="flex justify-center items-center h-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
                 <div className="flex space-x-1">
@@ -248,9 +274,8 @@ const BoardingPassCard: React.FC<BoardingPassCardProps> = ({
                   ))}
                 </div>
               </div>
-              <div className="text-center text-xs text-gray-500 mt-2 font-mono">
-                FL{flightNumber || flight}X{seat.replace(/\D/g, "")}Y
-                {new Date().getFullYear()}
+              <div className="text-center text-sm text-gray-700 mt-2 font-mono font-semibold">
+                {boardingPassCode || `FL${flightNumber || flight}X${seat.replace(/\D/g, "")}Y${new Date().getFullYear()}`}
               </div>
             </div>
 

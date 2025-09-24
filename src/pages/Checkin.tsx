@@ -2,13 +2,15 @@ import React, { useState } from "react";
 import { CheckinForm, BoardingPassCard } from "../features/checkin";
 import { SeatSelection } from "../features/seat-selection";
 import {
-  validateCheckin,
   submitCheckin,
+  validateCheckin,
   type CheckinBooking,
   type CheckinValidatePayload,
+  type CheckinOnlineResponse,
 } from "../services/checkinService";
 import { shouldShowDevControls } from "../shared/config/devConfig";
 import { Plane, Clock, MapPin, Users, CheckCircle } from "lucide-react";
+import { notification } from "antd";
 
 const Checkin: React.FC = () => {
   const [booking, setBooking] = useState<CheckinBooking | null>(null);
@@ -16,6 +18,9 @@ const Checkin: React.FC = () => {
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bookingDetailId, setBookingDetailId] = useState<number | null>(null);
+  const [bookingId, setBookingId] = useState<number | null>(null);
+  const [checkInResponse, setCheckInResponse] = useState<CheckinOnlineResponse | null>(null);
 
   const handleLookup = async (
     pnrCode: string,
@@ -30,23 +35,157 @@ const Checkin: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await validateCheckin(payload);
-      setBooking(data);
-      if (data.seat) setSeat(data.seat);
+      
+      // Call the validateCheckin service
+      const bookingData = await validateCheckin(payload);
+      
+      // Set the booking detail ID and booking ID
+      if (bookingData.bookingDetailId) {
+        setBookingDetailId(bookingData.bookingDetailId);
+      }
+      
+      if (bookingData.bookingId) {
+        setBookingId(bookingData.bookingId);
+        // Log the booking ID for debugging
+        console.log("Booking ID from API:", bookingData.bookingId);
+      }
+      
+      // Set the booking data
+      setBooking(bookingData);
+      
+      // Set the seat if available
+      if (bookingData.seat) {
+        setSeat(bookingData.seat);
+      }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Xác thực thất bại";
-      setError(msg);
+      const errorMessage = e instanceof Error ? e.message : "Xác thực thất bại";
+      console.error("Lookup error:", e);
+      
+      // Handle specific error cases
+      if (errorMessage.includes("already been checked in")) {
+        notification.info({
+          message: "Đã check-in",
+          description: "Chuyến bay này đã được check-in trước đó.",
+          placement: "top",
+          duration: 8
+        });
+      } else if (errorMessage.includes("PNR code not found") || 
+                 errorMessage.includes("not found") || 
+                 errorMessage.includes("Không tìm thấy")) {
+        notification.error({
+          message: "Không tìm thấy chuyến bay",
+          description: "Mã đặt chỗ không hợp lệ hoặc không tồn tại.",
+          placement: "top",
+          duration: 8
+        });
+      }
+      
+      // Set a user-friendly error message
+      const friendlyError = 
+        errorMessage.includes("PNR code not found") ? "Mã đặt chỗ không hợp lệ hoặc không tồn tại" : errorMessage;
+      setError(friendlyError);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSeatConfirm = async (seatIds: string[]) => {
-    if (!booking) return;
-    const seatId = seatIds[0];
-    setSeat(seatId);
-    await submitCheckin(booking.bookingCode, seatId);
-    setDone(true);
+    if (!booking || !bookingDetailId || !bookingId) {
+      notification.error({
+        message: "Lỗi check-in",
+        description: "Không tìm thấy thông tin đặt chỗ. Vui lòng thử lại.",
+        placement: "top"
+      });
+      return;
+    }
+    
+    try {
+      const seatId = seatIds[0];
+      setSeat(seatId);
+      
+      // Log the parameters for debugging
+      console.log("Check-in parameters:", {
+        bookingDetailId,
+        seatId,
+        bookingId
+      });
+      
+      // Call the online check-in API
+      const response = await submitCheckin(bookingDetailId, seatId, bookingId);
+      setCheckInResponse(response);
+      
+      // Show success notification
+      notification.success({
+        message: "Check-in thành công",
+        description: `Đã check-in thành công cho ${response.data.checked_in_count} hành khách.`,
+        placement: "top",
+        duration: 8
+      });
+      
+      setDone(true);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Không thể check-in. Vui lòng thử lại.";
+      console.error("Check-in error:", error);
+      
+      // Special handling for already checked-in error
+      if (errorMessage === "ALREADY_CHECKED_IN") {
+        notification.info({
+          message: "Đã check-in trước đó",
+          description: "Hành khách đã được check-in trước đó, đang tải thông tin boarding pass...",
+          placement: "top",
+          duration: 10
+        });
+        
+        // Try to retrieve the existing boarding pass
+        try {
+          if (booking && bookingDetailId && bookingId) {
+            // Create a mock check-in response with the data we have
+            const mockCheckInResponse = {
+              data: {
+                booking_id: bookingId,
+                flight_number: booking.flightNumber,
+                checkin_time: new Date().toISOString(),
+                boarding_time: booking.departureTime,
+                checked_in_count: 1,
+                boarding_passes: [
+                  {
+                    booking_detail_id: bookingDetailId,
+                    passenger_name: booking.passengerName,
+                    boarding_pass_code: `BP-${booking.bookingCode}-${bookingDetailId}`,
+                    seat_number: seat || booking.seat || "N/A",
+                    flight_class_name: booking.flightClass,
+                    checkin_time: new Date().toISOString(),
+                    status: "checked_in",
+                    flight_class_id: 1
+                  }
+                ]
+              },
+              status: true,
+              errorCode: "",
+              errorMessage: ""
+            };
+            
+            setCheckInResponse(mockCheckInResponse);
+            setDone(true);
+          } else {
+            // If we don't have enough information, fall back to just showing done
+            setDone(true);
+          }
+        } catch (retrieveError) {
+          console.error("Error creating boarding pass view:", retrieveError);
+          setDone(true);
+        }
+        
+        return;
+      }
+      
+      notification.error({
+        message: "Lỗi check-in",
+        description: errorMessage,
+        placement: "top",
+        duration: 10 // Show longer for better visibility
+      });
+    }
   };
 
   const handleDevTest = async () => {
@@ -58,7 +197,7 @@ const Checkin: React.FC = () => {
       await res.json(); // Don't show the data
 
       // Set booking data directly without alert
-      setBooking({
+      const mockBookingData: CheckinBooking = {
         bookingCode: "DEV318",
         flightId: 318,
         passengerName: "Dev Tester",
@@ -69,11 +208,20 @@ const Checkin: React.FC = () => {
         arrivalAirport: "Sân Bay Tân Sơn Nhất(SGN)",
         airlineName: "VietJet Air",
         flightClass: "economy",
-      });
+        bookingId: 124,
+        bookingDetailId: 151
+      };
+      
+      setBooking(mockBookingData);
+      setBookingDetailId(mockBookingData.bookingDetailId || null);
+      setBookingId(mockBookingData.bookingId || null);
+      
+      // Log the test booking ID for debugging
+      console.log("Test Booking ID set to:", 124);
     } catch (err) {
       console.error("DEV fetch failed:", err);
       // Still set the mock data even if API fails
-      setBooking({
+      const mockBookingData: CheckinBooking = {
         bookingCode: "DEV318",
         flightId: 318,
         passengerName: "Dev Tester",
@@ -84,7 +232,13 @@ const Checkin: React.FC = () => {
         arrivalAirport: "Sân Bay Tân Sơn Nhất(SGN)",
         airlineName: "VietJet Air",
         flightClass: "economy",
-      });
+        bookingId: 124,
+        bookingDetailId: 151
+      };
+      
+      setBooking(mockBookingData);
+      setBookingDetailId(mockBookingData.bookingDetailId || null);
+      setBookingId(mockBookingData.bookingId || null);
     }
   };
 
@@ -102,20 +256,44 @@ const Checkin: React.FC = () => {
   }
 
   if (done) {
-    return (
-      <BoardingPassCard
-        passengerName={booking.passengerName}
-        flight={booking.flightId.toString()}
-        seat={seat}
-        flightNumber={booking.flightNumber}
-        departureTime={booking.departureTime}
-        arrivalTime={booking.arrivalTime}
-        departureAirport={booking.departureAirport}
-        arrivalAirport={booking.arrivalAirport}
-        airlineName={booking.airlineName}
-        flightClass={booking.flightClass}
-      />
-    );
+    if (checkInResponse && checkInResponse.data.boarding_passes && checkInResponse.data.boarding_passes.length > 0) {
+      // Use boarding pass data from the check-in response
+      const boardingPass = checkInResponse.data.boarding_passes[0];
+      
+      return (
+        <BoardingPassCard
+          passengerName={boardingPass.passenger_name}
+          flight={booking?.flightId.toString() || ""}
+          seat={boardingPass.seat_number}
+          flightNumber={checkInResponse.data.flight_number || booking?.flightNumber || ""}
+          departureTime={booking?.departureTime || ""}
+          arrivalTime={booking?.arrivalTime || ""}
+          departureAirport={booking?.departureAirport || ""}
+          arrivalAirport={booking?.arrivalAirport || ""}
+          airlineName={booking?.airlineName || ""}
+          flightClass={boardingPass.flight_class_name || booking?.flightClass || ""}
+          boardingPassCode={boardingPass.boarding_pass_code}
+          checkinTime={boardingPass.checkin_time}
+          boardingTime={checkInResponse.data.boarding_time}
+        />
+      );
+    } else {
+      // Fallback to original logic if check-in response is not available
+      return (
+        <BoardingPassCard
+          passengerName={booking?.passengerName || ""}
+          flight={booking?.flightId.toString() || ""}
+          seat={seat || booking?.seat || ""}
+          flightNumber={booking?.flightNumber || ""}
+          departureTime={booking?.departureTime || ""}
+          arrivalTime={booking?.arrivalTime || ""}
+          departureAirport={booking?.departureAirport || ""}
+          arrivalAirport={booking?.arrivalAirport || ""}
+          airlineName={booking?.airlineName || ""}
+          flightClass={booking?.flightClass || ""}
+        />
+      );
+    }
   }
 
   return (
