@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Plane } from "lucide-react";
 import FlightCard from "./FlightCard";
+import type { FlightCardProps } from "../../shared/types/flight-card.types";
 import type { FlightSearchApiResult } from "../../shared/types/search-api.types";
 
 interface OneWayFlightListProps {
@@ -65,20 +66,23 @@ const OneWayFlightList: React.FC<OneWayFlightListProps> = ({
   return (
     <div className="space-y-3">
       {flights.map((flight, index) => {
-        const airlineInfo =
-          vietnameseAirlines.find(
-            (a) => a.name.toLowerCase() === flight.airline_name.toLowerCase()
-          ) || vietnameseAirlines[0];
+        const airlineInfo = vietnameseAirlines.find(
+          (a) => a.name.toLowerCase() === flight.airline_name.toLowerCase()
+        ) ||
+          vietnameseAirlines[0] || {
+            logo: "",
+          };
+        const airlineLogo = airlineInfo?.logo ?? "";
 
         return (
           <FlightCard
             key={`${flight.flight_id}-${index}-${flight.flight_number}`}
-            flight={flight}
+            flight={flight as FlightCardProps["flight"]}
             isExpanded={expandedFlightId === flight.flight_id}
             onToggleDetails={() => toggleFlightDetails(flight.flight_id)}
             onSelect={() => onFlightSelect(flight)}
             sortBy={sortBy}
-            airlineLogo={airlineInfo.logo}
+            airlineLogo={airlineLogo}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
           />

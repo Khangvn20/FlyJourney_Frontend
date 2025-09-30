@@ -68,7 +68,7 @@ const MonthOverviewHeatmap: React.FC<MonthOverviewHeatmapProps> = ({
     <div className="p-4 rounded-xl border bg-white shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-semibold text-gray-800">
-          Tổng quan giá NL (thuế/phí) theo ngày
+          Tổng quan giá (thuế/phí) theo ngày
         </h4>
         <div className="flex items-center gap-2 text-[10px] font-medium">
           <span className="px-2 py-0.5 rounded bg-green-500 text-white">
@@ -93,7 +93,7 @@ const MonthOverviewHeatmap: React.FC<MonthOverviewHeatmapProps> = ({
             } ${d.count > 0 ? "cursor-pointer" : "cursor-default"}`}
             title={
               d.count > 0
-                ? `Ngày ${d.dayStr}\n${d.count} chuyến • Giá NL (thuế/phí): ${formatPrice(d.minPrice ?? 0)}`
+                ? `Ngày ${d.dayStr}\n${d.count} chuyến • Giá (thuế/phí): ${formatPrice(d.minPrice ?? 0)}`
                 : `Ngày ${d.dayStr}\nKhông có chuyến bay`
             }>
             <span>{d.dayStr.split("/")[0]}</span>

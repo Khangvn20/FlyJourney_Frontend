@@ -5,7 +5,6 @@ import FlightSearchForm from "../components/flight/FlightSearchForm";
 import FilterSidebar from "../components/flight/FilterSidebar";
 import OneWayFlightList from "../components/flight/OneWayFlightList";
 import RoundTripFlightList from "../components/flight/RoundTripFlightList";
-import RoundTripStepper from "../components/flight/RoundTripStepper";
 import RoundTripSummary from "../components/flight/RoundTripSummary";
 import FlightResultsOverview from "../components/flight/FlightResultsOverview";
 import FlightInfiniteScroll from "../components/common/FlightInfiniteScroll";
@@ -42,7 +41,6 @@ const Search: React.FC = () => {
     setShowMonthOverview,
     monthMeta,
     bookingStep,
-    setBookingStep,
     selectedOutboundFlight,
     setSelectedOutboundFlight,
     selectedInboundFlight,
@@ -162,6 +160,28 @@ const Search: React.FC = () => {
     setCurrentLoadedCount(nextCount);
   };
 
+  const effectivePassengerCounts = useMemo(() => {
+    if (passengerCounts) {
+      return passengerCounts;
+    }
+    if (formData?.passengers) {
+      return formData.passengers;
+    }
+    if (
+      searchInfo &&
+      isRoundTripResponse(searchInfo) &&
+      searchInfo.passengers
+    ) {
+      const pax = searchInfo.passengers;
+      return {
+        adults: pax.adults ?? 0,
+        children: pax.children ?? 0,
+        infants: pax.infants ?? 0,
+      };
+    }
+    return null;
+  }, [passengerCounts, formData, searchInfo]);
+
   const proceedToBooking = (flight: FlightSearchApiResult) => {
     const bookingSelection = {
       tripType: "one-way" as const,
@@ -212,19 +232,23 @@ const Search: React.FC = () => {
     }
   };
 
-  const handleFlightSelection = (flight: FlightSearchApiResult) => {
+  const handleFlightSelection = (
+    direction: "outbound" | "inbound",
+    flight: FlightSearchApiResult
+  ) => {
     if (tripType === "round-trip") {
-      if (bookingStep === 1) {
+      if (direction === "outbound") {
         setSelectedOutboundFlight(flight);
-        setBookingStep(2);
-      } else if (bookingStep === 2) {
+      } else {
         setSelectedInboundFlight(flight);
-        setBookingStep(3);
       }
     } else {
       proceedToBooking(flight);
     }
   };
+
+  const handleOneWaySelection = (flight: FlightSearchApiResult) =>
+    handleFlightSelection("outbound", flight);
 
   // Suggestions fetched from API (all airlines): show regardless of current non-airline filters
   const otherAirlineSuggestions = useMemo(() => {
@@ -469,29 +493,21 @@ const Search: React.FC = () => {
               </div>
             ) : tripType === "round-trip" ? (
               <div className="space-y-4">
-                <RoundTripStepper
-                  bookingStep={bookingStep}
-                  outbound={selectedOutboundFlight}
-                  inbound={selectedInboundFlight}
-                  searchInfo={searchInfo}
-                />
                 {bookingStep === 3 &&
                 selectedOutboundFlight &&
                 selectedInboundFlight ? (
                   <RoundTripSummary
                     outbound={selectedOutboundFlight}
                     inbound={selectedInboundFlight}
+                    passengerCounts={effectivePassengerCounts}
                     onEditOutbound={() => clearSelectedFlight("outbound")}
                     onEditInbound={() => clearSelectedFlight("inbound")}
                     onConfirm={confirmSelection}
                   />
                 ) : (
                   <RoundTripFlightList
-                    flights={
-                      bookingStep === 2
-                        ? filteredReturnFlights
-                        : filteredFlights
-                    }
+                    outboundFlights={filteredFlights}
+                    inboundFlights={filteredReturnFlights}
                     activeTab={activeTab}
                     setActiveTab={handleTabChange}
                     selectedOutboundFlight={selectedOutboundFlight}
@@ -502,8 +518,6 @@ const Search: React.FC = () => {
                     vietnameseAirlines={vietnameseAirlines}
                     searchInfo={searchInfo}
                     error={error}
-                    disableInboundTab={!selectedOutboundFlight}
-                    bookingStep={bookingStep}
                   />
                 )}
               </div>
@@ -536,7 +550,7 @@ const Search: React.FC = () => {
                           flights={dayGroup.flights}
                           sortBy={filters.sortBy}
                           vietnameseAirlines={vietnameseAirlines}
-                          onFlightSelect={handleFlightSelection}
+                          onFlightSelect={handleOneWaySelection}
                           error={error}
                         />
                       )}
@@ -554,7 +568,7 @@ const Search: React.FC = () => {
                 flights={visibleOneWayFlights}
                 sortBy={filters.sortBy}
                 vietnameseAirlines={vietnameseAirlines}
-                onFlightSelect={handleFlightSelection}
+                onFlightSelect={handleOneWaySelection}
                 error={error}
               />
             )}

@@ -271,7 +271,7 @@ export const useFlightSearch = () => {
   >([]);
 
   // Round-trip UI
-  const [bookingStep, setBookingStep] = useState<1 | 2 | 3>(1);
+  const [activeTab, setActiveTab] = useState<TripTab>("outbound");
   const [selectedOutboundFlight, setSelectedOutboundFlight] =
     useState<FlightSearchApiResult | null>(null);
   const [selectedInboundFlight, setSelectedInboundFlight] =
@@ -313,9 +313,14 @@ export const useFlightSearch = () => {
     selectedAirlines,
     filters,
   });
-  const activeTab: TripTab = bookingStep === 2 ? "inbound" : "outbound";
   const activeFlightResults =
     activeTab === "inbound" ? filteredReturnFlights : filteredFlights;
+
+  const bookingStep: 1 | 2 | 3 = useMemo(() => {
+    if (selectedOutboundFlight && selectedInboundFlight) return 3;
+    if (selectedOutboundFlight || selectedInboundFlight) return 2;
+    return 1;
+  }, [selectedOutboundFlight, selectedInboundFlight]);
 
   // Per-day filter (month)
   const filteredPerDayResults = useMemo(() => {
@@ -341,7 +346,7 @@ export const useFlightSearch = () => {
 
   // Current flights (for header)
   const currentFlights =
-    tripType === "round-trip" && bookingStep === 2
+    tripType === "round-trip" && activeTab === "inbound"
       ? filteredReturnFlights
       : filteredFlights;
 
@@ -357,22 +362,14 @@ export const useFlightSearch = () => {
   const clearSelectedFlight = (direction: TripTab) => {
     if (direction === "outbound") {
       setSelectedOutboundFlight(null);
-      setSelectedInboundFlight(null);
-      setBookingStep(1);
     } else {
       setSelectedInboundFlight(null);
-      setBookingStep(2);
     }
+    setActiveTab(direction);
   };
 
   const handleTabChange = (tab: TripTab) => {
-    if (tab === "inbound") {
-      if (selectedOutboundFlight) {
-        setBookingStep(2);
-      }
-    } else {
-      setBookingStep(1);
-    }
+    setActiveTab(tab);
   };
 
   /* ============ Load more (one-way only) ============ */
@@ -670,7 +667,7 @@ export const useFlightSearch = () => {
 
     // Reset to outbound whenever new results are loaded so filters and lists
     // initialize in sync
-    setBookingStep(1);
+    setActiveTab("outbound");
     setSelectedOutboundFlight(null);
     setSelectedInboundFlight(null);
     setTripType(storedTripType);
@@ -920,7 +917,9 @@ export const useFlightSearch = () => {
         | null;
       if (t) {
         setTripType(t);
-        if (t !== "round-trip") setBookingStep(1);
+        if (t !== "round-trip") {
+          setActiveTab("outbound");
+        }
       }
     };
 
@@ -960,7 +959,6 @@ export const useFlightSearch = () => {
     lastLoadMoreAdded,
     suggestionFlights,
     bookingStep,
-    setBookingStep,
     selectedOutboundFlight,
     setSelectedOutboundFlight,
     selectedInboundFlight,
@@ -970,6 +968,7 @@ export const useFlightSearch = () => {
     filteredReturnFlights,
     filteredPerDayResults,
     activeTab,
+    setActiveTab,
     activeFlightResults,
     currentFlights,
     handleAirlineToggle,
