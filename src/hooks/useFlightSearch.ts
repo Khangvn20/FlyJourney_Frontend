@@ -13,6 +13,7 @@ import type {
   FlightSearchApiResponse,
   RoundTripFlightSearchApiResponse,
 } from "../shared/types/search-api.types";
+import type { PassengerCounts, PassengerCountsLike } from "../shared/types";
 import {
   isRoundTripResponse,
   isOneWayResponse,
@@ -140,16 +141,31 @@ function normalizeRoundTripResponse(
   // Đảm bảo normalizePassengersFromAny nhận được giá trị
   const pax = normalizePassengersFromAny(src);
 
-  // Note: Passenger normalization for compatibility, but API likely doesn't return passenger data
+  // Don't override passenger data if API doesn't return valid data
+  // Let the component use form data instead
+  const shouldUseApiPassengerData =
+    pax.adults > 0 || pax.children > 0 || pax.infants > 0;
 
   return {
     ...data,
-    passengers: {
-      adults: pax.adults,
-      children: pax.children,
-      infants: pax.infants,
-    },
+    // Only use API passenger data if it's valid, otherwise don't include it
+    ...(shouldUseApiPassengerData && {
+      passengers: {
+        adults: pax.adults,
+        children: pax.children,
+        infants: pax.infants,
+      },
+    }),
   };
+}
+
+function toPassengerCountsOrNull(input: unknown): PassengerCounts | null {
+  const normalized = normalizePassengersFromAny(input);
+  return normalized.adults > 0 ||
+    normalized.children > 0 ||
+    normalized.infants > 0
+    ? normalized
+    : null;
 }
 
 export const useFlightSearch = () => {
@@ -158,9 +174,9 @@ export const useFlightSearch = () => {
   const [selectedAirlines, setSelectedAirlines] = useState<string[]>([]);
   const [filters, setFilters] = useState<FlightFilterCriteria>({
     priceRange: "all",
-    departureTime: "all",
+    departureTime: [],
     stops: "all",
-    duration: "all",
+    duration: [],
     sortBy: "price",
   });
 
@@ -174,6 +190,64 @@ export const useFlightSearch = () => {
   const [searchInfo, setSearchInfo] = useState<FlightSearchResponseData | null>(
     null
   );
+  const [passengerCounts, setPassengerCounts] =
+    useState<PassengerCounts | null>(null);
+  const latestRequestedPassengersRef = useRef<PassengerCounts | null>(null);
+
+  const arePassengerCountsEqual = (
+    a: PassengerCounts | null,
+    b: PassengerCounts | null
+  ) =>
+    !!a &&
+    !!b &&
+    a.adults === b.adults &&
+    a.children === b.children &&
+    a.infants === b.infants;
+
+  const applyPassengerCounts = (
+    raw: unknown,
+    fallback?: PassengerCountsLike | null
+  ): PassengerCounts | null => {
+    const normalized = toPassengerCountsOrNull(raw);
+    const fallbackNormalized =
+      fallback != null ? toPassengerCountsOrNull(fallback) : null;
+    const requested = latestRequestedPassengersRef.current;
+    const candidate = normalized ?? fallbackNormalized;
+    const shouldPreferRequested =
+      requested && candidate && !arePassengerCountsEqual(candidate, requested);
+    const next = shouldPreferRequested
+      ? requested
+      : candidate ?? requested ?? null;
+    if (next) {
+      latestRequestedPassengersRef.current = next;
+      setPassengerCounts(next);
+      return next;
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    const handleFlightSearchRequested: EventListener = (event) => {
+      const custom = event as CustomEvent<{
+        passengers?: PassengerCounts | null;
+      }>;
+      const incoming = toPassengerCountsOrNull(custom.detail?.passengers);
+      latestRequestedPassengersRef.current = incoming;
+      setPassengerCounts(incoming);
+    };
+
+    window.addEventListener(
+      "flightSearchRequested",
+      handleFlightSearchRequested
+    );
+
+    return () => {
+      window.removeEventListener(
+        "flightSearchRequested",
+        handleFlightSearchRequested
+      );
+    };
+  }, []);
 
   // Month
   const [perDayResults, setPerDayResults] = useState<PerDayFlightsGroup[]>([]);
@@ -188,14 +262,6 @@ export const useFlightSearch = () => {
   const [error, setError] = useState<string | null>(null);
   const [showMonthOverview, setShowMonthOverview] = useState(true);
 
-  // Progressive UX
-  const [skeletonActive, setSkeletonActive] = useState(false);
-  const [progressiveFlights, setProgressiveFlights] = useState<
-    FlightSearchApiResult[]
-  >([]);
-  const progressiveTimerRef = useRef<number | null>(null);
-  const skeletonTimerRef = useRef<number | null>(null);
-  const lastAppliedSearchIdRef = useRef<string | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [lastLoadMoreAdded, setLastLoadMoreAdded] = useState<number | null>(
     null
@@ -244,11 +310,6 @@ export const useFlightSearch = () => {
   });
   const { filteredFlights: filteredReturnFlights } = useFlightFilters({
     flights: returnFlightResults,
-    selectedAirlines,
-    filters,
-  });
-  const { filteredFlights: filteredProgressiveFlights } = useFlightFilters({
-    flights: progressiveFlights,
     selectedAirlines,
     filters,
   });
@@ -349,14 +410,10 @@ export const useFlightSearch = () => {
           added = dedup.length;
           return dedup.length > 0 ? [...prev, ...dedup] : prev;
         });
-        setProgressiveFlights((prev) => {
-          const existing = new Set(prev.map((f) => f.flight_id));
-          const dedup = incoming.filter((f) => !existing.has(f.flight_id));
-          return dedup.length > 0 ? [...prev, ...dedup] : prev;
-        });
         setLastLoadMoreAdded(added);
         const oneWay = response.data; // narrowed by isOneWayResponse
         // Preserve total_count/total_pages from latest response, update limit
+        applyPassengerCounts(oneWay.passengers);
         setSearchInfo({ ...oneWay, page: 1, limit: nextLimit });
       }
     } catch (err) {
@@ -439,15 +496,11 @@ export const useFlightSearch = () => {
             return dedup.length > 0 ? [...prev, ...dedup] : prev;
           });
           loadedCount += added;
-          setProgressiveFlights((prev) => {
-            const existing = new Set(prev.map((f) => f.flight_id));
-            const dedup = incoming.filter((f) => !existing.has(f.flight_id));
-            return dedup.length > 0 ? [...prev, ...dedup] : prev;
-          });
           setLastLoadMoreAdded(added);
 
           const oneWay = response.data;
           currentLimit = nextLimit;
+          applyPassengerCounts(oneWay.passengers);
           setSearchInfo({ ...oneWay, page: 1, limit: currentLimit }); // Always page=1
 
           if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
@@ -626,6 +679,9 @@ export const useFlightSearch = () => {
       setFlightResults([]);
       setReturnFlightResults([]);
       setSearchInfo(null);
+      // Preserve the latest requested passengers so UI reflects the current search
+      // even while we wait for new API results to arrive.
+      setPassengerCounts(latestRequestedPassengersRef.current);
       setPerDayResults([]);
       setMonthMeta(null);
       setError(null);
@@ -644,7 +700,9 @@ export const useFlightSearch = () => {
         setMonthMeta(meta);
         setFlightResults(flatFlights);
         setReturnFlightResults([]);
-        const pax = normalizePassengersFromAny(agg.passengers);
+        const pax =
+          applyPassengerCounts(agg.passengers) ??
+          normalizePassengersFromAny(agg.passengers);
         const info: FlightSearchApiResponse = {
           arrival_airport: agg.arrival_airport,
           arrival_date: agg.arrival_date,
@@ -680,7 +738,8 @@ export const useFlightSearch = () => {
           const root = data as unknown as SafeObj;
           const pObj =
             getObj(root, "passengers") ?? getObj(root, "passenger") ?? {};
-          const pax = normalizePassengersFromAny(pObj);
+          const pax =
+            applyPassengerCounts(pObj) ?? normalizePassengersFromAny(pObj);
           const searchInfoRound: RoundTripFlightSearchApiResponse = {
             arrival_airport: getStr(root, "arrival_airport") ?? "",
             departure_airport: getStr(root, "departure_airport") ?? "",
@@ -713,8 +772,16 @@ export const useFlightSearch = () => {
           setFlightResults(data.outbound_search_results || []);
           setReturnFlightResults(data.inbound_search_results || []);
 
-          // Note: API doesn't return passenger data - normalization for compatibility
           const normalizedSearchInfo = normalizeRoundTripResponse(data);
+          const roundTripRaw = data as unknown as SafeObj;
+          const passengerSource =
+            roundTripRaw["passenger_count"] ??
+            roundTripRaw["passengers"] ??
+            normalizedSearchInfo.passengers;
+          applyPassengerCounts(
+            passengerSource,
+            normalizedSearchInfo.passengers
+          );
 
           setSearchInfo(normalizedSearchInfo);
           setError(null);
@@ -726,7 +793,9 @@ export const useFlightSearch = () => {
             Array.isArray(data.search_results) ? data.search_results : []
           );
           setReturnFlightResults([]);
-          setSearchInfo(normalizeOneWayResponse(data));
+          const normalizedOneWay = normalizeOneWayResponse(data);
+          applyPassengerCounts(normalizedOneWay.passengers ?? data.passengers);
+          setSearchInfo(normalizedOneWay);
           setError(null);
           return;
         }
@@ -735,6 +804,8 @@ export const useFlightSearch = () => {
         setFlightResults([]);
         setReturnFlightResults([]);
         setSearchInfo(null);
+        latestRequestedPassengersRef.current = null;
+        setPassengerCounts(null);
         return;
       }
 
@@ -745,6 +816,8 @@ export const useFlightSearch = () => {
         setFlightResults([]);
         setReturnFlightResults([]);
         setSearchInfo(null);
+        latestRequestedPassengersRef.current = null;
+        setPassengerCounts(null);
         return;
       }
 
@@ -758,7 +831,8 @@ export const useFlightSearch = () => {
         const root = data as unknown as SafeObj;
         const pObj2 =
           getObj(root, "passengers") ?? getObj(root, "passenger") ?? {};
-        const pax2 = normalizePassengersFromAny(pObj2);
+        const pax2 =
+          applyPassengerCounts(pObj2) ?? normalizePassengersFromAny(pObj2);
         const searchInfoRound: RoundTripFlightSearchApiResponse = {
           arrival_airport: getStr(root, "arrival_airport") ?? "",
           departure_airport: getStr(root, "departure_airport") ?? "",
@@ -787,7 +861,14 @@ export const useFlightSearch = () => {
         setTripType("round-trip");
         setFlightResults(data.outbound_search_results || []);
         setReturnFlightResults(data.inbound_search_results || []);
-        setSearchInfo(normalizeRoundTripResponse(data));
+        const normalizedRoundTrip = normalizeRoundTripResponse(data);
+        const wrapperRaw = data as unknown as SafeObj;
+        const passengerSource =
+          wrapperRaw["passenger_count"] ??
+          wrapperRaw["passengers"] ??
+          normalizedRoundTrip.passengers;
+        applyPassengerCounts(passengerSource, normalizedRoundTrip.passengers);
+        setSearchInfo(normalizedRoundTrip);
         setError(null);
       } else if (isOneWayResponse(data)) {
         setTripType("one-way");
@@ -795,13 +876,17 @@ export const useFlightSearch = () => {
           Array.isArray(data.search_results) ? data.search_results : []
         );
         setReturnFlightResults([]);
-        setSearchInfo(normalizeOneWayResponse(data));
+        const normalizedOneWay = normalizeOneWayResponse(data);
+        applyPassengerCounts(normalizedOneWay.passengers ?? data.passengers);
+        setSearchInfo(normalizedOneWay);
         setError(null);
       } else {
         setError("Unsupported search result schema");
         setFlightResults([]);
         setReturnFlightResults([]);
         setSearchInfo(null);
+        latestRequestedPassengersRef.current = null;
+        setPassengerCounts(null);
       }
     } catch (err) {
       if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
@@ -811,6 +896,8 @@ export const useFlightSearch = () => {
       setFlightResults([]);
       setReturnFlightResults([]);
       setSearchInfo(null);
+      latestRequestedPassengersRef.current = null;
+      setPassengerCounts(null);
     }
   };
 
@@ -818,81 +905,6 @@ export const useFlightSearch = () => {
   useEffect(() => {
     loadSearchResults();
   }, []);
-
-  // Progressive reveal
-  useEffect(() => {
-    if (monthMeta) return;
-    const storedId = sessionStorage.getItem("flightSearchSearchId");
-    if (storedId && storedId !== lastAppliedSearchIdRef.current) {
-      lastAppliedSearchIdRef.current = storedId;
-      const started = Number(
-        sessionStorage.getItem("flightSearchStartedAt") || Date.now()
-      );
-      const now = Date.now();
-      const SKELETON_MS = 500;
-      const remaining = Math.max(0, SKELETON_MS - (now - started));
-      setSkeletonActive(true);
-      setProgressiveFlights([]);
-      if (skeletonTimerRef.current)
-        window.clearTimeout(skeletonTimerRef.current);
-      skeletonTimerRef.current = window.setTimeout(() => {
-        setSkeletonActive(false);
-        triggerProgressiveReveal();
-      }, remaining);
-    } else if (!skeletonActive) {
-      triggerProgressiveReveal();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flightResults, returnFlightResults, monthMeta]);
-
-  const groupFlightsByAirline = (flights: FlightSearchApiResult[]) => {
-    const map = new Map<string, FlightSearchApiResult[]>();
-    flights.forEach((f) => {
-      const key = f.airline_name || "UNKNOWN";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(f);
-    });
-    return Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([, arr]) => arr);
-  };
-
-  const triggerProgressiveReveal = () => {
-    if (skeletonActive || monthMeta) return;
-    if (!flightResults || flightResults.length === 0) {
-      setProgressiveFlights([]);
-      return;
-    }
-
-    // DEBUG: Temporarily disable progressive mode to fix infinite scroll
-    if (import.meta.env?.DEV) {
-      console.log(
-        "⚠️ DEBUG: Skipping progressive reveal for infinite scroll testing"
-      );
-      setProgressiveFlights([]);
-      return;
-    }
-
-    if (
-      sessionStorage.getItem("flightSearchProgressiveApplied") ===
-      lastAppliedSearchIdRef.current
-    ) {
-      return;
-    }
-    sessionStorage.setItem(
-      "flightSearchProgressiveApplied",
-      lastAppliedSearchIdRef.current || ""
-    );
-    const groups = groupFlightsByAirline(flightResults);
-    let idx = 0;
-    const applyNext = () => {
-      if (idx >= groups.length) return;
-      setProgressiveFlights((prev) => [...prev, ...groups[idx]]);
-      idx++;
-      progressiveTimerRef.current = window.setTimeout(applyNext, 300);
-    };
-    applyNext();
-  };
 
   useEffect(() => {
     const handleStorageChange = () => {
@@ -926,37 +938,6 @@ export const useFlightSearch = () => {
     };
   }, []);
 
-  // One-way list to display
-  const displayOneWayFlights = !monthMeta
-    ? skeletonActive
-      ? []
-      : // When not in DEV mode, use progressive loading
-      !import.meta.env?.DEV &&
-        (progressiveFlights.length > 0 ||
-          (lastAppliedSearchIdRef.current &&
-            sessionStorage.getItem("flightSearchProgressiveApplied") ===
-              lastAppliedSearchIdRef.current))
-      ? filteredProgressiveFlights
-      : // In DEV mode or when progressive is disabled, use all filtered flights
-        filteredFlights
-    : filteredFlights;
-
-  // DEBUG: Check progressive flights logic
-  if (import.meta.env?.DEV && !monthMeta) {
-    console.log("🎭 displayOneWayFlights logic:", {
-      skeletonActive,
-      progressiveFlightsLength: progressiveFlights.length,
-      filteredProgressiveFlightsLength: filteredProgressiveFlights.length,
-      filteredFlightsLength: filteredFlights.length,
-      usingProgressive:
-        progressiveFlights.length > 0 ||
-        (lastAppliedSearchIdRef.current &&
-          sessionStorage.getItem("flightSearchProgressiveApplied") ===
-            lastAppliedSearchIdRef.current),
-      displayedLength: displayOneWayFlights.length,
-    });
-  }
-
   return {
     showFilters,
     setShowFilters,
@@ -967,6 +948,7 @@ export const useFlightSearch = () => {
     flightResults,
     returnFlightResults,
     searchInfo,
+    passengerCounts,
     perDayResults,
     monthMeta,
     tripType,
@@ -974,8 +956,6 @@ export const useFlightSearch = () => {
     error,
     showMonthOverview,
     setShowMonthOverview,
-    skeletonActive,
-    progressiveFlights,
     isLoadingMore,
     lastLoadMoreAdded,
     suggestionFlights,
@@ -988,12 +968,10 @@ export const useFlightSearch = () => {
     vietnameseAirlines,
     filteredFlights,
     filteredReturnFlights,
-    filteredProgressiveFlights,
     filteredPerDayResults,
     activeTab,
     activeFlightResults,
     currentFlights,
-    displayOneWayFlights,
     handleAirlineToggle,
     handleLoadMore,
     ensureLoadedCount,

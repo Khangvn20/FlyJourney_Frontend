@@ -15,7 +15,6 @@ interface OneWayFlightListProps {
   }>;
   onFlightSelect: (flight: FlightSearchApiResult) => void;
   error: string | null;
-  suppressEmpty?: boolean; // when true, don't show empty state (e.g., during skeleton phase)
 }
 
 const OneWayFlightList: React.FC<OneWayFlightListProps> = ({
@@ -24,7 +23,6 @@ const OneWayFlightList: React.FC<OneWayFlightListProps> = ({
   vietnameseAirlines,
   onFlightSelect,
   error,
-  suppressEmpty,
 }) => {
   const [expandedFlightId, setExpandedFlightId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<string>("flight");
@@ -48,7 +46,7 @@ const OneWayFlightList: React.FC<OneWayFlightListProps> = ({
     );
   }
 
-  if (flights.length === 0 && !suppressEmpty) {
+  if (flights.length === 0) {
     return (
       <Card className="border border-gray-200">
         <CardContent className="p-8 text-center">

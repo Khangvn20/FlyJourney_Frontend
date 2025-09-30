@@ -4,6 +4,12 @@ export interface PassengerCounts {
   infants: number;
 }
 
+export type PassengerCountsLike = Partial<{
+  adults: number | string | null | undefined;
+  children: number | string | null | undefined;
+  infants: number | string | null | undefined;
+}>;
+
 export interface FlightSegment {
   from: string;
   to: string;

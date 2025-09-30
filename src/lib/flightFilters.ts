@@ -2,9 +2,9 @@ import type { FlightSearchApiResult } from "../shared/types/search-api.types";
 
 export interface FlightFilterCriteria {
   priceRange: string;
-  departureTime: string;
+  departureTime: string[];
   stops: string;
-  duration: string;
+  duration: string[];
   sortBy: string;
 }
 
@@ -55,23 +55,22 @@ export const filterAndSortFlights = ({
         if (!airlineMatch) return false;
       }
 
-      if (filters.departureTime !== "all") {
+      if (filters.departureTime.length > 0) {
         const departureHour = getHourFromDepartureTime(flight.departure_time);
-        let timeMatch = false;
-        switch (filters.departureTime) {
-          case "morning":
-            timeMatch = departureHour >= 6 && departureHour < 12;
-            break;
-          case "afternoon":
-            timeMatch = departureHour >= 12 && departureHour < 18;
-            break;
-          case "evening":
-            timeMatch = departureHour >= 18 && departureHour < 24;
-            break;
-          case "night":
-            timeMatch = departureHour >= 0 && departureHour < 6;
-            break;
-        }
+        const timeMatch = filters.departureTime.some((timeSlot) => {
+          switch (timeSlot) {
+            case "morning":
+              return departureHour >= 6 && departureHour < 12;
+            case "afternoon":
+              return departureHour >= 12 && departureHour < 18;
+            case "evening":
+              return departureHour >= 18 && departureHour < 24;
+            case "night":
+              return departureHour >= 0 && departureHour < 6;
+            default:
+              return false;
+          }
+        });
         if (!timeMatch) return false;
       }
 
@@ -91,21 +90,21 @@ export const filterAndSortFlights = ({
         if (!stopsMatch) return false;
       }
 
-      if (filters.duration !== "all") {
-        let durationMatch = false;
-        switch (filters.duration) {
-          case "short":
-            durationMatch = flight.duration_minutes <= 120;
-            break;
-          case "medium":
-            durationMatch =
-              flight.duration_minutes > 120 &&
-              flight.duration_minutes <= 300;
-            break;
-          case "long":
-            durationMatch = flight.duration_minutes > 300;
-            break;
-        }
+      if (filters.duration.length > 0) {
+        const durationMatch = filters.duration.some((durationType) => {
+          switch (durationType) {
+            case "short":
+              return flight.duration_minutes <= 120;
+            case "medium":
+              return (
+                flight.duration_minutes > 120 && flight.duration_minutes <= 300
+              );
+            case "long":
+              return flight.duration_minutes > 300;
+            default:
+              return false;
+          }
+        });
         if (!durationMatch) return false;
       }
 
@@ -131,4 +130,3 @@ export const filterAndSortFlights = ({
       return result;
     });
 };
-

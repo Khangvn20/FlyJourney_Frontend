@@ -43,6 +43,22 @@ interface RoundTripSearchRequest {
   airline_ids?: number[]; // Add airline filtering
 }
 
+/**
+ * BACKEND API INCONSISTENCY NOTE:
+ *
+ * There's an inconsistency in the backend API:
+ * - One-way search API expects "passenger" (singular) in the request
+ * - Round-trip search API expects "passengers" (plural) in the request
+ *
+ * Additionally, the responses are also inconsistent:
+ * - One-way search API returns "passengers" in the response
+ * - Round-trip search API returns "passenger_count" in the response
+ *
+ * To accommodate this inconsistency, we need to use the correct parameter name for each request type:
+ * 1. For one-way requests: use "passenger" (singular)
+ * 2. For round-trip requests: use "passengers" (plural)
+ */
+
 // Function to load saved search data from localStorage
 const loadSavedSearchData = (): Partial<SearchFormData> => {
   try {
@@ -334,8 +350,6 @@ export const useFlightSearchForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Old minimum spinner duration replaced by new phased loading UX:
-  // First 5s: skeleton (handled in Search page) then progressive reveal by airline.
   // Public helper to clear stored results (used when switching trip type)
   const clearStoredResults = () => {
     try {
@@ -421,11 +435,6 @@ export const useFlightSearchForm = () => {
     // const searchStart = Date.now(); // Removed as no longer needed
     try {
       setIsLoading(true);
-      // Mark new search start for skeleton phase coordination (normal searches)
-      const startedAt = Date.now();
-      sessionStorage.setItem("flightSearchStartedAt", String(startedAt));
-      sessionStorage.setItem("flightSearchSearchId", String(startedAt));
-      sessionStorage.removeItem("flightSearchProgressiveApplied");
       setSearchError(null);
       // Always clear previous results before any new search to avoid stale data
       clearStoredResults();
@@ -473,20 +482,9 @@ export const useFlightSearchForm = () => {
           sort_by: "price",
           sort_order: "asc",
         };
-        // Backend compatibility: some implementations expect singular 'passenger'
-        // Clone and attach if needed without altering type
-        (roundTripRequest as unknown as Record<string, unknown>)["passenger"] =
-          {
-            adults: formData.passengers.adults,
-            children:
-              formData.passengers.children > 0
-                ? formData.passengers.children
-                : undefined,
-            infants:
-              formData.passengers.infants > 0
-                ? formData.passengers.infants
-                : undefined,
-          };
+        // REMOVED: We no longer need to add the 'passenger' field for round-trip requests
+        // According to the API specification, round-trip requests only need 'passengers' (plural)
+        // The previous implementation was adding both fields due to API inconsistency
 
         // Debug round-trip request
         if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
@@ -843,7 +841,7 @@ export const useFlightSearchForm = () => {
         });
       }
 
-      // Normal search: no artificial 8s wait. Skeleton phase handled externally.
+      // Normal search: store results immediately for the listing page.
       sessionStorage.setItem("flightSearchResults", JSON.stringify(results));
       sessionStorage.setItem("tripType", currentTripType);
       sessionStorage.setItem("flightSearchCompletedAt", String(Date.now()));

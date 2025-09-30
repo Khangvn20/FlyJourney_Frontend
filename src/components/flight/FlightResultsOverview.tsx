@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -6,7 +6,7 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import type { PassengerCounts } from "../../shared/types";
+import type { PassengerCounts, PassengerCountsLike } from "../../shared/types";
 import {
   isOneWayResponse,
   isRoundTripResponse,
@@ -23,8 +23,6 @@ interface FlightResultsOverviewProps {
   totalCount?: number;
   totalOutbound?: number;
   totalInbound?: number;
-  progressiveCount?: number;
-  skeletonActive?: boolean;
   activeDirection?: "outbound" | "inbound";
   filteredCount?: number;
   countDisplayMode?: "visible" | "total";
@@ -47,26 +45,98 @@ const formatDateLabel = (value?: string | null) => {
   });
 };
 
+type ResolvedPassengerInfo = {
+  total: number;
+  detail: string;
+  source: "response" | "override" | "fallback";
+  raw: PassengerCounts;
+};
+
 const resolvePassengers = (
-  tripType: "one-way" | "round-trip",
   searchInfo: FlightSearchResponseData | null,
   override?: PassengerCounts | null
-) => {
-  const searchPassengers = (() => {
-    if (!searchInfo) return undefined;
-    if (tripType === "round-trip" && isRoundTripResponse(searchInfo)) {
-      return searchInfo.passengers;
+): ResolvedPassengerInfo => {
+  const toNumber = (value: number | string | null | undefined) => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : 0;
     }
-    if (tripType === "one-way" && isOneWayResponse(searchInfo)) {
-      return searchInfo.passengers;
+    if (typeof value === "string" && value.trim() !== "") {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
     }
-    return undefined;
-  })();
+    return 0;
+  };
 
-  const source = override ?? searchPassengers ?? undefined;
-  const adults = Math.max(1, Number(source?.adults) || 0);
-  const children = Math.max(0, Number(source?.children) || 0);
-  const infants = Math.max(0, Number(source?.infants) || 0);
+  const toNumericCounts = (
+    counts?: PassengerCountsLike | null
+  ): PassengerCounts => ({
+    adults: toNumber(counts?.adults),
+    children: toNumber(counts?.children),
+    infants: toNumber(counts?.infants),
+  });
+
+  const hasValidCounts = (counts?: PassengerCountsLike | null) => {
+    if (!counts) return false;
+    const numeric = toNumericCounts(counts);
+    return numeric.adults > 0 || numeric.children > 0 || numeric.infants > 0;
+  };
+
+  const resolveFromSearchInfo = (): PassengerCounts | null => {
+    if (!searchInfo) return null;
+
+    if (isRoundTripResponse(searchInfo)) {
+      const roundTripInfo = searchInfo as typeof searchInfo & {
+        passenger_count?: PassengerCountsLike | null;
+        passengerCount?: PassengerCountsLike | null;
+        passenger_counts?: PassengerCountsLike | null;
+      };
+
+      if (hasValidCounts(roundTripInfo.passenger_count)) {
+        return toNumericCounts(roundTripInfo.passenger_count);
+      }
+
+      if (hasValidCounts(roundTripInfo.passengerCount)) {
+        return toNumericCounts(roundTripInfo.passengerCount);
+      }
+
+      if (hasValidCounts(roundTripInfo.passenger_counts)) {
+        return toNumericCounts(roundTripInfo.passenger_counts);
+      }
+
+      if (hasValidCounts(searchInfo.passengers)) {
+        return toNumericCounts(searchInfo.passengers);
+      }
+
+      return null;
+    }
+
+    if (isOneWayResponse(searchInfo) && hasValidCounts(searchInfo.passengers)) {
+      return toNumericCounts(searchInfo.passengers);
+    }
+
+    return null;
+  };
+
+  const responseCounts = resolveFromSearchInfo();
+  const overrideCounts = hasValidCounts(override)
+    ? toNumericCounts(override)
+    : null;
+
+  let source: ResolvedPassengerInfo["source"] = "fallback";
+  let preferredCounts: PassengerCountsLike | null = null;
+
+  if (responseCounts) {
+    source = "response";
+    preferredCounts = responseCounts;
+  } else if (overrideCounts) {
+    source = "override";
+    preferredCounts = overrideCounts;
+  }
+
+  const numeric = toNumericCounts(preferredCounts);
+  const adults = numeric.adults > 0 ? numeric.adults : 1;
+  const children = Math.max(0, numeric.children);
+  const infants = Math.max(0, numeric.infants);
   const total = adults + children + infants;
 
   const parts: string[] = [];
@@ -77,6 +147,8 @@ const resolvePassengers = (
   return {
     total,
     detail: parts.join(", ") || "—",
+    source,
+    raw: numeric,
   };
 };
 
@@ -91,8 +163,6 @@ const FlightResultsOverview: React.FC<FlightResultsOverviewProps> = ({
   filteredCount,
   totalOutbound,
   totalInbound,
-  progressiveCount,
-  skeletonActive,
   activeDirection,
   countDisplayMode,
   onCountDisplayModeChange,
@@ -140,9 +210,59 @@ const FlightResultsOverview: React.FC<FlightResultsOverviewProps> = ({
   }, [searchInfo, tripType]);
 
   const passengerInfo = useMemo(
-    () => resolvePassengers(tripType, searchInfo, passengers),
-    [tripType, searchInfo, passengers]
+    () => resolvePassengers(searchInfo, passengers),
+    [searchInfo, passengers]
   );
+
+  useEffect(() => {
+    if (!import.meta.env?.DEV) return;
+    if (!searchInfo) return;
+
+    let responseSources: Record<string, unknown>;
+
+    if (isRoundTripResponse(searchInfo)) {
+      const roundTripInfo = searchInfo as typeof searchInfo & {
+        passenger_count?: PassengerCountsLike | null;
+        passengerCount?: PassengerCountsLike | null;
+        passenger_counts?: PassengerCountsLike | null;
+      };
+
+      responseSources = {
+        passenger_count: roundTripInfo.passenger_count ?? null,
+        passengerCount: roundTripInfo.passengerCount ?? null,
+        passenger_counts: roundTripInfo.passenger_counts ?? null,
+        passengers: roundTripInfo.passengers ?? null,
+      };
+    } else if (isOneWayResponse(searchInfo)) {
+      responseSources = {
+        passengers: searchInfo.passengers ?? null,
+      };
+    } else {
+      responseSources = { passengers: null };
+    }
+
+    console.debug("[FlightResultsOverview] Passenger counts state", {
+      tripType,
+      source: passengerInfo.source,
+      resolved: passengerInfo.raw,
+      detail: passengerInfo.detail,
+      responseSources,
+      overridePassengers: passengers,
+    });
+
+    if (tripType === "round-trip" && passengerInfo.source !== "response") {
+      console.warn(
+        "[FlightResultsOverview] Using fallback passenger data instead of round-trip response",
+        {
+          tripType,
+          source: passengerInfo.source,
+          responseSources,
+          overridePassengers: passengers,
+          resolved: passengerInfo.raw,
+        }
+      );
+    }
+  }, [tripType, searchInfo, passengers, passengerInfo]);
 
   const resolvedDisplayMode = countDisplayMode ?? "visible";
 
@@ -163,10 +283,12 @@ const FlightResultsOverview: React.FC<FlightResultsOverviewProps> = ({
         ? totalCount
         : showingCount;
 
-    const currentlyVisible = progressiveCount ?? showingCount;
+    const currentlyVisible = showingCount;
 
     if (resolvedDisplayMode === "total") {
-      return `Tổng cộng ${totalAvailable} vé`;
+      return totalAvailable > 0
+        ? `Tổng cộng ${totalAvailable} vé`
+        : "Không tìm thấy chuyến bay phù hợp";
     }
 
     const showTotalSuffix =
@@ -174,8 +296,8 @@ const FlightResultsOverview: React.FC<FlightResultsOverviewProps> = ({
       currentlyVisible > 0 &&
       currentlyVisible < totalAvailable;
 
-    if (skeletonActive && currentlyVisible === 0) {
-      return "Đang tải vé...";
+    if (totalAvailable === 0) {
+      return "Không tìm thấy chuyến bay phù hợp";
     }
 
     return showTotalSuffix
@@ -188,8 +310,6 @@ const FlightResultsOverview: React.FC<FlightResultsOverviewProps> = ({
     showingCount,
     totalCount,
     filteredCount,
-    progressiveCount,
-    skeletonActive,
     resolvedDisplayMode,
   ]);
 

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import FlightSearchForm from "../components/flight/FlightSearchForm";
 import FilterSidebar from "../components/flight/FilterSidebar";
@@ -8,7 +9,6 @@ import RoundTripStepper from "../components/flight/RoundTripStepper";
 import RoundTripSummary from "../components/flight/RoundTripSummary";
 import FlightResultsOverview from "../components/flight/FlightResultsOverview";
 import FlightInfiniteScroll from "../components/common/FlightInfiniteScroll";
-import FlightCardSkeleton from "../components/flight/FlightCardSkeleton";
 import MonthOverview from "../components/flight/MonthOverview";
 import { useFlightSearch } from "../hooks/useFlightSearch";
 import { useFlightSearchForm } from "../hooks/useFlightSearchForm";
@@ -23,7 +23,7 @@ const Search: React.FC = () => {
   const navigate = useNavigate();
 
   // Add flight search form hook to get current passenger data
-  const { formData } = useFlightSearchForm();
+  const { formData, isLoading } = useFlightSearchForm();
 
   // (debug removed to reduce noise)
 
@@ -40,8 +40,6 @@ const Search: React.FC = () => {
     error,
     showMonthOverview,
     setShowMonthOverview,
-    skeletonActive,
-    progressiveFlights,
     monthMeta,
     bookingStep,
     setBookingStep,
@@ -55,13 +53,14 @@ const Search: React.FC = () => {
     clearSelectedFlight,
     handleTabChange,
     flightResults,
+    returnFlightResults,
     filteredFlights,
     filteredReturnFlights,
     filteredPerDayResults,
     activeTab,
     currentFlights,
-    displayOneWayFlights,
     vietnameseAirlines,
+    passengerCounts,
     ensureLoadedCount,
   } = useFlightSearch();
 
@@ -232,14 +231,14 @@ const Search: React.FC = () => {
     if (!selectedAirlines || selectedAirlines.length === 0)
       return [] as FlightSearchApiResult[];
     const selectedSet = new Set(selectedAirlines);
-    const visibleIds = new Set(displayOneWayFlights.map((f) => f.flight_id));
+    const visibleIds = new Set(filteredFlights.map((f) => f.flight_id));
     return (flightResults || [])
       .filter((f) => {
         const slug = (f.airline_name || "").toLowerCase().replace(/\s+/g, "-");
         return !selectedSet.has(slug);
       })
       .filter((f) => !visibleIds.has(f.flight_id));
-  }, [selectedAirlines, flightResults, displayOneWayFlights]);
+  }, [selectedAirlines, flightResults, filteredFlights]);
 
   // Get total available flights for calculating hasMore - use actual API data
   const totalAvailableFlights = useMemo(() => {
@@ -367,12 +366,20 @@ const Search: React.FC = () => {
     return { total: undefined, outbound: undefined, inbound: undefined };
   }, [searchInfo, tripType]);
 
-  const overviewProgressiveCount =
-    tripType === "one-way" && !monthMeta && progressiveFlights.length > 0
-      ? progressiveFlights.length
-      : undefined;
+  const sidebarAllFlights =
+    tripType === "round-trip"
+      ? activeTab === "inbound"
+        ? returnFlightResults
+        : flightResults
+      : flightResults;
 
-  // Auto-merge other airline suggestions when user requests more than current filtered set
+  const sidebarFilteredFlights =
+    tripType === "round-trip"
+      ? activeTab === "inbound"
+        ? filteredReturnFlights
+        : filteredFlights
+      : filteredFlights;
+
   React.useEffect(() => {
     const target = Math.min(itemsPerPage, totalAvailableFlights || 0);
     if (
@@ -393,6 +400,7 @@ const Search: React.FC = () => {
   ]);
 
   const activeDirection = tripType === "round-trip" ? activeTab : undefined;
+  const showLoadingState = isLoading && !monthMeta;
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/40 to-gray-50">
       <div className="relative pt-8 pb-4">
@@ -416,32 +424,19 @@ const Search: React.FC = () => {
               setSelectedAirlines={setSelectedAirlines}
               filters={filters}
               setFilters={setFilters}
-              flightResults={
-                tripType === "round-trip"
-                  ? activeTab === "inbound"
-                    ? filteredReturnFlights
-                    : filteredFlights
-                  : visibleOneWayFlights
-              }
+              allFlights={sidebarAllFlights}
+              filteredFlights={sidebarFilteredFlights}
               vietnameseAirlines={vietnameseAirlines}
               onAirlineToggle={handleAirlineToggle}
-              skeletonActive={skeletonActive}
-              progressiveCount={
-                !monthMeta &&
-                tripType !== "round-trip" &&
-                progressiveFlights.length > 0
-                  ? progressiveFlights.length
-                  : undefined
-              }
             />
           </div>
 
           <div className="lg:col-span-3">
-            {(searchInfo || skeletonActive) && (
+            {searchInfo && (
               <FlightResultsOverview
                 tripType={tripType}
                 searchInfo={searchInfo}
-                passengers={formData?.passengers}
+                passengers={passengerCounts ?? formData?.passengers ?? null}
                 sortBy={filters.sortBy}
                 onSortChange={(value) =>
                   setFilters((prev) => ({ ...prev, sortBy: value }))
@@ -450,8 +445,6 @@ const Search: React.FC = () => {
                 totalCount={overviewTotals.total}
                 totalOutbound={overviewTotals.outbound}
                 totalInbound={overviewTotals.inbound}
-                progressiveCount={overviewProgressiveCount}
-                skeletonActive={skeletonActive}
                 activeDirection={activeDirection}
                 itemsPerPage={itemsPerPage}
                 onItemsPerPageChange={handleItemsPerPageChange}
@@ -467,7 +460,14 @@ const Search: React.FC = () => {
               />
             )}
 
-            {tripType === "round-trip" ? (
+            {showLoadingState ? (
+              <div className="flex flex-col items-center justify-center py-16 text-blue-600">
+                <Loader2 className="h-8 w-8 animate-spin" aria-hidden="true" />
+                <p className="mt-3 text-sm font-medium">
+                  Đang tìm kiếm chuyến bay...
+                </p>
+              </div>
+            ) : tripType === "round-trip" ? (
               <div className="space-y-4">
                 <RoundTripStepper
                   bookingStep={bookingStep}
@@ -488,9 +488,7 @@ const Search: React.FC = () => {
                 ) : (
                   <RoundTripFlightList
                     flights={
-                      skeletonActive
-                        ? []
-                        : bookingStep === 2
+                      bookingStep === 2
                         ? filteredReturnFlights
                         : filteredFlights
                     }
@@ -558,21 +556,10 @@ const Search: React.FC = () => {
                 vietnameseAirlines={vietnameseAirlines}
                 onFlightSelect={handleFlightSelection}
                 error={error}
-                suppressEmpty={skeletonActive}
               />
             )}
 
-            {skeletonActive && !monthMeta && (
-              <div className="space-y-3">
-                {Array.from({ length: tripType === "round-trip" ? 6 : 4 }).map(
-                  (_, i) => (
-                    <FlightCardSkeleton key={i} />
-                  )
-                )}
-              </div>
-            )}
-
-            {!monthMeta && !skeletonActive && (
+            {!monthMeta && !showLoadingState && (
               <FlightInfiniteScroll
                 searchInfo={searchInfo}
                 filteredFlights={visibleOneWayFlights}
@@ -585,7 +572,6 @@ const Search: React.FC = () => {
                 onShowSuggestions={
                   selectedAirlines.length > 0
                     ? () => {
-                        // Show other airlines and clear FE filter so counts/buttons update
                         setShowOtherAirlines(true);
                         setSelectedAirlines([]);
                         try {
@@ -594,7 +580,6 @@ const Search: React.FC = () => {
                             JSON.stringify([])
                           );
                         } catch (e) {
-                          // Ignore storage failures (e.g., private mode)
                           if (import.meta.env?.DEV) {
                             console.debug(
                               "(debug) Unable to persist selectedAirlines",
