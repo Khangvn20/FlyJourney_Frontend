@@ -1,4 +1,5 @@
 import React from "react";
+import { formatPrice } from "../../shared/utils/format";
 import type { FlightSearchApiResult } from "../../shared/types/search-api.types";
 
 interface MonthOverviewHeatmapProps {
@@ -17,6 +18,17 @@ const MonthOverviewHeatmap: React.FC<MonthOverviewHeatmapProps> = ({
   );
   const days: { dayStr: string; count: number; minPrice?: number }[] = [];
 
+  const getAdultDisplayPrice = (pricing: FlightSearchApiResult["pricing"]) => {
+    const baseWithTax = (pricing.base_prices?.adult || 0) + (pricing.taxes?.adult || 0);
+    if (pricing.total_prices?.adult && pricing.total_prices.adult > 0) {
+      return pricing.total_prices.adult;
+    }
+    if (baseWithTax > 0) {
+      return baseWithTax;
+    }
+    return pricing.grand_total;
+  };
+
   if (perDayResults.length > 0) {
     const sampleDay = perDayResults[0].day; // dd/mm/yyyy
     const [, mm, yyyy] = sampleDay.split("/");
@@ -25,8 +37,9 @@ const MonthOverviewHeatmap: React.FC<MonthOverviewHeatmapProps> = ({
       const flights = map.get(ds) || [];
       let minPrice: number | undefined;
       flights.forEach((f) => {
-        if (minPrice === undefined || f.pricing.grand_total < minPrice) {
-          minPrice = f.pricing.grand_total;
+        const adultPrice = getAdultDisplayPrice(f.pricing);
+        if (minPrice === undefined || adultPrice < minPrice) {
+          minPrice = adultPrice;
         }
       });
       days.push({ dayStr: ds, count: flights.length, minPrice });
@@ -55,7 +68,7 @@ const MonthOverviewHeatmap: React.FC<MonthOverviewHeatmapProps> = ({
     <div className="p-4 rounded-xl border bg-white shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-semibold text-gray-800">
-          Tổng quan giá theo ngày
+          Tổng quan giá NL (thuế/phí) theo ngày
         </h4>
         <div className="flex items-center gap-2 text-[10px] font-medium">
           <span className="px-2 py-0.5 rounded bg-green-500 text-white">
@@ -80,13 +93,13 @@ const MonthOverviewHeatmap: React.FC<MonthOverviewHeatmapProps> = ({
             } ${d.count > 0 ? "cursor-pointer" : "cursor-default"}`}
             title={
               d.count > 0
-                ? `Ngày ${d.dayStr}\n${d.count} chuyến • Giá thấp nhất: ${d.minPrice}`
+                ? `Ngày ${d.dayStr}\n${d.count} chuyến • Giá NL (thuế/phí): ${formatPrice(d.minPrice ?? 0)}`
                 : `Ngày ${d.dayStr}\nKhông có chuyến bay`
             }>
             <span>{d.dayStr.split("/")[0]}</span>
             {d.count > 0 && (
               <span className="text-[9px] font-normal opacity-90 mt-0.5">
-                {d.minPrice?.toLocaleString("vi-VN")}₫
+                {d.minPrice !== undefined ? formatPrice(d.minPrice) : ""}
               </span>
             )}
           </button>
@@ -97,3 +110,7 @@ const MonthOverviewHeatmap: React.FC<MonthOverviewHeatmapProps> = ({
 };
 
 export default MonthOverviewHeatmap;
+
+
+
+

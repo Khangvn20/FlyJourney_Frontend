@@ -82,6 +82,7 @@ export const AIRPORT_COUNTS = {
 };
 
 export const FlightClass = [
+  { value: "all", label: "Tất cả hạng vé", description: "Hiển thị mọi lựa chọn" },
   { value: "economy", label: "Economy", description: "Tiết kiệm, phổ biến" },
   {
     value: "premium-economy",

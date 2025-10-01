@@ -17,6 +17,11 @@ export interface BookingSelection {
   inbound?: FlightSearchApiResult;
   totalPrice: number;
   currency: string;
+  passengers?: {
+    adults: number;
+    children: number;
+    infants: number;
+  };
 }
 
 interface BookingSummaryProps {

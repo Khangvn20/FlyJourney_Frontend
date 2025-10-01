@@ -38,7 +38,10 @@ import {
 } from "../../mocks/flightData";
 import type { Airport } from "../../shared/types";
 import { useFlightSearchForm } from "../../hooks/useFlightSearchForm";
-import { DEV_CONFIG } from "../../shared/config/devConfig";
+import {
+  DEV_CONFIG,
+  shouldShowDevControls,
+} from "../../shared/config/devConfig";
 import { AIRLINE_LIST } from "../../shared/constants/airlines";
 const { RangePicker } = DatePicker;
 
@@ -129,7 +132,8 @@ export default function FlightSearchForm() {
   const vietnameseAirlines = AIRLINE_LIST.map((a) => ({
     id: a.name.toLowerCase().replace(/\s+/g, "-"),
     name: a.name,
-    logo: a.logo || `/airlines/${a.name.toLowerCase().replace(/\s+/g, "-")}.png`,
+    logo:
+      a.logo || `/airlines/${a.name.toLowerCase().replace(/\s+/g, "-")}.png`,
     code: a.code,
     dbId: a.id, // Add database ID for API requests
   }));
@@ -229,12 +233,12 @@ export default function FlightSearchForm() {
     if (validateForm()) {
       // Convert selected airlines to database IDs
       const selectedAirlineIds = selectedAirlines
-        .map(airlineId => {
-          const airline = vietnameseAirlines.find(a => a.id === airlineId);
+        .map((airlineId) => {
+          const airline = vietnameseAirlines.find((a) => a.id === airlineId);
           return airline?.dbId;
         })
         .filter((id): id is number => id !== undefined);
-      
+
       handleSearch(selectedAirlineIds);
     }
   };
@@ -249,6 +253,49 @@ export default function FlightSearchForm() {
     }));
     sessionStorage.setItem("tripType", newType);
     window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
+  };
+
+  const handleDevQuickSearch = () => {
+    if (!shouldShowDevControls()) return;
+
+    const devDepartureDate = new Date(2025, 7, 1);
+    const devReturnDate = new Date(2025, 7, 11);
+    const defaultFromAirport = airports.find(
+      (airport) => airport.code === "SGN"
+    );
+    const defaultToAirport = airports.find((airport) => airport.code === "HAN");
+    const fallbackFrom = defaultFromAirport
+      ? `${defaultFromAirport.city} (${defaultFromAirport.code})`
+      : "Ho Chi Minh City (SGN)";
+    const fallbackTo = defaultToAirport
+      ? `${defaultToAirport.city} (${defaultToAirport.code})`
+      : "Ha Noi (HAN)";
+
+    setTripType("round-trip");
+    setFormData((prev) => {
+      const nextFrom = prev.from?.trim() ? prev.from : fallbackFrom;
+      const nextTo = prev.to?.trim() ? prev.to : fallbackTo;
+
+      return {
+        ...prev,
+        tripType: "round-trip",
+        from: nextFrom,
+        to: nextTo,
+        departureDate: devDepartureDate,
+        returnDate: devReturnDate,
+        searchFullMonth: false,
+      };
+    });
+
+    setFromSearch("");
+    setToSearch("");
+    setShowFromDropdown(false);
+    setShowToDropdown(false);
+    setValidationErrors({ from: false, to: false, departureDate: false });
+
+    setTimeout(() => {
+      handleSearchWithValidation();
+    }, 0);
   };
 
   const totalPassengers =
@@ -274,26 +321,37 @@ export default function FlightSearchForm() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center bg-gray-100 rounded-full p-1">
-              {(["one-way", "round-trip"] as const).map((t) => (
-                <label
-                  key={t}
-                  className={`px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 text-sm ${
-                    formData.tripType === t
-                      ? "bg-white shadow-sm text-blue-600 font-medium"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}>
-                  <input
-                    type="radio"
-                    name="trip-type"
-                    value={t}
-                    className="sr-only"
-                    checked={formData.tripType === t}
-                    onChange={() => setTripType(t)}
-                  />
-                  {t === "one-way" ? "Một chiều" : "Khứ hồi"}
-                </label>
-              ))}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center bg-gray-100 rounded-full p-1">
+                {(["one-way", "round-trip"] as const).map((t) => (
+                  <label
+                    key={t}
+                    className={`px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 text-sm ${
+                      formData.tripType === t
+                        ? "bg-white shadow-sm text-blue-600 font-medium"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}>
+                    <input
+                      type="radio"
+                      name="trip-type"
+                      value={t}
+                      className="sr-only"
+                      checked={formData.tripType === t}
+                      onChange={() => setTripType(t)}
+                    />
+                    {t === "one-way" ? "Một chiều" : "Khứ hồi"}
+                  </label>
+                ))}
+              </div>
+              {shouldShowDevControls() && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDevQuickSearch}
+                  className="text-xs font-medium">
+                  Dev quick search
+                </Button>
+              )}
             </div>
           </div>
 
@@ -779,9 +837,11 @@ export default function FlightSearchForm() {
                   className="w-96 p-0"
                   align="start"
                   side="bottom"
-                  sideOffset={4}>
-                  <div className="p-6 space-y-6">
-                    <div className="space-y-4">
+                  sideOffset={4}
+                  avoidCollisions={false}
+                  sticky="always">
+                  <div className="p-4 space-y-3">
+                    <div className="space-y-3">
                       <h4 className="font-semibold text-gray-900 border-b pb-2">
                         Số lượng hành khách{" "}
                         <span className="text-xs text-gray-500">
@@ -912,8 +972,8 @@ export default function FlightSearchForm() {
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 border-b pb-2">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-gray-900 border-b pb-1">
                         Hạng vé
                       </h4>
                       <Select
@@ -921,7 +981,7 @@ export default function FlightSearchForm() {
                         onValueChange={(v) =>
                           setFormData((p) => ({ ...p, flightClass: v }))
                         }>
-                        <SelectTrigger className="w-full h-12">
+                        <SelectTrigger className="w-full h-9">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -940,8 +1000,8 @@ export default function FlightSearchForm() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 border-b pb-2">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-gray-900 border-b pb-1">
                         Yêu cầu đặc biệt
                       </h4>
                       <Select
@@ -949,7 +1009,7 @@ export default function FlightSearchForm() {
                         onValueChange={(v) =>
                           setFormData((p) => ({ ...p, specialRequirements: v }))
                         }>
-                        <SelectTrigger className="w-full h-12">
+                        <SelectTrigger className="w-full h-9">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -968,10 +1028,10 @@ export default function FlightSearchForm() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="pt-4 border-t">
+                    <div className="pt-2 border-t">
                       <Button
                         onClick={() => setShowPassengerDropdown(false)}
-                        className="w-full bg-blue-600 hover:bg-blue-700 h-12">
+                        className="w-full bg-blue-600 hover:bg-blue-700 h-9">
                         Xác nhận
                       </Button>
                     </div>

@@ -140,18 +140,67 @@ const BookingFlow: React.FC = () => {
     if (stateSel) {
       setSelection(stateSel);
       sessionStorage.setItem("bookingSelection", JSON.stringify(stateSel));
+
+      // Set passenger counts from bookingSelection if available
+      if (stateSel.passengers) {
+        const counts = {
+          adults: Math.min(stateSel.passengers.adults || 1, 8),
+          children: Math.min(stateSel.passengers.children || 0, 8),
+          infants: Math.min(stateSel.passengers.infants || 0, 8),
+        };
+
+        // Ensure total passengers don't exceed 8
+        const total = counts.adults + counts.children + counts.infants;
+        if (total > 8) {
+          // Prioritize adults, then children, then infants
+          let remaining = 8;
+          counts.adults = Math.min(counts.adults, remaining);
+          remaining -= counts.adults;
+          counts.children = Math.min(counts.children, remaining);
+          remaining -= counts.children;
+          counts.infants = Math.min(counts.infants, remaining);
+        }
+
+        setPassengerCounts(counts);
+        return; // Don't need to load from searchInfo
+      }
     } else {
       const stored = sessionStorage.getItem("bookingSelection");
       if (stored) {
         try {
-          setSelection(JSON.parse(stored) as BookingSelection);
+          const parsedSelection = JSON.parse(stored) as BookingSelection;
+          setSelection(parsedSelection);
+
+          // Set passenger counts from stored selection if available
+          if (parsedSelection.passengers) {
+            const counts = {
+              adults: Math.min(parsedSelection.passengers.adults || 1, 8),
+              children: Math.min(parsedSelection.passengers.children || 0, 8),
+              infants: Math.min(parsedSelection.passengers.infants || 0, 8),
+            };
+
+            // Ensure total passengers don't exceed 8
+            const total = counts.adults + counts.children + counts.infants;
+            if (total > 8) {
+              // Prioritize adults, then children, then infants
+              let remaining = 8;
+              counts.adults = Math.min(counts.adults, remaining);
+              remaining -= counts.adults;
+              counts.children = Math.min(counts.children, remaining);
+              remaining -= counts.children;
+              counts.infants = Math.min(counts.infants, remaining);
+            }
+
+            setPassengerCounts(counts);
+            return; // Don't need to load from searchInfo
+          }
         } catch {
           /* ignore */
         }
       }
     }
 
-    // Load passenger counts from search info
+    // Fallback: Load passenger counts from search info only if not available in bookingSelection
     const storedSearchInfo = sessionStorage.getItem("searchInfo");
     if (storedSearchInfo) {
       try {

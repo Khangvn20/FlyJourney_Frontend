@@ -181,3 +181,4 @@ export interface FlightSearchParams {
   sortBy?: FlightSortBy;
   sortOrder?: "asc" | "desc";
 }
+

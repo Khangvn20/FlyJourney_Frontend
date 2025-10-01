@@ -251,7 +251,17 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
               </div>
             )}
 
-
+            {/* Dev Test Button */}
+            {onDevTest && (
+              <div className="pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={onDevTest}
+                  className="w-full py-2 px-4 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors duration-200">
+                  🔧 Test với dữ liệu mẫu
+                </button>
+              </div>
+            )}
           </form>
         </div>
 

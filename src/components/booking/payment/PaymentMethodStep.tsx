@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import type React from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../ui/button";
 import { ArrowLeft, Plane, CreditCard } from "lucide-react";
@@ -79,7 +80,7 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
   }, [booking.bookingId, navigate, selectedSeats]);
 
   const seatPriceTotal = useMemo(() => {
-    // In payment step, seat extra already accounted earlier; keep placeholder for consistency
+    // Seat surcharge total (0 for now; placeholder for future logic)
     return 0;
   }, []);
 
@@ -347,11 +348,11 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Phụ thu ghế</span>
-              <span className="font-medium">{formatPrice(0)}</span>
+              <span className="font-medium">{formatPrice(seatPriceTotal)}</span>
             </div>
             <div className="border-t pt-2 flex justify-between font-semibold">
               <span>Tổng thanh toán</span>
-              <span>{formatPrice(booking.totalPrice)}</span>
+              <span>{formatPrice(booking.totalPrice + seatPriceTotal)}</span>
             </div>
           </div>
         </div>
