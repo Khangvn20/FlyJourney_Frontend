@@ -21,6 +21,16 @@ import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
 
 // ===== BASE API UTILS =====
 
+export const MAX_FLIGHT_SEARCH_LIMIT = 100;
+const MIN_FLIGHT_SEARCH_LIMIT = 1;
+const DEFAULT_FLIGHT_SEARCH_LIMIT = 100;
+
+const clampFlightSearchLimit = (limit?: number) =>
+  Math.min(
+    MAX_FLIGHT_SEARCH_LIMIT,
+    Math.max(limit ?? DEFAULT_FLIGHT_SEARCH_LIMIT, MIN_FLIGHT_SEARCH_LIMIT)
+  );
+
 class FlightApiError extends Error {
   public code?: string;
   public status?: number;
@@ -333,7 +343,7 @@ export const flightSearchService = async (
         infants: params.passengers.infants || 0,
       },
       page: params.page || 1,
-      limit: params.limit || 100, // Increase default from 50 to 100
+      limit: clampFlightSearchLimit(params.limit),
       sort_by: params.sortBy || "price",
       sort_order: params.sortOrder || "asc",
       // Only include airline_ids if provided
@@ -411,7 +421,7 @@ export const mapFormToApiParams = (formData: {
     passengers: formData.passengers,
     flightClass: mapFlightClass(formData.flightClass),
     page: 1,
-    limit: 100, // Increase limit from 50 to 100 to get more results
+    limit: DEFAULT_FLIGHT_SEARCH_LIMIT, // Increase limit from 50 to 100 to get more results
     sortBy: "price",
     sortOrder: "asc",
   };
