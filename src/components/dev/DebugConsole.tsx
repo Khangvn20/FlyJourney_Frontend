@@ -20,7 +20,11 @@ const safeStringify = (obj: AnyObj) => {
 const trimText = (text: string, max = 3000) =>
   text.length > max ? `${text.slice(0, max)}\n…(trimmed)` : text;
 
+const DEBUG_CONSOLE_ENABLED = true;
+
 const DebugConsole: React.FC = () => {
+  if (!DEBUG_CONSOLE_ENABLED) return null;
+  
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"request" | "response">("request");
   const [entries, setEntries] = useState<DebugEntry[]>([]);

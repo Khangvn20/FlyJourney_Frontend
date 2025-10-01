@@ -34,6 +34,7 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isFormValid && !loading) {
+      // Submit with original PNR code without cleaning
       onSubmit(pnrCode.trim().toUpperCase(), email.trim(), fullName.trim());
     }
   };
@@ -102,7 +103,7 @@ const CheckinForm: React.FC<CheckinFormProps> = ({
               </div>
               <p className="text-xs text-gray-500 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                Mã gồm 6-10 ký tự (chữ và số)
+                Mã gồm 6-10 ký tự
               </p>
             </div>
 
