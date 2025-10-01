@@ -110,6 +110,13 @@ const Search: React.FC = () => {
     return filteredPerDayResults;
   }, [isMonthMode, filteredPerDayResults]);
 
+  const monthDataSignature = React.useMemo(() => {
+    if (!isMonthMode) return "";
+    return filteredPerDayResults
+      .map((group) => `${group.day}:${group.flights?.length ?? 0}`)
+      .join("|");
+  }, [isMonthMode, filteredPerDayResults]);
+
   // Stable key to detect a new search (used for resetting day selection)
   const searchKey = useMemo(() => {
     if (!searchInfo) return "none";
@@ -136,6 +143,7 @@ const Search: React.FC = () => {
   }, [searchInfo]);
 
   const lastAppliedSearchKeyRef = React.useRef<string | null>(null);
+  const lastMonthDataSignatureRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (!isMonthMode) {
@@ -143,6 +151,7 @@ const Search: React.FC = () => {
         updateActiveDay(null, "system");
       }
       lastAppliedSearchKeyRef.current = null;
+      lastMonthDataSignatureRef.current = null;
       return;
     }
 
@@ -158,6 +167,7 @@ const Search: React.FC = () => {
         updateActiveDay(null, "system");
       }
       lastAppliedSearchKeyRef.current = searchKey;
+      lastMonthDataSignatureRef.current = monthDataSignature;
       return;
     }
 
@@ -177,9 +187,17 @@ const Search: React.FC = () => {
         activeDayYear === currentMonthBucket.year
     );
 
+    const datasetChanged =
+      monthDataSignature !== lastMonthDataSignatureRef.current;
+
+    if (datasetChanged) {
+      userSelectedDayRef.current = false;
+    }
+
     const shouldAutoSelect =
       !activeDay ||
       !isActiveDayInCurrentMonth ||
+      datasetChanged ||
       (isNewSearch && !userSelectedDayRef.current);
 
     if (shouldAutoSelect) {
@@ -189,6 +207,7 @@ const Search: React.FC = () => {
     }
 
     lastAppliedSearchKeyRef.current = searchKey;
+    lastMonthDataSignatureRef.current = monthDataSignature;
   }, [
     isMonthMode,
     currentMonthDayGroups,
@@ -196,6 +215,7 @@ const Search: React.FC = () => {
     activeDay,
     searchKey,
     updateActiveDay,
+    monthDataSignature,
   ]);
 
   const handleMonthChange = React.useCallback(
