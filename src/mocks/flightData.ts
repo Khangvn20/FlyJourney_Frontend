@@ -1,133 +1,101 @@
 import type {
   Airport,
-  FlightClass,
-  SpecialRequirement,
 } from "../shared/types";
 
 export const airports: Airport[] = [
-  // Việt Nam
-  { code: "HAN", name: "Sân bay Nội Bài", city: "Hà Nội", country: "Vietnam" },
+  // Quốc tế (11)
   {
     code: "SGN",
-    name: "Sân bay Tân Sơn Nhất",
-    city: "TP. Hồ Chí Minh",
+    name: "Tân Sơn Nhất",
+    city: "Ho Chi Minh City",
     country: "Vietnam",
   },
-  { code: "DAD", name: "Sân bay Đà Nẵng", city: "Đà Nẵng", country: "Vietnam" },
-  {
-    code: "CXR",
-    name: "Sân bay Cam Ranh",
-    city: "Nha Trang",
-    country: "Vietnam",
-  },
-  {
-    code: "PQC",
-    name: "Sân bay Phú Quốc",
-    city: "Phú Quốc",
-    country: "Vietnam",
-  },
-  { code: "VCA", name: "Sân bay Cần Thơ", city: "Cần Thơ", country: "Vietnam" },
-  {
-    code: "HPH",
-    name: "Sân bay Cát Bi",
-    city: "Hải Phòng",
-    country: "Vietnam",
-  },
-  { code: "HUI", name: "Sân bay Phú Bài", city: "Huế", country: "Vietnam" },
-  {
-    code: "VDH",
-    name: "Sân bay Đồng Hới",
-    city: "Đồng Hới",
-    country: "Vietnam",
-  },
-  {
-    code: "VDO",
-    name: "Sân bay Vân Đồn",
-    city: "Quảng Ninh",
-    country: "Vietnam",
-  },
-  {
-    code: "VKG",
-    name: "Sân bay Rạch Giá",
-    city: "Rạch Giá",
-    country: "Vietnam",
-  },
-  { code: "CAH", name: "Sân bay Cà Mau", city: "Cà Mau", country: "Vietnam" },
-  { code: "TBB", name: "Sân bay Tuy Hòa", city: "Tuy Hòa", country: "Vietnam" },
+  { code: "HAN", name: "Nội Bài", city: "Hanoi", country: "Vietnam" },
+  { code: "DAD", name: "Đà Nẵng", city: "Da Nang", country: "Vietnam" },
+  { code: "CXR", name: "Cam Ranh", city: "Nha Trang", country: "Vietnam" },
+  { code: "PQC", name: "Phú Quốc", city: "Phu Quoc", country: "Vietnam" },
+  { code: "VCA", name: "Cần Thơ", city: "Can Tho", country: "Vietnam" },
+  { code: "HPH", name: "Cát Bi", city: "Hai Phong", country: "Vietnam" },
+  { code: "HUI", name: "Phú Bài", city: "Hue", country: "Vietnam" },
+  { code: "DLI", name: "Liên Khương", city: "Da Lat", country: "Vietnam" },
+  { code: "VII", name: "Vinh", city: "Vinh", country: "Vietnam" },
+  { code: "VDO", name: "Vân Đồn", city: "Ha Long", country: "Vietnam" },
+  // Nội địa (11)
+  { code: "UIH", name: "Phù Cát", city: "Quy Nhon", country: "Vietnam" },
+  { code: "VDH", name: "Đồng Hới", city: "Dong Hoi", country: "Vietnam" },
+  { code: "THD", name: "Thọ Xuân", city: "Thanh Hoa", country: "Vietnam" },
+  { code: "VCL", name: "Chu Lai", city: "Nui Thanh", country: "Vietnam" },
+  { code: "TBB", name: "Tuy Hòa", city: "Tuy Hoa", country: "Vietnam" },
+  { code: "PXU", name: "Pleiku", city: "Pleiku", country: "Vietnam" },
   {
     code: "BMV",
-    name: "Sân bay Buôn Ma Thuột",
-    city: "Buôn Ma Thuột",
-    country: "Vietnam",
-  },
-  { code: "PXU", name: "Sân bay Pleiku", city: "Pleiku", country: "Vietnam" },
-  {
-    code: "DLI",
-    name: "Sân bay Liên Khương",
-    city: "Đà Lạt",
+    name: "Buôn Ma Thuột",
+    city: "Buon Ma Thuot",
     country: "Vietnam",
   },
   {
-    code: "UIH",
-    name: "Sân bay Phù Cát",
-    city: "Quy Nhon",
+    code: "DIN",
+    name: "Điện Biên Phủ",
+    city: "Dien Bien Phu",
     country: "Vietnam",
   },
-  { code: "VCS", name: "Sân bay Côn Đảo", city: "Côn Đảo", country: "Vietnam" },
+  { code: "VKG", name: "Rạch Giá", city: "Rach Gia", country: "Vietnam" },
+  { code: "CAH", name: "Cà Mau", city: "Ca Mau", country: "Vietnam" },
+  { code: "VCS", name: "Côn Đảo", city: "Con Dao", country: "Vietnam" },
 ];
 
-export const flightClasses: FlightClass[] = [
+export const airportMeta: Record<
+  string,
+  { type: "international" | "domestic"; active: boolean }
+> = {
+  SGN: { type: "international", active: true },
+  HAN: { type: "international", active: true },
+  DAD: { type: "international", active: true },
+  CXR: { type: "international", active: true },
+  PQC: { type: "international", active: true },
+  VCA: { type: "international", active: true },
+  HPH: { type: "international", active: true },
+  HUI: { type: "international", active: true },
+  DLI: { type: "international", active: true },
+  VII: { type: "international", active: true },
+  VDO: { type: "international", active: true },
+  UIH: { type: "domestic", active: true },
+  VDH: { type: "domestic", active: true },
+  THD: { type: "domestic", active: true },
+  VCL: { type: "domestic", active: true },
+  TBB: { type: "domestic", active: true },
+  PXU: { type: "domestic", active: true },
+  BMV: { type: "domestic", active: true },
+  DIN: { type: "domestic", active: true },
+  VKG: { type: "domestic", active: true },
+  CAH: { type: "domestic", active: true },
+  VCS: { type: "domestic", active: true },
+};
+
+export const AIRPORT_COUNTS = {
+  total: airports.length,
+  international: airports.filter(
+    (a) => airportMeta[a.code].type === "international"
+  ).length,
+  domestic: airports.filter((a) => airportMeta[a.code].type === "domestic")
+    .length,
+};
+
+export const FlightClass = [
+  { value: "all", label: "Tất cả hạng vé", description: "Hiển thị mọi lựa chọn" },
+  { value: "economy", label: "Economy", description: "Tiết kiệm, phổ biến" },
   {
-    value: "economy",
-    label: "Phổ thông",
-    description: "Ghế tiêu chuẩn với dịch vụ cơ bản",
+    value: "premium-economy",
+    label: "Premium Economy",
+    description: "Rộng hơn, linh hoạt",
   },
-  {
-    value: "premium",
-    label: "Phổ thông đặc biệt",
-    description: "Ghế rộng hơn với nhiều tiện ích",
-  },
-  {
-    value: "business",
-    label: "Thương gia",
-    description: "Ghế êm ái, dịch vụ cao cấp",
-  },
-  {
-    value: "first",
-    label: "Hạng nhất",
-    description: "Dịch vụ và tiện nghi tốt nhất",
-  },
+  { value: "business", label: "Business", description: "Ưu tiên, ghế rộng" },
+  { value: "first", label: "First", description: "Cao cấp nhất" },
 ];
 
-export const specialRequirements: SpecialRequirement[] = [
-  {
-    value: "normal",
-    label: "Tôi là hành khách thông thường",
-    description: "Không có yêu cầu đặc biệt",
-  },
-  {
-    value: "mobility",
-    label: "Tôi cần hỗ trợ di chuyển",
-    description: "Hỗ trợ xe lăn hoặc di chuyển",
-  },
-  {
-    value: "pregnant",
-    label: "Tôi đang mang thai",
-    description: "Dịch vụ dành cho phụ nữ có thai",
-  },
-  {
-    value: "medical",
-    label: "Tôi có tình trạng y tế cần hỗ trợ",
-    description: "Hỗ trợ y tế trong chuyến bay",
-  },
-  {
-    value: "infant-travel",
-    label: "Tôi bay cùng trẻ nhỏ",
-    description: "Dịch vụ hỗ trợ trẻ em và gia đình",
-  },
-  {
-    value: "other",
-    label: "Tôi có yêu cầu đặc biệt khác",
-    description: "Các yêu cầu khác",
-  },
+export const SpecialRequirement = [
+  { value: "none", label: "Không có" },
+  { value: "wheelchair", label: "Hỗ trợ xe lăn" },
+  { value: "special-meal", label: "Suất ăn đặc biệt" },
+  { value: "infant-bassinet", label: "Nôi cho em bé" },
 ];

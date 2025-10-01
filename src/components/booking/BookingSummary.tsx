@@ -1,13 +1,13 @@
-import React from "react";
+import type React from "react";
 import type { FlightSearchApiResult } from "../../shared/types/search-api.types";
-import { formatDateTime, formatPrice } from "../../services/flightApiService";
+import { formatDateTime, formatPrice } from "../../shared/utils/format";
 import { Button } from "../ui/button";
 import {
   PlaneTakeoff,
   PlaneLanding,
   Clock,
-  ArrowRightLeft,
-  TimerReset,
+  ArrowRight,
+  CheckCircle2,
   ChevronRight,
 } from "lucide-react";
 
@@ -17,6 +17,11 @@ export interface BookingSelection {
   inbound?: FlightSearchApiResult;
   totalPrice: number;
   currency: string;
+  passengers?: {
+    adults: number;
+    children: number;
+    infants: number;
+  };
 }
 
 interface BookingSummaryProps {
@@ -45,85 +50,80 @@ const FlightInfoCard: React.FC<{
 
   return (
     <div
-      className={`relative overflow-hidden group rounded-xl border bg-white/90 backdrop-blur-sm shadow-sm transition-all ${
+      className={`rounded-xl border bg-card transition-all ${
         highlight
-          ? "border-blue-300 shadow-blue-100/60 ring-1 ring-blue-200"
-          : "border-gray-200 hover:border-blue-200"
+          ? "border-primary/30 shadow-md"
+          : "border-border hover:border-primary/20 hover:shadow-sm"
       }`}>
-      <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-blue-50/60 via-transparent to-indigo-50/60" />
-      <div className="p-4 relative z-10 space-y-4">
+      <div className="p-5 space-y-5">
         <div className="flex items-start justify-between">
-          <div>
-            <h4 className="text-[13px] font-bold tracking-wide text-blue-700 flex items-center gap-1 uppercase">
-              <ArrowRightLeft className="w-3.5 h-3.5" /> {title}
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold tracking-wide text-primary uppercase flex items-center gap-1.5">
+              <ArrowRight className="w-3.5 h-3.5" /> {title}
             </h4>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="inline-flex items-center justify-center h-7 px-3 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-semibold shadow">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center justify-center h-8 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-bold shadow-sm">
                 {flight.flight_number}
               </span>
-              <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+              <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-md">
                 {airlineCode}
               </span>
             </div>
           </div>
-          <div className="flex flex-col items-end text-right gap-1">
-            <span className="text-[11px] px-2 py-1 rounded-full bg-blue-50 text-blue-600 font-medium">
+          <div className="flex flex-col items-end text-right gap-1.5">
+            <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">
               {stopsLabel}
             </span>
-            <span className="text-[10px] text-gray-400">
+            <span className="text-[10px] text-muted-foreground">
               {flight.flight_class} • {flight.total_seats} ghế
             </span>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center text-sm">
+
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 items-center">
           {/* Departure */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-blue-600 text-white shadow-sm">
-                <PlaneTakeoff className="w-4 h-4" />
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-lg bg-primary text-primary-foreground shadow-sm">
+                <PlaneTakeoff className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-base font-semibold text-gray-900 leading-none">
+                <p className="text-2xl font-bold text-foreground leading-none">
                   {dep.time}
                 </p>
-                <p className="text-[11px] text-gray-500 mt-0.5">{dep.date}</p>
+                <p className="text-xs text-muted-foreground mt-1">{dep.date}</p>
               </div>
             </div>
-            <p className="text-[11px] text-gray-600 pl-10 -mt-1">
+            <p className="text-xs text-card-foreground pl-11">
               {flight.departure_airport} ({flight.departure_airport_code})
             </p>
           </div>
+
           {/* Timeline */}
-          <div className="relative flex flex-col items-center justify-center">
-            <div className="w-full flex items-center justify-center">
-              <div className="flex-1 h-1 bg-gradient-to-r from-blue-200 via-blue-400 to-indigo-300 rounded-full relative overflow-hidden">
-                <div className="absolute inset-0 bg-[linear-gradient(110deg,#ffffff22,transparent,transparent)] animate-[shine_2.2s_linear_infinite]" />
-              </div>
+          <div className="flex flex-col items-center justify-center gap-2 md:px-4">
+            <div className="w-full md:w-24 h-0.5 bg-border relative">
+              <div className="absolute inset-0 bg-primary/40" />
             </div>
-            <div className="mt-2 flex flex-col items-center gap-1">
-              <div className="flex items-center gap-1 text-[11px] font-medium text-gray-600">
-                <Clock className="w-3.5 h-3.5 text-blue-500" />
-                <span>{durationHours}h</span>
-              </div>
-              <span className="text-[10px] text-gray-400 tracking-wide uppercase">
-                {stopsLabel}
-              </span>
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Clock className="w-3.5 h-3.5 text-primary" />
+              <span>{durationHours}h</span>
             </div>
           </div>
+
           {/* Arrival */}
-          <div className="space-y-1 md:text-right">
-            <div className="flex items-center gap-2 md:justify-end">
-              <div className="p-2 rounded-lg bg-indigo-600 text-white shadow-sm">
-                <PlaneLanding className="w-4 h-4" />
+          <div className="space-y-2 md:text-right">
+            <div className="flex items-center gap-3 md:justify-end">
+              <div className="p-2.5 rounded-lg bg-secondary text-secondary-foreground shadow-sm">
+                <PlaneLanding className="w-5 h-5" />
               </div>
               <div className="text-left md:text-right">
-                <p className="text-base font-semibold text-gray-900 leading-none">
+                <p className="text-2xl font-bold text-foreground leading-none">
                   {arr.time}
                 </p>
-                <p className="text-[11px] text-gray-500 mt-0.5">{arr.date}</p>
+                <p className="text-xs text-muted-foreground mt-1">{arr.date}</p>
               </div>
             </div>
-            <p className="text-[11px] text-gray-600 md:pr-10 md:text-right -mt-1 md:pl-0 pl-10">
+            <p className="text-xs text-card-foreground md:pr-11 md:text-right pl-11 md:pl-0">
               {flight.arrival_airport} ({flight.arrival_airport_code})
             </p>
           </div>
@@ -139,29 +139,26 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
   onChangeFlights,
 }) => {
   return (
-    <div className="space-y-7 animate-[fadeIn_.4s_ease]">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/60 to-indigo-50/40 p-6 shadow-sm">
-        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-blue-200/30 blur-3xl" />
-        <div className="absolute -bottom-12 -left-12 w-56 h-56 rounded-full bg-indigo-200/30 blur-3xl" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-6 animate-[fadeIn_.4s_ease]">
+      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h3 className="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent flex items-center gap-2">
-              <TimerReset className="w-5 h-5 text-blue-600" /> Xác nhận giữ chỗ
+            <h3 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-primary" /> Xác nhận giữ chỗ
               chuyến bay
             </h3>
-            <p className="mt-1 text-sm text-gray-600 max-w-xl">
+            <p className="mt-2 text-sm text-muted-foreground max-w-2xl leading-relaxed">
               Kiểm tra kỹ thông tin trước khi điền hành khách & chọn phương thức
               giữ chỗ / thanh toán. Bạn vẫn có thể quay lại thay đổi ở bước sau.
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <div className="flex items-center gap-1 px-2 py-1 bg-white/70 backdrop-blur rounded-md border border-blue-100 text-blue-700 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 rounded-lg border border-primary/20 text-primary font-medium">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
               Sẵn sàng đặt
             </div>
             {selection.tripType === "round-trip" && (
-              <div className="px-2 py-1 rounded-md bg-indigo-600 text-white font-medium shadow">
+              <div className="px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground font-medium shadow-sm">
                 Khứ hồi
               </div>
             )}
@@ -169,8 +166,7 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
         </div>
       </div>
 
-      {/* Flights */}
-      <div className="grid gap-5 md:gap-6">
+      <div className="grid gap-5">
         <FlightInfoCard
           title="Chiều đi"
           flight={selection.outbound}
@@ -185,20 +181,19 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
         )}
       </div>
 
-      {/* Pricing & Actions */}
-      <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm p-5 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <div className="rounded-xl border border-border bg-card shadow-sm p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div className="flex items-start gap-4 flex-1">
-          <div className="p-3 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md">
-            <Clock className="w-5 h-5" />
+          <div className="p-3 rounded-xl bg-primary text-primary-foreground shadow-sm">
+            <Clock className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold tracking-wide text-blue-600 uppercase">
+            <p className="text-xs font-semibold tracking-wide text-primary uppercase">
               Tổng giá
             </p>
-            <p className="text-3xl font-extrabold text-gray-900 mt-1 leading-none">
+            <p className="text-3xl font-bold text-foreground mt-1 leading-none">
               {formatPrice(selection.totalPrice)}
             </p>
-            <p className="text-[11px] text-gray-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
               Đã bao gồm toàn bộ thuế & phụ phí ({selection.currency}). Giá hiển
               thị là cuối cùng.
             </p>
@@ -206,24 +201,23 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={onChangeFlights}
-            className="sm:w-auto w-full border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 text-red-600 hover:text-red-700 hover:bg-red-100/70">
-            <span className="flex items-center gap-1 text-sm">
+            className="sm:w-auto w-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive bg-transparent">
+            <span className="flex items-center gap-1.5 text-sm font-medium">
               <ChevronRight className="w-4 h-4 rotate-180" /> Chọn lại
             </span>
           </Button>
           <Button
             onClick={onConfirm}
-            className="sm:w-auto w-full shadow-lg shadow-blue-500/20 hover:shadow-blue-600/30 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700">
-            <span className="flex items-center gap-2 text-sm font-semibold tracking-wide">
+            className="sm:w-auto w-full shadow-md bg-primary hover:bg-primary/90 text-primary-foreground">
+            <span className="flex items-center gap-2 text-sm font-semibold">
               Tiếp tục <ChevronRight className="w-4 h-4" />
             </span>
           </Button>
         </div>
       </div>
       <style>{`
-        @keyframes shine {0%{transform:translateX(-100%);}100%{transform:translateX(100%);}}
         @keyframes fadeIn {from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
       `}</style>
     </div>

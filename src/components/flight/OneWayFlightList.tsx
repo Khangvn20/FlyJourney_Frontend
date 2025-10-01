@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Plane } from "lucide-react";
 import FlightCard from "./FlightCard";
+import type { FlightCardProps } from "../../shared/types/flight-card.types";
 import type { FlightSearchApiResult } from "../../shared/types/search-api.types";
 
 interface OneWayFlightListProps {
@@ -15,7 +16,6 @@ interface OneWayFlightListProps {
   }>;
   onFlightSelect: (flight: FlightSearchApiResult) => void;
   error: string | null;
-  suppressEmpty?: boolean; // when true, don't show empty state (e.g., during skeleton phase)
 }
 
 const OneWayFlightList: React.FC<OneWayFlightListProps> = ({
@@ -24,7 +24,6 @@ const OneWayFlightList: React.FC<OneWayFlightListProps> = ({
   vietnameseAirlines,
   onFlightSelect,
   error,
-  suppressEmpty,
 }) => {
   const [expandedFlightId, setExpandedFlightId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<string>("flight");
@@ -48,7 +47,7 @@ const OneWayFlightList: React.FC<OneWayFlightListProps> = ({
     );
   }
 
-  if (flights.length === 0 && !suppressEmpty) {
+  if (flights.length === 0) {
     return (
       <Card className="border border-gray-200">
         <CardContent className="p-8 text-center">
@@ -65,22 +64,25 @@ const OneWayFlightList: React.FC<OneWayFlightListProps> = ({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       {flights.map((flight, index) => {
-        const airlineInfo =
-          vietnameseAirlines.find(
-            (a) => a.name.toLowerCase() === flight.airline_name.toLowerCase()
-          ) || vietnameseAirlines[0];
+        const airlineInfo = vietnameseAirlines.find(
+          (a) => a.name.toLowerCase() === flight.airline_name.toLowerCase()
+        ) ||
+          vietnameseAirlines[0] || {
+            logo: "",
+          };
+        const airlineLogo = airlineInfo?.logo ?? "";
 
         return (
           <FlightCard
             key={`${flight.flight_id}-${index}-${flight.flight_number}`}
-            flight={flight}
+            flight={flight as FlightCardProps["flight"]}
             isExpanded={expandedFlightId === flight.flight_id}
             onToggleDetails={() => toggleFlightDetails(flight.flight_id)}
             onSelect={() => onFlightSelect(flight)}
             sortBy={sortBy}
-            airlineLogo={airlineInfo.logo}
+            airlineLogo={airlineLogo}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
           />

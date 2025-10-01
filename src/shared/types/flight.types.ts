@@ -4,6 +4,12 @@ export interface PassengerCounts {
   infants: number;
 }
 
+export type PassengerCountsLike = Partial<{
+  adults: number | string | null | undefined;
+  children: number | string | null | undefined;
+  infants: number | string | null | undefined;
+}>;
+
 export interface FlightSegment {
   from: string;
   to: string;
@@ -21,13 +27,7 @@ export interface SearchFormData {
   flightClass: string;
   specialRequirements: string;
   searchFullMonth: boolean;
-}
-
-export interface Airport {
-  code: string;
-  name: string;
-  city: string;
-  country: string;
+  monthsCount?: number;
 }
 
 export interface FlightClass {

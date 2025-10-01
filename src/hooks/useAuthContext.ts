@@ -1,6 +1,5 @@
 import { useContext } from "react";
 import { AuthContext } from "../contexts/AuthContext";
-// AuthContextType now sourced from shared types barrel
 import type { AuthContextType } from "../shared/types";
 
 /**

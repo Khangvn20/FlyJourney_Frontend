@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 
-import type { User, AuthContextType } from "./auth.types";
+import type { User, AuthContextType } from "../shared/types/auth-context.types";
 import type {
   ConfirmRegisterRequest,
   LoginRequest,

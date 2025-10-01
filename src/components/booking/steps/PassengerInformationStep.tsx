@@ -1,6 +1,7 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import type { PassengerFormData } from "../../../shared/types/passenger.types";
-import PassengerInfoCollector from "../PassengerInfoCollector";
+import ContactInformationForm from "../ContactInformationForm";
+import PassengerInformationForm from "../PassengerInformationForm";
 import AddonsSelector from "../AddonsSelector";
 import { SERVICE_OPTIONS } from "../bookingAddons.constants";
 import type { BookingSelection } from "../BookingSummary";
@@ -79,8 +80,14 @@ interface PassengerInformationStepProps {
   }) => void;
   note?: string;
   onNoteChange?: (note: string) => void;
-  contactAddress?: string;
-  onContactAddressChange?: (address: string) => void;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  contactAddress: string;
+  onContactNameChange: (name: string) => void;
+  onContactEmailChange: (email: string) => void;
+  onContactPhoneChange: (phone: string) => void;
+  onContactAddressChange: (address: string) => void;
   onBack: () => void;
   onNext: () => void;
   isValid: boolean;
@@ -97,7 +104,13 @@ export const PassengerInformationStep: React.FC<
   onAddonsChange,
   note,
   onNoteChange,
+  contactName,
+  contactEmail,
+  contactPhone,
   contactAddress,
+  onContactNameChange,
+  onContactEmailChange,
+  onContactPhoneChange,
   onContactAddressChange,
   onBack,
   onNext,
@@ -124,30 +137,39 @@ export const PassengerInformationStep: React.FC<
       passengerCounts.children +
       passengerCounts.infants;
 
-    // Giả định: selection.totalPrice đã bao gồm thuế & phí
-    // Ta tách 70% là fare cơ bản, 30% là thuế/phí để hiển thị rõ ràng.
-    const baseFareTotal = Math.floor(selection.totalPrice * 0.7);
+    const flights = [
+      selection.outbound,
+      ...(selection.inbound ? [selection.inbound] : []),
+    ];
+
+    const baseFareTotal = flights.reduce((sum, flight) => {
+      const bp = flight.pricing?.base_prices || {};
+      return (
+        sum +
+        (bp.adult || 0) * passengerCounts.adults +
+        (bp.child || 0) * passengerCounts.children +
+        (bp.infant || 0) * passengerCounts.infants
+      );
+    }, 0);
+
     const taxesAndFees = selection.totalPrice - baseFareTotal;
 
-    // Phân bổ minh họa theo hệ số (adult:1, child:0.75, infant:0.1)
-    const weightAdults = passengerCounts.adults;
-    const weightChildren = passengerCounts.children * 0.75;
-    const weightInfants = passengerCounts.infants * 0.1;
-    const totalWeight = Math.max(
-      1,
-      weightAdults + weightChildren + weightInfants
-    );
-
-    const perUnit = baseFareTotal / totalWeight;
-
-    const adultsFare = Math.floor(perUnit * weightAdults);
-    const childrenFare = Math.floor(perUnit * passengerCounts.children * 0.75);
-    const infantsFare = Math.floor(perUnit * passengerCounts.infants * 0.1);
-
     const paxAllocation = {
-      adults: adultsFare,
-      children: childrenFare,
-      infants: infantsFare,
+      adults:
+        flights.reduce(
+          (sum, f) => sum + (f.pricing?.base_prices?.adult || 0),
+          0
+        ) * passengerCounts.adults,
+      children:
+        flights.reduce(
+          (sum, f) => sum + (f.pricing?.base_prices?.child || 0),
+          0
+        ) * passengerCounts.children,
+      infants:
+        flights.reduce(
+          (sum, f) => sum + (f.pricing?.base_prices?.infant || 0),
+          0
+        ) * passengerCounts.infants,
     };
 
     // Dịch vụ chung: tính lại từ SERVICE_OPTIONS để đảm bảo chính xác
@@ -186,16 +208,35 @@ export const PassengerInformationStep: React.FC<
   }, [
     addons.services,
     passengerCounts,
-    selection.totalPrice,
+    selection,
     totalBaggagePrice,
   ]);
+
+  useEffect(() => {
+    const newExtra = totalBaggagePrice + servicesTotal;
+    if (addons.extraPrice !== newExtra) {
+      onAddonsChange({ ...addons, extraPrice: newExtra });
+    }
+  }, [totalBaggagePrice, servicesTotal, addons, onAddonsChange]);
 
   return (
     <div className="grid gap-8 md:grid-cols-12">
       {/* Left content */}
       <div className="md:col-span-8 space-y-6">
-        {/* Passenger Information Section */}
-        <PassengerInfoCollector
+        {/* Contact Information Form */}
+        <ContactInformationForm
+          contactName={contactName}
+          contactEmail={contactEmail}
+          contactPhone={contactPhone}
+          contactAddress={contactAddress}
+          onContactNameChange={onContactNameChange}
+          onContactEmailChange={onContactEmailChange}
+          onContactPhoneChange={onContactPhoneChange}
+          onContactAddressChange={onContactAddressChange}
+        />
+
+        {/* Passenger Information Form */}
+        <PassengerInformationForm
           passengers={passengers}
           onPassengerChange={(index: number, passenger: PassengerFormData) => {
             const updatedPassengers = [...passengers];
@@ -206,8 +247,6 @@ export const PassengerInformationStep: React.FC<
             onPassengerChange(updatedPassengers);
           }}
           passengerCounts={passengerCounts}
-          contactAddress={contactAddress}
-          onContactAddressChange={onContactAddressChange}
         />
 
         {/* Addons Selector */}
@@ -264,43 +303,6 @@ export const PassengerInformationStep: React.FC<
             </div>
           </div>
         </div>
-
-        {/* Validation Messages */}
-        {passengers.length === 0 && (
-          <div className="p-4 border border-yellow-300 bg-yellow-50 rounded-lg text-sm text-yellow-700">
-            Đang tải thông tin hành khách...
-          </div>
-        )}
-
-        {!contactAddress?.trim() && (
-          <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
-            ⚠️ Vui lòng nhập địa chỉ liên hệ của người đặt vé để tiếp tục
-          </div>
-        )}
-
-        {!passengers[0]?.phone?.trim() && (
-          <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
-            ⚠️ Vui lòng nhập số điện thoại của người đặt vé để tiếp tục
-          </div>
-        )}
-
-        {passengers.some(
-          (passenger, index) => index > 0 && !passenger.phone?.trim()
-        ) && (
-          <div className="p-4 border border-yellow-300 bg-yellow-50 rounded-lg text-sm text-yellow-700">
-            💡 Khuyến khích nhập số điện thoại cho các hành khách khác để liên
-            hệ khẩn cấp
-          </div>
-        )}
-
-        {!selection.outbound.flight_class_id && (
-          <div className="p-4 border border-red-300 bg-red-50 rounded-lg text-sm text-red-700">
-            Thiếu mã hạng vé – vui lòng tìm lại chuyến bay.
-            <button onClick={onBack} className="underline font-medium ml-1">
-              Quay lại tìm kiếm
-            </button>
-          </div>
-        )}
 
         {/* Navigation */}
         <div className="flex justify-between pt-4">
@@ -385,11 +387,20 @@ export const PassengerInformationStep: React.FC<
                 </span>
               </div>
 
-              {passengers[0]?.phone && (
+              {contactPhone && (
                 <div className="flex items-center justify-between py-2 border-t border-gray-100">
                   <span className="text-xs text-gray-600">SĐT liên hệ</span>
                   <span className="text-xs font-medium text-gray-700">
-                    {passengers[0].phone}
+                    {contactPhone}
+                  </span>
+                </div>
+              )}
+
+              {contactName && (
+                <div className="flex items-center justify-between py-2 border-t border-gray-100">
+                  <span className="text-xs text-gray-600">Người liên hệ</span>
+                  <span className="text-xs font-medium text-gray-700">
+                    {contactName}
                   </span>
                 </div>
               )}

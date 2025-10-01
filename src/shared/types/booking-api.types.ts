@@ -27,6 +27,7 @@ export interface BookingPassengerDetailRequest {
 export interface BookingCreateRequest {
   flight_id: number;
   return_flight_id?: number; // for round-trip bookings
+  contact_name: string;
   contact_email: string;
   contact_phone: string;
   contact_address: string;

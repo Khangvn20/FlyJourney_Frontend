@@ -33,3 +33,5 @@ dist-ssr
 
 # Documentation files (private)
 docs/
+*.zip
+

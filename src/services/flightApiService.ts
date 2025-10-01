@@ -21,6 +21,16 @@ import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
 
 // ===== BASE API UTILS =====
 
+export const MAX_FLIGHT_SEARCH_LIMIT = 100;
+const MIN_FLIGHT_SEARCH_LIMIT = 1;
+const DEFAULT_FLIGHT_SEARCH_LIMIT = 100;
+
+const clampFlightSearchLimit = (limit?: number) =>
+  Math.min(
+    MAX_FLIGHT_SEARCH_LIMIT,
+    Math.max(limit ?? DEFAULT_FLIGHT_SEARCH_LIMIT, MIN_FLIGHT_SEARCH_LIMIT)
+  );
+
 class FlightApiError extends Error {
   public code?: string;
   public status?: number;
@@ -36,7 +46,11 @@ class FlightApiError extends Error {
 const handleApiResponse = async <T>(response: Response): Promise<T> => {
   if (!response.ok) {
     const errorText = await response.text();
-    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+    if (
+      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+      shouldShowDevControls() &&
+      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+    ) {
       console.error(`❌ HTTP Error ${response.status}:`, errorText);
     }
     throw new FlightApiError(
@@ -47,12 +61,38 @@ const handleApiResponse = async <T>(response: Response): Promise<T> => {
   }
 
   const data: FlightApiResponse<T> = await response.json();
-  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+  // Debug: expose last parsed response + event for in-browser inspection
+  try {
+    (window as unknown as Record<string, unknown>)[
+      "__FJ_DEBUG_LAST_RESPONSE__"
+    ] = data;
+    window.dispatchEvent(
+      new CustomEvent("FJ_DEBUG_API", { detail: { phase: "response", data } })
+    );
+  } catch (e) {
+    // Non-fatal: debugging instrumentation may be unavailable in some environments
+    if (
+      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+      shouldShowDevControls() &&
+      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+    ) {
+      console.debug("(debug) Unable to dispatch response debug event", e);
+    }
+  }
+  if (
+    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+    shouldShowDevControls() &&
+    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+  ) {
     console.log(`✅ API Response data:`, data);
   }
 
   if (!data.status) {
-    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+    if (
+      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+      shouldShowDevControls() &&
+      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+    ) {
       console.error(`❌ API Error:`, data);
     }
     throw new FlightApiError(
@@ -71,9 +111,58 @@ const makeApiRequest = async <T>(
   const url = `${flightApiConfig.baseUrl}${endpoint}`;
 
   try {
-    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+    if (
+      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+      shouldShowDevControls() &&
+      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+    ) {
       console.log(`🌐 Making API request to: ${url}`);
       console.log(`📋 Request options:`, options);
+    }
+
+    // Debug: expose last request with normalized shape and cURL
+    try {
+      const method = (options?.method || "GET").toUpperCase();
+      const headers = {
+        "Content-Type": "application/json",
+        ...(options?.headers as Record<string, string> | undefined),
+      };
+      const bodyText =
+        typeof options?.body === "string"
+          ? options?.body
+          : options?.body
+          ? JSON.stringify(options.body)
+          : undefined;
+      const curlParts = [
+        `curl -X ${method} '${url}'`,
+        ...Object.entries(headers).map(([k, v]) => `-H '${k}: ${v}'`),
+        bodyText ? `-d '${bodyText.replace(/'/g, "'\\''")}'` : undefined,
+      ].filter(Boolean) as string[];
+      const curl = curlParts.join(" ");
+      const debugReq = {
+        url,
+        method,
+        headers,
+        body: bodyText ? JSON.parse(bodyText) : undefined,
+        curl,
+      };
+      (window as unknown as Record<string, unknown>)[
+        "__FJ_DEBUG_LAST_REQUEST__"
+      ] = debugReq;
+      window.dispatchEvent(
+        new CustomEvent("FJ_DEBUG_API", {
+          detail: { phase: "request", data: debugReq },
+        })
+      );
+    } catch (e) {
+      // Non-fatal: fail silently if constructing debug payload/cURL fails
+      if (
+        DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+        shouldShowDevControls() &&
+        !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+      ) {
+        console.debug("(debug) Unable to prepare request instrumentation", e);
+      }
     }
 
     const response = await fetch(url, {
@@ -84,7 +173,11 @@ const makeApiRequest = async <T>(
       },
     });
 
-    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+    if (
+      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+      shouldShowDevControls() &&
+      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+    ) {
       console.log(
         `📈 Response status: ${response.status} ${response.statusText}`
       );
@@ -95,7 +188,11 @@ const makeApiRequest = async <T>(
       throw error;
     }
 
-    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+    if (
+      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+      shouldShowDevControls() &&
+      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+    ) {
       console.error("Flight API Request failed:", error);
     }
     throw new FlightApiError(
@@ -113,7 +210,11 @@ const makeApiRequest = async <T>(
 export const searchOneWayFlights = async (
   params: FlightSearchOneWayRequest
 ): Promise<FlightSearchOneWayResponse> => {
-  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+  if (
+    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+    shouldShowDevControls() &&
+    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+  ) {
     console.log("🔍 Searching one-way flights with params:", params);
     console.log("📤 Request body:", JSON.stringify(params, null, 2));
   }
@@ -130,7 +231,11 @@ export const searchOneWayFlights = async (
 export const searchRoundTripFlights = async (
   params: FlightSearchRoundTripRequest
 ): Promise<FlightSearchRoundTripResponse> => {
-  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+  if (
+    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+    shouldShowDevControls() &&
+    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+  ) {
     console.log("🔄 Searching round-trip flights:", params);
   }
 
@@ -147,7 +252,11 @@ export const searchRoundTripFlights = async (
  * 3. Get Flight by ID
  */
 export const getFlightById = async (id: number): Promise<FlightDetail> => {
-  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+  if (
+    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+    shouldShowDevControls() &&
+    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+  ) {
     console.log("🆔 Getting flight by ID:", id);
   }
 
@@ -164,7 +273,11 @@ export const getFlightsByAirline = async (
   page = 1,
   limit = 10
 ): Promise<FlightsByAirlineResponse> => {
-  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+  if (
+    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+    shouldShowDevControls() &&
+    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+  ) {
     console.log("✈️ Getting flights by airline:", { airlineId, page, limit });
   }
 
@@ -182,7 +295,11 @@ export const getFlightsByStatus = async (
   page = 1,
   limit = 10
 ): Promise<FlightsByStatusResponse> => {
-  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+  if (
+    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+    shouldShowDevControls() &&
+    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+  ) {
     console.log("🚦 Getting flights by status:", { status, page, limit });
   }
 
@@ -201,12 +318,15 @@ export const getFlightsByStatus = async (
 export const flightSearchService = async (
   params: FlightSearchParams
 ): Promise<FlightSearchApiWrapper> => {
-  if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+  if (
+    DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+    shouldShowDevControls() &&
+    !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+  ) {
     console.log("🚀 Unified flight search:", params);
   }
 
   if (params.tripType === "roundTrip") {
-    // TODO: Implement round trip with correct response structure
     throw new Error(
       "Round trip search not yet implemented with new API structure"
     );
@@ -216,19 +336,27 @@ export const flightSearchService = async (
       departure_airport_code: params.from,
       arrival_airport_code: params.to,
       departure_date: params.departureDate,
-      flight_class: "all", // Use "all" to get all available flights as in Postman
+      flight_class: params.flightClass, // Use flight class from params for consistency
       passenger: {
         adults: params.passengers.adults,
         children: params.passengers.children || 0,
         infants: params.passengers.infants || 0,
       },
       page: params.page || 1,
-      limit: params.limit || 50,
+      limit: clampFlightSearchLimit(params.limit),
       sort_by: params.sortBy || "price",
       sort_order: params.sortOrder || "asc",
-    };
+      // Only include airline_ids if provided
+      ...(params.airline_ids && params.airline_ids.length
+        ? { airline_ids: params.airline_ids }
+        : {}),
+    } as const;
 
-    if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+    if (
+      DEV_CONFIG.ENABLE_CONSOLE_LOGS &&
+      shouldShowDevControls() &&
+      !DEV_CONFIG.REDUCE_DUPLICATE_LOGS
+    ) {
       console.log("🔍 Final one-way request params:", oneWayParams);
     }
     return makeApiRequest<FlightSearchApiWrapper>("/flights/search", {
@@ -264,13 +392,24 @@ export const mapFormToApiParams = (formData: {
 }): FlightSearchParams => {
   // Map flight class to API expected values
   const mapFlightClass = (frontendClass: string): FlightClass => {
-    const classMap: { [key: string]: FlightClass } = {
+    const normalized = frontendClass?.toLowerCase?.().trim() ?? "";
+    const sanitized = normalized.replace(/[\s-]+/g, "_");
+    const classMap: Record<string, FlightClass> = {
+      all: "all",
       economy: "economy",
+      economy_class: "economy",
       premium: "premium_economy",
+      premium_economy: "premium_economy",
+      premiumeconomy: "premium_economy",
+      premium_class: "premium_economy",
+      premium_economy_class: "premium_economy",
+      premiumeconomy_class: "premium_economy",
       business: "business",
+      business_class: "business",
       first: "first",
+      first_class: "first",
     };
-    return classMap[frontendClass] || "economy";
+    return classMap[sanitized] || classMap[normalized] || "economy";
   };
 
   return {
@@ -282,55 +421,10 @@ export const mapFormToApiParams = (formData: {
     passengers: formData.passengers,
     flightClass: mapFlightClass(formData.flightClass),
     page: 1,
-    limit: 50, // Increase limit to get more results
+    limit: DEFAULT_FLIGHT_SEARCH_LIMIT, // Increase limit from 50 to 100 to get more results
     sortBy: "price",
     sortOrder: "asc",
   };
-};
-
-/**
- * Format price from VND to display format
- */
-export const formatPrice = (priceVND: number): string => {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-  }).format(priceVND);
-};
-
-/**
- * Convert ISO datetime to display format
- */
-export const formatDateTime = (
-  isoString: string
-): {
-  date: string;
-  time: string;
-} => {
-  const date = new Date(isoString);
-  return {
-    date: date.toLocaleDateString("vi-VN"),
-    time: date.toLocaleTimeString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  };
-};
-
-/**
- * Calculate flight duration in human readable format
- */
-export const formatDuration = (minutes: number): string => {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-
-  if (hours === 0) {
-    return `${mins}m`;
-  }
-  if (mins === 0) {
-    return `${hours}h`;
-  }
-  return `${hours}h ${mins}m`;
 };
 
 // Export the main service for backward compatibility
