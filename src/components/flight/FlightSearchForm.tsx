@@ -109,12 +109,29 @@ export default function FlightSearchForm() {
       return [];
     }
   });
+  const isAllAirlinesSelected = selectedAirlines.length === 0;
 
   const [validationErrors, setValidationErrors] = useState({
     from: false,
     to: false,
     departureDate: false,
   });
+
+  const monthRangeLabel = useMemo(() => {
+    if (!formData.searchFullMonth || !formData.departureDate) return null;
+    const monthsCount = formData.monthsCount ?? 1;
+    const startLabel = format(formData.departureDate, "MM/yyyy");
+    if (monthsCount <= 1) {
+      return `Tháng ${startLabel}`;
+    }
+    const endDate = new Date(
+      formData.departureDate.getFullYear(),
+      formData.departureDate.getMonth() + monthsCount - 1,
+      1
+    );
+    const endLabel = format(endDate, "MM/yyyy");
+    return `Tháng ${startLabel} → ${endLabel}`;
+  }, [formData.searchFullMonth, formData.departureDate, formData.monthsCount]);
 
   useEffect(() => {
     localStorage.setItem("selectedAirlines", JSON.stringify(selectedAirlines));
@@ -218,6 +235,8 @@ export default function FlightSearchForm() {
     setSelectedAirlines((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+
+  const handleSelectAllAirlines = () => setSelectedAirlines([]);
 
   const validateForm = () => {
     const errs = {
@@ -374,9 +393,9 @@ export default function FlightSearchForm() {
                   htmlFor="full-month"
                   className="ml-2 text-xs text-gray-700 font-medium flex items-center gap-2">
                   Tìm kiếm cả tháng để có giá tốt nhất
-                  {formData.searchFullMonth && formData.departureDate && (
+                  {formData.searchFullMonth && monthRangeLabel && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-300">
-                      Tháng {format(formData.departureDate, "MM/yyyy")}
+                      {monthRangeLabel}
                     </span>
                   )}
                 </Label>
@@ -384,7 +403,27 @@ export default function FlightSearchForm() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            <button
+              type="button"
+              onClick={handleSelectAllAirlines}
+              aria-pressed={isAllAirlinesSelected}
+              className={`group relative flex h-24 w-full flex-col items-center justify-center rounded-xl border shadow-sm transition-all duration-200 overflow-hidden px-4 text-center ${
+                isAllAirlinesSelected
+                  ? "border-blue-400 bg-gradient-to-br from-blue-50 to-blue-100 ring-2 ring-blue-300 text-blue-700"
+                  : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-white hover:border-gray-300"
+              }`}>
+              <span className="text-sm font-semibold">Tất cả hãng</span>
+              <span
+                className={`mt-1 text-[11px] ${
+                  isAllAirlinesSelected ? "text-blue-600/80" : "text-gray-500"
+                }`}>
+                Không giới hạn lọc
+              </span>
+              {isAllAirlinesSelected && (
+                <span className="absolute top-1 right-1 inline-block h-3 w-3 rounded-full bg-blue-500 ring-2 ring-white" />
+              )}
+            </button>
             {vietnameseAirlines.map((al) => {
               const active = selectedAirlines.includes(al.id);
               return (
@@ -705,7 +744,7 @@ export default function FlightSearchForm() {
               </Label>
               {formData.tripType === "round-trip" ? (
                 <RangePicker
-                  className="w-full h-12"
+                  className="w-full fly-date-picker"
                   format="DD/MM/YYYY"
                   value={[
                     formData.departureDate
@@ -728,28 +767,34 @@ export default function FlightSearchForm() {
                   }}
                 />
               ) : formData.searchFullMonth ? (
-                <input
-                  type="month"
-                  className="w-full h-12 px-4 border-2 rounded-lg bg-gray-50/50 text-base focus:outline-none focus:ring-2 border-gray-200 focus:border-blue-500 focus:ring-blue-200"
+                <DatePicker
+                  className="w-full fly-date-picker"
+                  picker="month"
+                  format="MMMM YYYY"
+                  inputReadOnly
                   value={
                     formData.departureDate
-                      ? `${formData.departureDate.getFullYear()}-${String(
-                          formData.departureDate.getMonth() + 1
-                        ).padStart(2, "0")}`
-                      : ""
+                      ? dayjs(formData.departureDate)
+                      : null
                   }
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    const [y, m] = e.target.value.split("-").map(Number);
+                  disabledDate={disablePastDate}
+                  onChange={(date) => {
                     setFormData((p) => ({
                       ...p,
-                      departureDate: new Date(y, m - 1, 1),
+                      departureDate: date
+                        ? date.startOf("month").toDate()
+                        : undefined,
+                    }));
+                    setValidationErrors((p) => ({
+                      ...p,
+                      departureDate: !date,
                     }));
                   }}
+                  popupClassName="fly-month-picker-dropdown"
                 />
               ) : (
                 <DatePicker
-                  className="w-full h-12"
+                  className="w-full fly-date-picker"
                   format="DD/MM/YYYY"
                   value={
                     formData.departureDate

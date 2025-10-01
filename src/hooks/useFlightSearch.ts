@@ -31,7 +31,9 @@ import {
   isDirectFlightData,
   extractNestedRoundTrip,
   type PerDayFlightsGroup,
+  type MonthBucketSummary,
   type MonthAggregatedWrapper,
+  type MonthRangeMeta,
   type SafeObj,
 } from "../lib/searchUtils";
 
@@ -251,12 +253,86 @@ export const useFlightSearch = () => {
 
   // Month
   const [perDayResults, setPerDayResults] = useState<PerDayFlightsGroup[]>([]);
-  const [monthMeta, setMonthMeta] = useState<{
-    month: number;
-    year: number;
-    days: number;
-    loading: boolean;
-  } | null>(null);
+  const [monthMeta, setMonthMeta] = useState<MonthRangeMeta | null>(null);
+  const [activeMonthKey, setActiveMonthKey] = useState<string | null>(null);
+
+  const monthBuckets = useMemo<MonthBucketSummary[]>(() => {
+    if (!perDayResults.length) return [];
+
+    const buckets = new Map<
+      string,
+      { month: number; year: number; groups: PerDayFlightsGroup[] }
+    >();
+
+    perDayResults.forEach((group) => {
+      const [, month, year] = group.day.split("/").map(Number);
+      if (!month || !year) return;
+      const key = `${year}-${String(month).padStart(2, "0")}`;
+      if (!buckets.has(key)) {
+        buckets.set(key, { month, year, groups: [] });
+      }
+      buckets.get(key)!.groups.push(group);
+    });
+
+    return Array.from(buckets.entries())
+      .map(([key, value]) => {
+        const sortedGroups = [...value.groups].sort((a, b) => {
+          const [dayA, monthA, yearA] = a.day.split("/").map(Number);
+          const [dayB, monthB, yearB] = b.day.split("/").map(Number);
+          const dateA = new Date(
+            yearA || 0,
+            (monthA || 1) - 1,
+            dayA || 1
+          ).getTime();
+          const dateB = new Date(
+            yearB || 0,
+            (monthB || 1) - 1,
+            dayB || 1
+          ).getTime();
+          return dateA - dateB;
+        });
+
+        const totalCalendarDays = new Date(
+          value.year,
+          value.month,
+          0
+        ).getDate();
+
+        return {
+          key,
+          month: value.month,
+          year: value.year,
+          label: `Tháng ${String(value.month).padStart(2, "0")}/${value.year}`,
+          shortLabel: `${String(value.month).padStart(2, "0")}/${String(
+            value.year
+          ).slice(-2)}`,
+          totalCalendarDays,
+          loadedDays: sortedGroups.length,
+          groups: sortedGroups,
+        } satisfies MonthBucketSummary;
+      })
+      .sort((a, b) => {
+        const timeA = new Date(a.year, a.month - 1, 1).getTime();
+        const timeB = new Date(b.year, b.month - 1, 1).getTime();
+        return timeA - timeB;
+      });
+  }, [perDayResults]);
+
+  useEffect(() => {
+    if (monthBuckets.length === 0) {
+      if (activeMonthKey !== null) {
+        setActiveMonthKey(null);
+      }
+      return;
+    }
+
+    if (
+      !activeMonthKey ||
+      !monthBuckets.some((bucket) => bucket.key === activeMonthKey)
+    ) {
+      setActiveMonthKey(monthBuckets[0].key);
+    }
+  }, [monthBuckets, activeMonthKey]);
 
   const [tripType, setTripType] = useState<"one-way" | "round-trip">("one-way");
   const [error, setError] = useState<string | null>(null);
@@ -324,7 +400,12 @@ export const useFlightSearch = () => {
 
   // Per-day filter (month)
   const filteredPerDayResults = useMemo(() => {
-    return perDayResults.map((dayGroup) => ({
+    const sourceGroups = activeMonthKey
+      ? monthBuckets.find((bucket) => bucket.key === activeMonthKey)?.groups ??
+        []
+      : perDayResults;
+
+    return sourceGroups.map((dayGroup) => ({
       ...dayGroup,
       flights: filterAndSortFlights({
         flights: dayGroup.flights,
@@ -332,7 +413,7 @@ export const useFlightSearch = () => {
         filters,
       }),
     }));
-  }, [perDayResults, selectedAirlines, filters]);
+  }, [perDayResults, selectedAirlines, filters, monthBuckets, activeMonthKey]);
 
   // Persist searchInfo
   useEffect(() => {
@@ -950,6 +1031,9 @@ export const useFlightSearch = () => {
     passengerCounts,
     perDayResults,
     monthMeta,
+    monthBuckets,
+    activeMonthKey,
+    setActiveMonthKey,
     tripType,
     setTripType,
     error,

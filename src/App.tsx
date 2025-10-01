@@ -34,6 +34,16 @@ const Layout: React.FC = () => (
   </div>
 );
 
+const FullWidthLayout: React.FC = () => (
+  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <Header isSticky={false} />
+    <main className="min-h-[calc(100vh-140px)]">
+      <Outlet />
+    </main>
+    <Footer />
+  </div>
+);
+
 const App: React.FC = () => {
   useScrollToTop();
   const location = useLocation();
@@ -63,10 +73,13 @@ const App: React.FC = () => {
       <Routes>
         {/* Register page without Header/Footer */}
         <Route path="/register" element={<Register />} />
+        {/* Search page with full-width layout */}
+        <Route element={<FullWidthLayout />}>
+          <Route path="/search" element={<Search />} />
+        </Route>
         {/* Main app routes with Header/Footer */}
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
-          <Route path="/search" element={<Search />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/news" element={<News />} />
           <Route path="/booking" element={<Booking />} />

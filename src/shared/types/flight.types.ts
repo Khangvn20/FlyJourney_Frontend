@@ -27,6 +27,7 @@ export interface SearchFormData {
   flightClass: string;
   specialRequirements: string;
   searchFullMonth: boolean;
+  monthsCount?: number;
 }
 
 export interface FlightClass {

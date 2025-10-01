@@ -190,18 +190,23 @@ export const useFlightSearchForm = () => {
     day: string;
     flights: FlightSearchApiResponse["search_results"];
   }
+  interface MonthRangeMetaInternal {
+    startMonth: number;
+    startYear: number;
+    endMonth: number;
+    endYear: number;
+    monthsCount: number;
+    totalDays: number;
+    loadedDays: number;
+    loading: boolean;
+    phase?: "outbound" | "inbound" | "done";
+  }
   interface MonthAggregatedWrapperOneWayInternal {
     status: boolean;
     data: FlightSearchApiResponse & { per_day_results: PerDayFlightsAggr[] } & {
       mode: "one-way";
     };
-    meta: {
-      month: number;
-      year: number;
-      days: number;
-      loading: boolean;
-      phase: "done";
-    };
+    meta: MonthRangeMetaInternal;
   }
   interface RoundTripMonthWrapperInternal {
     status: boolean;
@@ -220,13 +225,7 @@ export const useFlightSearchForm = () => {
         arrival_airport: string;
       };
     };
-    meta: {
-      month: number;
-      year: number;
-      days: number;
-      loading: boolean;
-      phase: "outbound" | "inbound" | "done";
-    };
+    meta: MonthRangeMetaInternal;
   }
   type AggregatedMonthUnion =
     | MonthAggregatedWrapperOneWayInternal
@@ -236,11 +235,24 @@ export const useFlightSearchForm = () => {
   const [formData, setFormData] = useState<SearchFormData>(() => {
     const savedData = loadSavedSearchData();
     const today = new Date();
+    const todayMidnight = new Date(today);
+    todayMidnight.setHours(0, 0, 0, 0);
+
+    const normalizeStoredDate = (date: unknown): Date | undefined => {
+      if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        return undefined;
+      }
+      if (DEV_CONFIG.HIDE_DEV_CONTROLS && date < todayMidnight) {
+        return undefined;
+      }
+      return date;
+    };
+
     const defaultData = {
       tripType: "one-way" as const,
       from: "",
       to: "",
-      departureDate: today,
+      departureDate: undefined as Date | undefined,
       returnDate: undefined,
       multiCitySegments: [
         { from: "", to: "", departureDate: undefined },
@@ -254,12 +266,19 @@ export const useFlightSearchForm = () => {
       flightClass: "all" as const,
       specialRequirements: "none" as const,
       searchFullMonth: false,
+      monthsCount: 1,
     };
 
     // Merge saved data but always use today's date for departure
     const merged = { ...defaultData, ...savedData };
-    merged.departureDate = today;
-    if (merged.returnDate && merged.returnDate < merged.departureDate) {
+    merged.departureDate = normalizeStoredDate(savedData.departureDate);
+    merged.returnDate = normalizeStoredDate(savedData.returnDate);
+
+    if (
+      merged.returnDate &&
+      merged.departureDate &&
+      merged.returnDate < merged.departureDate
+    ) {
       merged.returnDate = undefined;
     }
 
@@ -529,9 +548,52 @@ export const useFlightSearchForm = () => {
       // If user requested full month search
       if (formData.searchFullMonth) {
         const departureDate = formData.departureDate!;
-        const year = departureDate.getFullYear();
-        const month = departureDate.getMonth(); // 0 index
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const baseMonth = new Date(
+          departureDate.getFullYear(),
+          departureDate.getMonth(),
+          1
+        );
+        const selectedMonthsRaw = Number(
+          (formData as { monthsCount?: number }).monthsCount ?? 1
+        );
+        const requestedMonths = Number.isFinite(selectedMonthsRaw)
+          ? Math.max(1, Math.min(6, Math.floor(selectedMonthsRaw)))
+          : 1;
+
+        const monthSequence = Array.from(
+          { length: requestedMonths },
+          (_, idx) => {
+            const monthDate = new Date(
+              baseMonth.getFullYear(),
+              baseMonth.getMonth() + idx,
+              1
+            );
+            const daysInTargetMonth = new Date(
+              monthDate.getFullYear(),
+              monthDate.getMonth() + 1,
+              0
+            ).getDate();
+            return {
+              year: monthDate.getFullYear(),
+              month: monthDate.getMonth(),
+              daysInMonth: daysInTargetMonth,
+            };
+          }
+        );
+
+        const todayMidnight = new Date(new Date().setHours(0, 0, 0, 0));
+        const searchTimeline: { date: Date; monthIndex: number }[] = [];
+        monthSequence.forEach((cfg, idx) => {
+          for (let day = 1; day <= cfg.daysInMonth; day++) {
+            const currentDate = new Date(cfg.year, cfg.month, day);
+            if (DEV_CONFIG.HIDE_DEV_CONTROLS && currentDate < todayMidnight) {
+              continue;
+            }
+            searchTimeline.push({ date: currentDate, monthIndex: idx });
+          }
+        });
+
+        const hasSearchTargets = searchTimeline.length > 0;
         const searchId = Date.now();
         currentMonthSearchId.current = searchId;
         // Reset cancel flag
@@ -539,7 +601,6 @@ export const useFlightSearchForm = () => {
 
         // ONE-WAY MONTH (original path)
         if (!isRoundTrip) {
-          // (inline type removed)
           const baseOneWay: FlightSearchApiResponse = {
             arrival_airport: (apiRequest as SimpleSearchRequest)
               .arrival_airport_code,
@@ -561,14 +622,21 @@ export const useFlightSearchForm = () => {
             total_count: 0,
             total_pages: 1,
           };
+
+          const startCfg = monthSequence[0];
+          const endCfg = monthSequence[monthSequence.length - 1];
           const aggregatedResults: MonthAggregatedWrapperOneWayInternal = {
             status: true,
             data: { ...baseOneWay, per_day_results: [], mode: "one-way" },
             meta: {
-              month: month + 1,
-              year,
-              days: daysInMonth,
-              loading: true,
+              startMonth: (startCfg?.month ?? baseMonth.getMonth()) + 1,
+              startYear: startCfg?.year ?? baseMonth.getFullYear(),
+              endMonth: (endCfg?.month ?? baseMonth.getMonth()) + 1,
+              endYear: endCfg?.year ?? baseMonth.getFullYear(),
+              monthsCount: monthSequence.length,
+              totalDays: searchTimeline.length,
+              loadedDays: 0,
+              loading: hasSearchTargets,
               phase: "done",
             },
           };
@@ -582,16 +650,16 @@ export const useFlightSearchForm = () => {
           // Small delay to ensure sessionStorage is saved before navigation
           await new Promise((resolve) => setTimeout(resolve, 10));
           navigate("/search");
-          for (let day = 1; day <= daysInMonth; day++) {
+
+          for (let idx = 0; idx < searchTimeline.length; idx++) {
             if (
               currentMonthSearchId.current !== searchId ||
               sessionStorage.getItem("cancelMonthSearch") === "1"
-            )
+            ) {
               break;
-            const currentDate = new Date(year, month, day);
-            const todayMidnight = new Date(new Date().setHours(0, 0, 0, 0));
-            if (DEV_CONFIG.HIDE_DEV_CONTROLS && currentDate < todayMidnight)
-              continue;
+            }
+
+            const currentDate = searchTimeline[idx].date;
             const dayRequest: SimpleSearchRequest = {
               ...(apiRequest as SimpleSearchRequest),
               departure_date: formatDateForApiRequest(currentDate),
@@ -599,6 +667,7 @@ export const useFlightSearchForm = () => {
               airline_ids:
                 airlineIds && airlineIds.length > 0 ? airlineIds : undefined,
             };
+
             try {
               currentAbortController.current?.abort();
               currentAbortController.current = new AbortController();
@@ -607,9 +676,11 @@ export const useFlightSearchForm = () => {
                 false,
                 currentAbortController.current.signal
               );
+
               const flightsForDay = (dayResult?.data?.search_results ||
                 dayResult?.data?.outbound_search_results ||
                 []) as FlightSearchApiResponse["search_results"];
+
               aggregatedResults.data.per_day_results.push({
                 day: formatDateForApiRequest(currentDate),
                 flights: flightsForDay,
@@ -617,13 +688,17 @@ export const useFlightSearchForm = () => {
               aggregatedResults.data.search_results.push(...flightsForDay);
               aggregatedResults.data.total_count =
                 aggregatedResults.data.search_results.length;
+
+              aggregatedResults.meta = {
+                ...aggregatedResults.meta,
+                loadedDays: aggregatedResults.data.per_day_results.length,
+                loading: idx < searchTimeline.length - 1,
+                phase: "done",
+              };
+
               const updated = {
                 ...aggregatedResults,
-                meta: {
-                  ...aggregatedResults.meta,
-                  loading: day < daysInMonth,
-                  phase: "done",
-                },
+                meta: aggregatedResults.meta,
               };
               aggregatedMonthRef.current = updated as AggregatedMonthUnion;
               sessionStorage.setItem(
@@ -632,18 +707,22 @@ export const useFlightSearchForm = () => {
               );
               window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
             } catch (err) {
-              if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls())
+              if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
                 console.error("Month day fetch failed", dayRequest, err);
+              }
             }
-            // await new Promise((r) => setTimeout(r, 160)); // Removed delay for faster search
           }
+
           if (aggregatedMonthRef.current) {
+            const finalLoadedDays =
+              aggregatedResults.data.per_day_results.length;
             aggregatedMonthRef.current = {
               ...aggregatedMonthRef.current,
               meta: {
                 ...aggregatedMonthRef.current.meta,
                 loading: false,
                 phase: "done",
+                loadedDays: finalLoadedDays,
               },
             };
             sessionStorage.setItem(
@@ -653,7 +732,7 @@ export const useFlightSearchForm = () => {
             window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
             sessionStorage.removeItem("cancelMonthSearch");
           }
-          // await ensureMonthMinDuration(searchStart); // Removed timeout
+
           setIsLoading(false);
           return;
         }
@@ -666,6 +745,13 @@ export const useFlightSearchForm = () => {
         const outboundCodeTo =
           (apiRequest as RoundTripSearchRequest).arrival_airport_code ||
           (apiRequest as SimpleSearchRequest).arrival_airport_code;
+        const primaryMonth = monthSequence[0];
+        const monthYear = primaryMonth?.year ?? baseMonth.getFullYear();
+        const monthIndex = primaryMonth?.month ?? baseMonth.getMonth();
+        const daysInPrimaryMonth =
+          primaryMonth?.daysInMonth ??
+          new Date(monthYear, monthIndex + 1, 0).getDate();
+
         const wrapper: RoundTripMonthWrapperInternal = {
           status: true,
           data: {
@@ -684,9 +770,13 @@ export const useFlightSearchForm = () => {
             },
           },
           meta: {
-            month: month + 1,
-            year,
-            days: daysInMonth,
+            startMonth: monthIndex + 1,
+            startYear: monthYear,
+            endMonth: monthIndex + 1,
+            endYear: monthYear,
+            monthsCount: 1,
+            totalDays: daysInPrimaryMonth * 2,
+            loadedDays: 0,
             loading: true,
             phase: "outbound",
           },
@@ -727,13 +817,13 @@ export const useFlightSearchForm = () => {
             []) as FlightSearchApiResponse["search_results"];
         };
         // Phase 1: outbound
-        for (let day = 1; day <= daysInMonth; day++) {
+        for (let day = 1; day <= daysInPrimaryMonth; day++) {
           if (
             currentMonthSearchId.current !== searchId ||
             sessionStorage.getItem("cancelMonthSearch") === "1"
           )
             break;
-          const d = new Date(year, month, day);
+          const d = new Date(monthYear, monthIndex, day);
           const todayMid = new Date(new Date().setHours(0, 0, 0, 0));
           if (DEV_CONFIG.HIDE_DEV_CONTROLS && d < todayMid) continue;
           try {
@@ -751,6 +841,7 @@ export const useFlightSearchForm = () => {
               ...wrapper.meta,
               phase: "outbound",
               loading: true,
+              loadedDays: wrapper.data.outbound.per_day_results.length,
             };
             aggregatedMonthRef.current = wrapper;
             sessionStorage.setItem(
@@ -768,7 +859,11 @@ export const useFlightSearchForm = () => {
           currentMonthSearchId.current !== searchId ||
           sessionStorage.getItem("cancelMonthSearch") === "1"
         ) {
-          wrapper.meta = { ...wrapper.meta, loading: false };
+          wrapper.meta = {
+            ...wrapper.meta,
+            loading: false,
+            loadedDays: wrapper.data.outbound.per_day_results.length,
+          };
           aggregatedMonthRef.current = wrapper;
           sessionStorage.setItem(
             "flightSearchResults",
@@ -785,13 +880,13 @@ export const useFlightSearchForm = () => {
         aggregatedMonthRef.current = wrapper;
         sessionStorage.setItem("flightSearchResults", JSON.stringify(wrapper));
         window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
-        for (let day = 1; day <= daysInMonth; day++) {
+        for (let day = 1; day <= daysInPrimaryMonth; day++) {
           if (
             currentMonthSearchId.current !== searchId ||
             sessionStorage.getItem("cancelMonthSearch") === "1"
           )
             break;
-          const d = new Date(year, month, day);
+          const d = new Date(monthYear, monthIndex, day);
           const todayMid = new Date(new Date().setHours(0, 0, 0, 0));
           if (DEV_CONFIG.HIDE_DEV_CONTROLS && d < todayMid) continue;
           try {
@@ -805,7 +900,14 @@ export const useFlightSearchForm = () => {
               flights,
             });
             wrapper.data.inbound.search_results.push(...flights);
-            wrapper.meta = { ...wrapper.meta, phase: "inbound", loading: true };
+            wrapper.meta = {
+              ...wrapper.meta,
+              phase: "inbound",
+              loading: true,
+              loadedDays:
+                wrapper.data.outbound.per_day_results.length +
+                wrapper.data.inbound.per_day_results.length,
+            };
             aggregatedMonthRef.current = wrapper;
             sessionStorage.setItem(
               "flightSearchResults",
@@ -818,7 +920,14 @@ export const useFlightSearchForm = () => {
           }
           // await new Promise((r) => setTimeout(r, 140)); // Removed delay for faster search
         }
-        wrapper.meta = { ...wrapper.meta, phase: "done", loading: false };
+        wrapper.meta = {
+          ...wrapper.meta,
+          phase: "done",
+          loading: false,
+          loadedDays:
+            wrapper.data.outbound.per_day_results.length +
+            wrapper.data.inbound.per_day_results.length,
+        };
         aggregatedMonthRef.current = wrapper;
         sessionStorage.setItem("flightSearchResults", JSON.stringify(wrapper));
         window.dispatchEvent(new CustomEvent("sessionStorageUpdated"));
@@ -891,7 +1000,12 @@ export const useFlightSearchForm = () => {
               aggregatedMonthRef.current as MonthAggregatedWrapperOneWayInternal;
             aggregatedMonthRef.current = {
               ...one,
-              meta: { ...one.meta, loading: false, phase: "done" },
+              meta: {
+                ...one.meta,
+                loading: false,
+                phase: "done",
+                loadedDays: one.data.per_day_results.length,
+              },
             };
           } else {
             const rt =
@@ -902,6 +1016,9 @@ export const useFlightSearchForm = () => {
                 ...rt.meta,
                 loading: false,
                 phase: rt.meta.phase ?? "done",
+                loadedDays:
+                  rt.data.outbound.per_day_results.length +
+                  rt.data.inbound.per_day_results.length,
               },
             };
           }

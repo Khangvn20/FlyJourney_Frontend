@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import {
@@ -9,6 +9,7 @@ import {
   User,
   Users,
   Baby,
+  Plane,
 } from "lucide-react";
 import {
   formatPrice,
@@ -147,6 +148,7 @@ const RoundTripSummary: React.FC<RoundTripSummaryProps> = ({
   );
 
   const grandTotal = totalPrice > 0 ? totalPrice : passengersTotal;
+
   const renderFlight = (
     dir: "outbound" | "inbound",
     flight: FlightSearchApiResult,
@@ -169,68 +171,74 @@ const RoundTripSummary: React.FC<RoundTripSummaryProps> = ({
         : flight.pricing.grand_total;
 
     const directionLabel = dir === "outbound" ? "Chiều đi" : "Chiều về";
-    const directionBadge =
-      dir === "outbound"
-        ? "bg-blue-50 text-blue-700 border-blue-200"
-        : "bg-indigo-50 text-indigo-700 border-indigo-200";
 
     return (
-      <div className="group flex flex-col gap-4 px-6 py-5 transition-colors hover:bg-blue-50/40">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <span
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${directionBadge}`}>
-              <CheckCircle2 className="h-4 w-4" />
-              {directionLabel}
-            </span>
-            <span className="hidden text-slate-400 sm:block">•</span>
-            <span className="text-sm font-semibold text-slate-900">
-              {flight.flight_number}
-            </span>
+      <div className="group rounded-xl border border-border bg-card p-6 transition-all hover:shadow-md">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+              <Plane className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                {directionLabel}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {flight.flight_number}
+              </p>
+            </div>
           </div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-600">
-            <span className="uppercase tracking-wide text-[10px] text-orange-500">
-              Giá vé(đã gồm thuế/phí)
-            </span>
-            {formatPrice(adultDisplayPrice)}
-          </span>
+          <div className="text-right">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Giá vé
+            </p>
+            <p className="text-lg font-bold text-primary">
+              {formatPrice(adultDisplayPrice)}
+            </p>
+          </div>
         </div>
 
-        <div className="grid gap-4 text-sm text-slate-600 md:grid-cols-[auto,1fr] md:items-center">
-          <div className="flex items-center gap-3 text-base font-semibold text-slate-900">
-            <span>{flight.departure_airport_code}</span>
-            <ArrowRight className="h-4 w-4 text-blue-500" />
-            <span>{flight.arrival_airport_code}</span>
+        <div className="mb-4 flex items-center gap-4">
+          <div className="flex-1">
+            <p className="text-2xl font-bold text-foreground">
+              {flight.departure_airport_code}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {departure.time || "—"}
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-            {departure.time && arrival.time && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {departure.time} – {arrival.time}
-              </span>
-            )}
+          <div className="flex flex-col items-center gap-1">
+            <ArrowRight className="h-5 w-5 text-accent" />
             {duration && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {duration}
-              </span>
+              <p className="text-xs text-muted-foreground">{duration}</p>
             )}
-            <span className="flex items-center gap-1">
+          </div>
+          <div className="flex-1 text-right">
+            <p className="text-2xl font-bold text-foreground">
+              {flight.arrival_airport_code}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {arrival.time || "—"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5" />
               {departure.date}
             </span>
+            <span className="hidden sm:inline">•</span>
+            <span className="text-foreground">
+              {flight.departure_airport} → {flight.arrival_airport}
+            </span>
           </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 md:text-sm">
-          <span className="text-slate-500">
-            {flight.departure_airport} → {flight.arrival_airport}
-          </span>
           <Button
             variant="outline"
             size="sm"
             onClick={onEdit}
-            className="ml-auto">
+            className="text-primary hover:bg-primary/5 hover:text-primary bg-transparent">
             Thay đổi
           </Button>
         </div>
@@ -239,141 +247,197 @@ const RoundTripSummary: React.FC<RoundTripSummaryProps> = ({
   };
 
   return (
-    <Card className="overflow-hidden rounded-3xl border-none shadow-xl">
-      <CardContent className="p-0">
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-6 text-white">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">
+    <div className="mx-auto max-w-6xl">
+      <div className="mb-6">
+        <div className="mb-2 flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5 text-primary" />
+          <h1 className="text-2xl font-bold text-foreground">
             Tóm tắt chuyến khứ hồi
-          </span>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-white/90">
-            <span className="font-semibold text-white">Hoàn tất lựa chọn</span>
-            <ArrowRight className="h-4 w-4 text-white/60" />
-            <span>Kiểm tra lại thông tin trước khi tiếp tục</span>
-          </div>
+          </h1>
         </div>
+        <p className="text-sm text-muted-foreground">
+          Kiểm tra lại thông tin trước khi tiếp tục
+        </p>
+      </div>
 
-        <div className="divide-y divide-slate-100 bg-white">
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
           {renderFlight("outbound", outbound, onEditOutbound)}
           {renderFlight("inbound", inbound, onEditInbound)}
-        </div>
 
-        <div className="flex flex-col gap-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-white px-6 py-6 md:flex-row md:items-start md:justify-between">
-          <div className="flex w-full flex-1 flex-col gap-4 text-sm text-slate-600">
-            <div className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm backdrop-blur">
-              <h4 className="text-sm font-semibold text-slate-900">
+          <Card className="border-border bg-card">
+            <CardContent className="p-6">
+              <h3 className="mb-4 text-lg font-semibold text-foreground">
                 Chi tiết giá
-              </h4>
-              <dl className="mt-4 space-y-3 text-sm">
+              </h3>
+
+              <div className="space-y-3">
                 {passengerItems.map((item) => {
                   const Icon = item.icon;
-                  const legSummaryParts: string[] = [];
-                  if (item.outboundUnit > 0) {
-                    legSummaryParts.push(
-                      `Chiều đi ${formatPrice(item.outboundUnit)}${
-                        item.count > 1 ? ` ×${item.count}` : ""
-                      }`
-                    );
-                  }
-                  if (item.inboundUnit > 0) {
-                    legSummaryParts.push(
-                      `Chiều về ${formatPrice(item.inboundUnit)}${
-                        item.count > 1 ? ` ×${item.count}` : ""
-                      }`
-                    );
-                  }
-                  const legSummary =
-                    legSummaryParts.length > 0
-                      ? legSummaryParts.join(" • ")
-                      : "Đã bao gồm cả hành trình";
+                  const outboundPrice =
+                    item.outboundUnit > 0
+                      ? formatPrice(item.outboundUnit)
+                      : null;
+                  const inboundPrice =
+                    item.inboundUnit > 0 ? formatPrice(item.inboundUnit) : null;
 
                   return (
                     <div
                       key={item.key}
-                      className="flex items-center justify-between gap-4 rounded-2xl border border-blue-50 bg-blue-50/70 px-4 py-3 shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                          <Icon className="h-5 w-5" />
-                        </span>
-                        <div>
-                          <dt className="text-sm font-semibold text-slate-900">
-                            {item.label} × {item.count}
-                          </dt>
-                          <dd className="text-[12px] text-blue-600/80">
-                            {legSummary}
-                          </dd>
+                      className="rounded-lg border border-border bg-background p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
+                            <Icon className="h-5 w-5 text-secondary-foreground" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">
+                              {item.label}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.count} khách
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Tổng</p>
+                          <p className="text-lg font-bold text-foreground">
+                            {formatPrice(item.total)}
+                          </p>
                         </div>
                       </div>
-                      <span className="text-sm font-semibold text-slate-900">
-                        {formatPrice(item.total)}
-                      </span>
+
+                      {(outboundPrice || inboundPrice) && (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {outboundPrice && (
+                            <div className="flex items-center justify-between rounded-md bg-secondary px-3 py-2 text-xs">
+                              <span className="font-medium text-secondary-foreground">
+                                Chiều đi
+                              </span>
+                              <span className="font-semibold text-secondary-foreground">
+                                {outboundPrice}
+                                {item.count > 1 && (
+                                  <span className="ml-1 text-muted-foreground">
+                                    × {item.count}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          )}
+                          {inboundPrice && (
+                            <div className="flex items-center justify-between rounded-md bg-secondary px-3 py-2 text-xs">
+                              <span className="font-medium text-secondary-foreground">
+                                Chiều về
+                              </span>
+                              <span className="font-semibold text-secondary-foreground">
+                                {inboundPrice}
+                                {item.count > 1 && (
+                                  <span className="ml-1 text-muted-foreground">
+                                    × {item.count}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
-
-                {totalTaxes > 0 && (
-                  <div className="flex items-center justify-between gap-4 rounded-2xl border border-orange-100 bg-orange-50/70 px-4 py-3 text-[13px] font-medium text-orange-700">
-                    <span>Thuế & phí toàn hành trình</span>
-                    <span>{formatPrice(totalTaxes)}</span>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between gap-4 rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm font-semibold text-blue-700 shadow-inner">
-                  <span>Tổng</span>
-                  <span className="text-base font-bold text-orange-600">
-                    {formatPrice(grandTotal)}
-                  </span>
-                </div>
-              </dl>
-
-              <div className="mt-4 grid gap-2 rounded-2xl bg-blue-50/60 p-3 text-[11px] text-blue-700">
-                {priceBreakdown.map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-center justify-between gap-2">
-                    <span>
-                      {item.label} • {item.subtitle}
-                    </span>
-                    <span>{formatPrice(item.value)}</span>
-                  </div>
-                ))}
               </div>
 
-              <p className="mt-3 text-xs text-slate-500">
-                Giá đã bao gồm thuế, phí và hoá đơn VAT.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border border-blue-100 bg-white/90 p-5 text-sm text-slate-600 shadow-xl">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-                Tổng giá dự kiến
-              </span>
-              <p className="mt-2 text-3xl font-bold text-orange-600">
-                {formatPrice(grandTotal)}
-              </p>
-              {totalDurationMinutes > 0 && (
-                <p className="mt-3 flex items-center gap-2 text-xs text-blue-700">
-                  <Clock className="h-3.5 w-3.5" />
-                  Tổng thời gian bay {formatDuration(totalDurationMinutes)}
-                </p>
+              {priceBreakdown.length > 0 && (
+                <div className="mt-6 space-y-3 border-t border-border pt-4">
+                  <h4 className="text-sm font-semibold text-foreground">
+                    Tổng giá theo chặng
+                  </h4>
+                  {priceBreakdown.map((item) => {
+                    const baseFare = Math.max(item.value - item.taxes, 0);
+                    return (
+                      <div
+                        key={item.label}
+                        className="rounded-lg border border-border bg-muted p-4">
+                        <div className="mb-2 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              {item.label}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.subtitle}
+                            </p>
+                          </div>
+                          <p className="text-lg font-bold text-foreground">
+                            {formatPrice(item.value)}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Giá vé: {formatPrice(baseFare)}</span>
+                          <span>Thuế & phí: {formatPrice(item.taxes)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
-            </div>
 
-            <Button
-              size="lg"
-              onClick={onConfirm}
-              className="w-full bg-blue-600 text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700">
-              Tiếp tục
-            </Button>
+              {totalTaxes > 0 && (
+                <div className="mt-4 rounded-lg border border-accent/20 bg-accent/5 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-foreground">
+                      Tổng thuế & phí
+                    </span>
+                    <span className="text-base font-bold text-accent">
+                      {formatPrice(totalTaxes)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Đã bao gồm tất cả phụ phí cho mọi hành khách
+                  </p>
+                </div>
+              )}
 
-            <p className="text-xs text-slate-500">
-              Nhấn “Tiếp tục” để giữ chỗ và điền thông tin hành khách.
-            </p>
-          </div>
+              <p className="mt-4 text-xs text-muted-foreground">
+                Giá đã bao gồm thuế, phí và hoá đơn VAT
+              </p>
+            </CardContent>
+          </Card>
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="lg:col-span-1">
+          <Card className="sticky top-6 border-border bg-card shadow-lg">
+            <CardContent className="p-6">
+              <div className="mb-6">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Tổng thanh toán
+                </p>
+                <p className="text-4xl font-bold text-primary">
+                  {formatPrice(grandTotal)}
+                </p>
+                {totalDurationMinutes > 0 && (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>
+                      Tổng thời gian bay {formatDuration(totalDurationMinutes)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                size="lg"
+                onClick={onConfirm}
+                className="w-full bg-primary text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg">
+                Tiếp tục
+              </Button>
+
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                Nhấn "Tiếp tục" để giữ chỗ và điền thông tin hành khách
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 };
 

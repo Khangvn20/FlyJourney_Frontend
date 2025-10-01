@@ -30,9 +30,7 @@ interface FilterSidebarProps {
   filteredFlights: FlightSearchApiResult[];
   vietnameseAirlines: Array<{
     id: string;
-    name: string;
     logo: string;
-    code: string;
   }>;
   onAirlineToggle: (airlineId: string) => void;
 }
@@ -321,8 +319,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     filters.priceRange !== "all";
 
   const sectionBorder =
-    "border border-slate-200/80 shadow-sm hover:border-blue-200 transition";
-
+    "border border-slate-200/80 shadow-sm hover:border-blue-200 transition bg-white";
   return (
     <div className="lg:col-span-1">
       <div className="lg:hidden mb-4">
@@ -342,22 +339,22 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </Button>
       </div>
 
-      <div className={`space-y-5 ${showFilters ? "block" : "hidden lg:block"}`}>
+      <div
+        className={`space-y-4 text-sm text-slate-700 ${
+          showFilters ? "block" : "hidden lg:block"
+        }`}>
         <Card className={sectionBorder}>
-          <CardContent className="p-5">
+          <CardContent className="px-4 py-5">
             <div
-              className="flex items-start justify-between cursor-pointer"
+              className="flex items-start justify-between cursor-pointer gap-3"
               onClick={() => toggleSection("departureTime")}>
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">
                   Thời gian cất cánh
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  {filteredFlights.length} chuyến bay đang hiển thị
-                </p>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] font-medium text-slate-500">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium text-slate-500 whitespace-nowrap">
                   Tổng {timeTotal}
                 </span>
                 {filters.departureTime.length > 0 && (
@@ -387,7 +384,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   return (
                     <label
                       key={option.value}
-                      className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition ${
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm transition ${
                         isChecked
                           ? "border-blue-500 bg-blue-50"
                           : "border-slate-200 hover:border-blue-300"
@@ -406,16 +403,16 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                             toggleDepartureTimeFilter(option.value)
                           }
                         />
-                        <div>
-                          <div className="font-medium text-slate-700">
+                        <div className="min-w-0">
+                          <div className="font-medium text-slate-700 whitespace-nowrap">
                             {option.label}
                           </div>
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-slate-500 whitespace-nowrap">
                             {option.range}
                           </div>
                         </div>
                       </div>
-                      <span className="text-xs font-medium text-slate-500">
+                      <span className="text-xs font-medium text-slate-500 ml-3 whitespace-nowrap">
                         {count}
                       </span>
                     </label>
@@ -427,9 +424,9 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </Card>
 
         <Card className={sectionBorder}>
-          <CardContent className="p-5">
+          <CardContent className="px-4 py-5">
             <div
-              className="flex items-start justify-between cursor-pointer"
+              className="flex items-start justify-between cursor-pointer gap-3"
               onClick={() => toggleSection("airlines")}>
               <div>
                 <div className="flex items-center gap-2">
@@ -438,11 +435,8 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                     Hãng hàng không
                   </h3>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  {filteredFlights.length} chuyến bay đang hiển thị
-                </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {selectedAirlines.length > 0 && (
                   <button
                     type="button"
@@ -468,7 +462,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   return (
                     <label
                       key={airline.id}
-                      className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition ${
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm transition ${
                         isChecked
                           ? "border-blue-500 bg-blue-50"
                           : "border-slate-200 hover:border-blue-300"
@@ -487,20 +481,12 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                         />
                         <img
                           src={airline.logo}
-                          alt={airline.name}
-                          className="h-6 w-auto object-contain"
+                          className="h-9 w-auto object-contain"
                           loading="lazy"
+                          alt={airline.id}
                         />
-                        <div>
-                          <div className="font-medium text-slate-700">
-                            {airline.name}
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            {airline.code}
-                          </div>
-                        </div>
                       </div>
-                      <span className="text-xs font-medium text-slate-500">
+                      <span className="text-xs font-medium text-slate-500 ml-3 whitespace-nowrap">
                         {count}
                       </span>
                     </label>
@@ -512,20 +498,17 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </Card>
 
         <Card className={sectionBorder}>
-          <CardContent className="p-5">
+          <CardContent className="px-4 py-5">
             <div
-              className="flex items-start justify-between cursor-pointer"
+              className="flex items-start justify-between cursor-pointer gap-3"
               onClick={() => toggleSection("duration")}>
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">
                   Thời gian bay
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  {filteredFlights.length} chuyến bay đang hiển thị
-                </p>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] font-medium text-slate-500">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium text-slate-500 whitespace-nowrap">
                   Tổng {durationTotal}
                 </span>
                 {filters.duration.length > 0 && (
@@ -553,7 +536,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   return (
                     <label
                       key={option.value}
-                      className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition ${
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm transition ${
                         isChecked
                           ? "border-blue-500 bg-blue-50"
                           : "border-slate-200 hover:border-blue-300"
@@ -570,16 +553,16 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                           disabled={disabled && !isChecked}
                           onChange={() => toggleDurationFilter(option.value)}
                         />
-                        <div>
-                          <div className="font-medium text-slate-700">
+                        <div className="min-w-0">
+                          <div className="font-medium text-slate-700 whitespace-nowrap">
                             {option.label}
                           </div>
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-slate-500 whitespace-nowrap">
                             {option.description}
                           </div>
                         </div>
                       </div>
-                      <span className="text-xs font-medium text-slate-500">
+                      <span className="text-xs font-medium text-slate-500 ml-3 whitespace-nowrap">
                         {count}
                       </span>
                     </label>

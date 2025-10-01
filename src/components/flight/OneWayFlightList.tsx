@@ -64,7 +64,7 @@ const OneWayFlightList: React.FC<OneWayFlightListProps> = ({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       {flights.map((flight, index) => {
         const airlineInfo = vietnameseAirlines.find(
           (a) => a.name.toLowerCase() === flight.airline_name.toLowerCase()

@@ -12,6 +12,7 @@ import {
   isRoundTripResponse,
   type FlightSearchResponseData,
 } from "../../shared/types/search-api.types";
+import type { MonthRangeMeta } from "../../lib/searchUtils";
 
 interface FlightResultsOverviewProps {
   tripType: "one-way" | "round-trip";
@@ -30,6 +31,9 @@ interface FlightResultsOverviewProps {
   // New props for items per page
   itemsPerPage?: number;
   onItemsPerPageChange?: (value: number) => void;
+  monthMeta?: MonthRangeMeta | null;
+  monthFlightsCount?: number;
+  monthTotalFlights?: number;
 }
 
 const formatDateLabel = (value?: string | null) => {
@@ -166,9 +170,14 @@ const FlightResultsOverview: React.FC<FlightResultsOverviewProps> = ({
   activeDirection,
   countDisplayMode,
   onCountDisplayModeChange,
-  itemsPerPage = 10,
+  itemsPerPage,
   onItemsPerPageChange,
+  monthMeta,
+  monthFlightsCount,
+  monthTotalFlights,
 }) => {
+  const isMonthMode = Boolean(monthMeta);
+
   const routeInfo = useMemo(() => {
     if (!searchInfo) {
       return {
@@ -267,6 +276,28 @@ const FlightResultsOverview: React.FC<FlightResultsOverviewProps> = ({
   const resolvedDisplayMode = countDisplayMode ?? "visible";
 
   const flightsSummary = useMemo(() => {
+    if (isMonthMode && monthMeta) {
+      const loadedDays = monthMeta.loadedDays ?? 0;
+      const totalDays = monthMeta.totalDays ?? 0;
+      const visibleFlights = monthFlightsCount ?? showingCount;
+      const totalFlights =
+        typeof monthTotalFlights === "number"
+          ? monthTotalFlights
+          : typeof totalCount === "number"
+          ? totalCount
+          : undefined;
+
+      const daysPart =
+        totalDays > 0
+          ? `${loadedDays}/${totalDays} ngày`
+          : `${loadedDays} ngày`;
+      const flightsPart = totalFlights
+        ? `${visibleFlights}/${totalFlights} vé`
+        : `${visibleFlights} vé`;
+
+      return `Đã tải ${daysPart} • ${flightsPart}`;
+    }
+
     if (tripType === "round-trip") {
       if (totalOutbound !== undefined || totalInbound !== undefined) {
         const outboundLabel = totalOutbound ?? 0;
@@ -311,6 +342,10 @@ const FlightResultsOverview: React.FC<FlightResultsOverviewProps> = ({
     totalCount,
     filteredCount,
     resolvedDisplayMode,
+    isMonthMode,
+    monthMeta,
+    monthFlightsCount,
+    monthTotalFlights,
   ]);
 
   return (
@@ -362,6 +397,7 @@ const FlightResultsOverview: React.FC<FlightResultsOverviewProps> = ({
             </div>
 
             {tripType === "one-way" &&
+            !isMonthMode &&
             typeof onCountDisplayModeChange === "function" ? (
               <div className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 p-1 text-xs font-semibold text-blue-600">
                 <button
@@ -400,7 +436,7 @@ const FlightResultsOverview: React.FC<FlightResultsOverviewProps> = ({
                 <option value="departure">Sớm nhất</option>
                 <option value="duration">Nhanh nhất</option>
               </select>
-              {onItemsPerPageChange && (
+              {onItemsPerPageChange && itemsPerPage !== undefined && (
                 <select
                   value={itemsPerPage}
                   onChange={(event) =>
