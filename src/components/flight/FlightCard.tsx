@@ -107,8 +107,8 @@ const FlightCard: React.FC<FlightCardProps> = ({
       </div> */}
 
       <CardContent className="p-0">
-        <div className="p-4">
-          <div className="grid gap-4 lg:grid-cols-[180px_1fr_220px] items-center">
+        <div className="p-5">
+          <div className="grid gap-6 lg:grid-cols-[210px_minmax(0,1fr)_140px] items-center">
             <div className="space-y-3">
               <div className="w-full h-16 bg-gray-50 rounded-lg p-3 flex items-center justify-center border border-gray-100">
                 <img
@@ -132,7 +132,7 @@ const FlightCard: React.FC<FlightCardProps> = ({
             </div>
 
             <div className="flex flex-col items-center space-y-3">
-              <div className="flex items-center justify-between w-full max-w-lg">
+              <div className="flex w-full items-center justify-between gap-6">
                 <div className="text-center">
                   <div className="text-xl font-bold text-gray-900 mb-0.5 font-display">
                     {departureTime.time}
@@ -188,14 +188,14 @@ const FlightCard: React.FC<FlightCardProps> = ({
               </div>
             </div>
 
-            <div className="space-y-3 text-right lg:text-right">
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+            <div className="space-y-2 text-right lg:text-right lg:max-w-[140px] mx-auto lg:mx-0">
+              <div className="rounded-3xl border-blue-100 bg-blue-50/60 p-1.5">
                 <div className="flex justify-end mb-2">
                   <span className="text-xs text-gray-600 px-2 py-1 bg-gray-100 rounded-md">
                     Sắp xếp: {SORT_LABELS[sortBy] ?? sortBy ?? "Mặc định"}
                   </span>
                 </div>
-                <div className="text-2xl font-black text-orange-600 mb-0.5 font-display">
+                <div className="text-lg font-bold text-orange-600 mb-0.5 font-display">
                   {formatPrice(adultDisplayPrice)}
                 </div>
                 <div className="text-sm text-gray-600 font-medium">/khách</div>

@@ -108,7 +108,7 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
           orderId: randomOrderId,
           orderInfo: `Thanh toan ve may bay FlyJourney - ${booking.bookingId}`,
           redirectUrl: "http://localhost:3030/my-bookings",
-          ipnUrl: "https://1c587d34b386.ngrok-free.app/api/v1/payment/momo/callback",
+          ipnUrl: "https://235e616b3e67.ngrok-free.app/api/v1/payment/momo/callback",
           extraData: "",
           requestType: "captureWallet",
         };

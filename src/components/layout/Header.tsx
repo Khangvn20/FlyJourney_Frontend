@@ -7,7 +7,11 @@ import LoginModal from "../modals/LoginModal";
 import { useAuth } from "../../hooks/useAuth";
 import { UserMenu } from "../auth/UserMenu";
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  isSticky?: boolean;
+}
+
+const Header: React.FC<HeaderProps> = ({ isSticky = true }) => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -40,7 +44,10 @@ const Header: React.FC = () => {
   ];
 
   return (
-    <header className="bg-white shadow-soft border-b border-gray-100 sticky top-0 z-50">
+    <header
+      className={`bg-white shadow-soft border-b border-gray-100 ${
+        isSticky ? "sticky top-0 z-50" : "relative z-30"
+      }`}>
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}

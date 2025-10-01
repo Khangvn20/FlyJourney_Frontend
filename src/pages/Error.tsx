@@ -17,17 +17,17 @@ const detectHints = (msg: string | null | undefined) => {
   const m = msg.toLowerCase();
   if (m.includes("has already been declared") && m.includes("react")) {
     hints.push(
-      "Trùng import React trong cùng file. Kiểm tra đầu file để xóa import lặp",
+      "Trùng import React trong cùng file. Kiểm tra đầu file để xóa import lặp"
     );
   }
   if (m.includes("unexpected keyword 'const'")) {
     hints.push(
-      "Có thể bị lặp dòng code (ví dụ: khai báo const trùng). Soát lại diff gần đây",
+      "Có thể bị lặp dòng code (ví dụ: khai báo const trùng). Soát lại diff gần đây"
     );
   }
   if (m.includes("cannot read properties") || m.includes("undefined")) {
     hints.push(
-      "Đang truy cập thuộc tính của biến undefined. Kiểm tra data/props có null safety",
+      "Đang truy cập thuộc tính của biến undefined. Kiểm tra data/props có null safety"
     );
   }
   return hints;
@@ -49,7 +49,7 @@ const ErrorPage: React.FC = () => {
   const errorHints = detectHints(lastError?.message);
 
   const details = React.useMemo(() => {
-    const env = import.meta.env?.MODE ?? process.env.NODE_ENV ?? "unknown";
+    const env = import.meta.env?.MODE ?? "unknown";
     return {
       message: lastError?.message ?? "(không có message)",
       when: lastError?.timestamp ?? new Date().toISOString(),
@@ -149,9 +149,11 @@ const ErrorPage: React.FC = () => {
         {/* Stack traces */}
         {details.stack && (
           <details className="mb-3">
-            <summary className="cursor-pointer font-medium">Stack trace</summary>
+            <summary className="cursor-pointer font-medium">
+              Stack trace
+            </summary>
             <pre className="mt-2 p-3 bg-gray-900 text-gray-100 rounded overflow-auto text-xs">
-{details.stack}
+              {details.stack}
             </pre>
           </details>
         )}
@@ -161,7 +163,7 @@ const ErrorPage: React.FC = () => {
               Component stack
             </summary>
             <pre className="mt-2 p-3 bg-gray-900 text-gray-100 rounded overflow-auto text-xs whitespace-pre-wrap">
-{details.componentStack}
+              {details.componentStack}
             </pre>
           </details>
         )}
@@ -170,26 +172,22 @@ const ErrorPage: React.FC = () => {
         <div className="flex flex-wrap gap-3">
           <button
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            onClick={handleRetry}
-          >
+            onClick={handleRetry}>
             Thử lại
           </button>
           <button
             className="px-4 py-2 bg-gray-100 border rounded hover:bg-gray-200"
-            onClick={handleGoHome}
-          >
+            onClick={handleGoHome}>
             Trang chủ
           </button>
           <button
             className="px-4 py-2 bg-gray-100 border rounded hover:bg-gray-200"
-            onClick={copyDetails}
-          >
+            onClick={copyDetails}>
             Copy chi tiết lỗi
           </button>
           <button
             className="px-4 py-2 bg-gray-100 border rounded hover:bg-gray-200"
-            onClick={clearLastError}
-          >
+            onClick={clearLastError}>
             Xóa cache lỗi
           </button>
         </div>

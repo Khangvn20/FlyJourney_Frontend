@@ -13,6 +13,29 @@ export interface PerDayFlightsGroup {
   flights: FlightSearchApiResult[];
 }
 
+export interface MonthBucketSummary {
+  key: string;
+  month: number;
+  year: number;
+  label: string;
+  shortLabel: string;
+  totalCalendarDays: number;
+  loadedDays: number;
+  groups: PerDayFlightsGroup[];
+}
+
+export interface MonthRangeMeta {
+  startMonth: number;
+  startYear: number;
+  endMonth: number;
+  endYear: number;
+  monthsCount: number;
+  totalDays: number;
+  loadedDays: number;
+  loading: boolean;
+  phase?: "outbound" | "inbound" | "done";
+}
+
 export interface MonthAggregatedData {
   arrival_airport: string;
   arrival_date: string;
@@ -33,7 +56,7 @@ export interface MonthAggregatedData {
 export interface MonthAggregatedWrapper {
   status: boolean;
   data: MonthAggregatedData;
-  meta: { month: number; year: number; days: number; loading: boolean };
+  meta: MonthRangeMeta;
   errorCode?: string;
   errorMessage?: string;
 }
@@ -117,12 +140,19 @@ export function isMonthAggregatedWrapper(
   const meta = getObj(obj, "meta");
   if (!data || !meta) return false;
   const perDay = data["per_day_results"];
-  return Array.isArray(perDay);
+  const hasRangeMeta =
+    typeof meta["startMonth"] === "number" &&
+    typeof meta["startYear"] === "number" &&
+    typeof meta["endMonth"] === "number" &&
+    typeof meta["endYear"] === "number" &&
+    typeof meta["monthsCount"] === "number" &&
+    typeof meta["totalDays"] === "number" &&
+    typeof meta["loadedDays"] === "number" &&
+    typeof meta["loading"] === "boolean";
+  return Array.isArray(perDay) && hasRangeMeta;
 }
 
-export function isDirectFlightData(
-  v: unknown
-): v is FlightSearchResponseData {
+export function isDirectFlightData(v: unknown): v is FlightSearchResponseData {
   if (!v || typeof v !== "object") return false;
   const obj = v as SafeObj;
   return (
@@ -132,9 +162,10 @@ export function isDirectFlightData(
   );
 }
 
-export function extractNestedRoundTrip(
-  data: unknown
-): { outbound: FlightSearchApiResult[]; inbound: FlightSearchApiResult[] } | null {
+export function extractNestedRoundTrip(data: unknown): {
+  outbound: FlightSearchApiResult[];
+  inbound: FlightSearchApiResult[];
+} | null {
   if (!data || typeof data !== "object") return null;
   const root = data as SafeObj;
   const sr = getObj(root, "search_results");
