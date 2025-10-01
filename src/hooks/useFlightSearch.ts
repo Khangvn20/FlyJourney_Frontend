@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import flightSearchService from "../services/flightApiService";
+import flightSearchService, {
+  MAX_FLIGHT_SEARCH_LIMIT,
+} from "../services/flightApiService";
 import { airlines } from "../mocks";
 import { useFlightFilters } from "./useFlightFilters";
 import {
@@ -456,8 +458,15 @@ export const useFlightSearch = () => {
   /* ============ Load more (one-way only) ============ */
   const handleLoadMore = async () => {
     if (!searchInfo || !isOneWayResponse(searchInfo)) return;
-    const currentLimit = searchInfo.limit || 20;
-    const nextLimit = currentLimit + 20; // Increase limit by 20 each time
+    const currentLimit = Math.min(
+      searchInfo.limit || 20,
+      MAX_FLIGHT_SEARCH_LIMIT
+    );
+    if (currentLimit >= MAX_FLIGHT_SEARCH_LIMIT) {
+      setLastLoadMoreAdded(0);
+      return;
+    }
+    const nextLimit = Math.min(currentLimit + 20, MAX_FLIGHT_SEARCH_LIMIT);
 
     // Prefer IATA codes from results; fallback to searchInfo fields
     const fromCode =
@@ -518,7 +527,7 @@ export const useFlightSearch = () => {
       flightResults[0]?.arrival_airport_code || searchInfo.arrival_airport;
 
     const totalPages = searchInfo.total_pages ?? undefined;
-    const limit = searchInfo.limit || 20;
+    const limit = Math.min(searchInfo.limit || 20, MAX_FLIGHT_SEARCH_LIMIT);
     let loadedCount = flightResults.length;
     const maxLoops = 10; // Safety: max 10 increments to avoid infinite loop
     let loopCount = 0;
@@ -538,7 +547,16 @@ export const useFlightSearch = () => {
     try {
       // Loop to increase limit while we need more and haven't exceeded max loops
       while (loadedCount < minVisible && loopCount < maxLoops) {
-        const nextLimit = currentLimit + 20; // Increase limit by 20 each time
+        if (currentLimit >= MAX_FLIGHT_SEARCH_LIMIT) {
+          if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
+            console.log("🔄 ensureLoadedCount: reached max limit cap");
+          }
+          break;
+        }
+        const nextLimit = Math.min(currentLimit + 20, MAX_FLIGHT_SEARCH_LIMIT);
+        if (nextLimit === currentLimit) {
+          break;
+        }
         if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
           console.log("🔄 ensureLoadedCount loop (limit-based):", {
             loopCount,
@@ -654,6 +672,10 @@ export const useFlightSearch = () => {
           }
         : { adults: 1, children: 0, infants: 0 };
       // Step 1: Fetch all airlines to learn available airline_ids
+      const effectiveLimit = Math.min(
+        Math.max(searchInfo.limit || 50, 50),
+        MAX_FLIGHT_SEARCH_LIMIT
+      );
       const response = await flightSearchService({
         tripType: "oneWay",
         from: fromCode,
@@ -662,7 +684,7 @@ export const useFlightSearch = () => {
         passengers: pax,
         flightClass: toFlightClass(searchInfo.flight_class),
         page: 1,
-        limit: Math.max(searchInfo.limit, 50),
+        limit: effectiveLimit,
         sortBy: toSortBy(searchInfo.sort_by) as unknown as ApiFlightSortBy,
         sortOrder: toSortOrder(searchInfo.sort_order),
       });
@@ -696,7 +718,7 @@ export const useFlightSearch = () => {
           passengers: pax,
           flightClass: toFlightClass(searchInfo.flight_class),
           page: 1,
-          limit: Math.max(searchInfo.limit, 50),
+          limit: effectiveLimit,
           sortBy: toSortBy(searchInfo.sort_by) as unknown as ApiFlightSortBy,
           sortOrder: toSortOrder(searchInfo.sort_order),
           airline_ids: allAirlineIds,
