@@ -1,8 +1,9 @@
 import { DEV_CONFIG, shouldShowDevControls } from "../config/devConfig";
+import { buildApiUrl } from "../constants/apiConfig";
 
 // Test utility to debug API calls
 export const testDirectAPI = async () => {
-  const url = "http://localhost:3000/api/v1/auth/login";
+  const url = buildApiUrl("/auth/login");
   const data = {
     email: "devtest01@mailnesia.com",
     password: "abcd1234",
@@ -64,7 +65,7 @@ export const testDirectAPI = async () => {
 
 // Test CORS preflight
 export const testCORS = async () => {
-  const url = "http://localhost:3000/api/v1/auth/login";
+  const url = buildApiUrl("/auth/login");
 
   if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {
     console.log("🔍 Testing CORS preflight to:", url);

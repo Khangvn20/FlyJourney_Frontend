@@ -1,16 +1,32 @@
 import type { ApiConfig, ApiEndpoints } from "../types";
 import { ENV } from "../config/env";
 
+const DEFAULT_API_BASE_URL = "http://103.69.96.179:3000/api/v1";
+
+const normalizeBaseUrl = (value?: string): string => {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return DEFAULT_API_BASE_URL;
+  return trimmed.replace(/\/+$/, "");
+};
+
+const ensureLeadingSlash = (path: string): string =>
+  path.startsWith("/") ? path : `/${path}`;
+
+export const API_BASE_URL = normalizeBaseUrl(ENV.API_BASE_URL);
+
+export const buildApiUrl = (path: string): string =>
+  `${API_BASE_URL}${ensureLeadingSlash(path)}`;
+
 // Flight API Configuration for Backend Integration
 export const flightApiConfig = {
-  baseUrl: "http://localhost:3000/api/v1",
+  baseUrl: API_BASE_URL,
   timeout: 60000, // Increased to 60 seconds for better reliability
   retries: 3,
 };
 
 // API Configuration from environment variables
 export const apiConfig: ApiConfig = {
-  baseUrl: ENV.API_BASE_URL,
+  baseUrl: API_BASE_URL,
   timeout: ENV.API_TIMEOUT,
   retries: ENV.API_RETRIES,
 };

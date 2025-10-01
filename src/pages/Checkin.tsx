@@ -9,6 +9,7 @@ import {
   type CheckinOnlineResponse,
 } from "../services/checkinService";
 import { shouldShowDevControls } from "../shared/config/devConfig";
+import { buildApiUrl } from "../shared/constants/apiConfig";
 import { Plane, Clock, MapPin, Users, CheckCircle } from "lucide-react";
 import { notification } from "antd";
 
@@ -191,7 +192,7 @@ const Checkin: React.FC = () => {
   const handleDevTest = async () => {
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`/api/v1/checkin/318`, {
+      const res = await fetch(buildApiUrl("/checkin/318"), {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       await res.json(); // Don't show the data

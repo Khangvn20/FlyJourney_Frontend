@@ -595,25 +595,6 @@ const Search: React.FC = () => {
         : filteredFlights
       : filteredFlights;
 
-  React.useEffect(() => {
-    const target = Math.min(itemsPerPage, totalAvailableFlights || 0);
-    if (
-      selectedAirlines.length > 0 &&
-      !showOtherAirlines &&
-      filteredFlights.length < target &&
-      otherAirlineSuggestions.length > 0
-    ) {
-      setShowOtherAirlines(true);
-    }
-  }, [
-    itemsPerPage,
-    totalAvailableFlights,
-    selectedAirlines.length,
-    filteredFlights.length,
-    otherAirlineSuggestions.length,
-    showOtherAirlines,
-  ]);
-
   const activeDirection = tripType === "round-trip" ? activeTab : undefined;
   const showLoadingState = isLoading && !monthMeta;
   return (
@@ -645,6 +626,7 @@ const Search: React.FC = () => {
                 filteredFlights={sidebarFilteredFlights}
                 vietnameseAirlines={vietnameseAirlines}
                 onAirlineToggle={handleAirlineToggle}
+                dimUnavailableOptions={isMonthMode}
               />
             </div>
           </div>

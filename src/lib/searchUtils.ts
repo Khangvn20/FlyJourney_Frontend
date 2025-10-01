@@ -61,6 +61,14 @@ export interface MonthAggregatedWrapper {
   errorMessage?: string;
 }
 
+export const normalizeAirlineSlug = (value: string | null | undefined) =>
+  (value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
 const FLIGHT_CLASS_VALUES: FlightClass[] = [
   "all",
   "economy",

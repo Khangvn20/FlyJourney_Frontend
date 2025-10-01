@@ -1,3 +1,5 @@
+import { buildApiUrl } from "../shared/constants/apiConfig";
+
 export interface CheckinBooking {
   bookingCode: string;
   flightId: number;
@@ -54,11 +56,7 @@ export async function validateCheckin(
   payload: CheckinValidatePayload
 ): Promise<CheckinBooking> {
   const token = localStorage.getItem("auth_token");
-  
-  // Use the original payload without modifying the PNR code
-  console.log("Validating checkin with payload:", JSON.stringify(payload));
-  
-  const res = await fetch(`/api/v1/checkin/validate`, {
+  const res = await fetch(buildApiUrl("/checkin/validate"), {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -73,17 +71,19 @@ export async function validateCheckin(
     // Try to parse the response directly as JSON
     responseData = await res.json();
     console.log("API response:", responseData);
-  } catch (error) {
+  } catch {
     // If JSON parsing fails, try to get the raw text
     const rawText = await res.text().catch(() => "");
     console.error("Failed to parse response as JSON:", rawText);
     throw new Error(`Invalid response format: ${rawText}`);
   }
-  
+
   if (!res.ok) {
     console.error("API returned non-OK status:", res.status, res.statusText);
     throw new Error(
-      `Validate failed (${res.status}): ${JSON.stringify(responseData) || res.statusText}`
+      `Validate failed (${res.status}): ${
+        JSON.stringify(responseData) || res.statusText
+      }`
     );
   }
 
@@ -94,17 +94,19 @@ export async function validateCheckin(
     console.error("API response indicates failure:", data);
     throw new Error(data?.errorMessage || "Validate failed");
   }
-  
+
   // Check if we have actual data in the response
   if (!data.data) {
     console.error("API response missing data object:", data);
     throw new Error("Không tìm thấy thông tin chuyến bay");
   }
-  
+
   // Check if the booking is eligible for check-in
   if (data.data.is_eligible === false) {
     console.log("Booking not eligible for check-in:", data.data.error_message);
-    throw new Error(data.data.error_message || "Booking is not eligible for check-in");
+    throw new Error(
+      data.data.error_message || "Booking is not eligible for check-in"
+    );
   }
 
   try {
@@ -113,13 +115,13 @@ export async function validateCheckin(
       console.error("No passenger details found in response:", data);
       throw new Error("Không tìm thấy thông tin hành khách");
     }
-    
+
     // Verify we have the necessary data
     if (!data.data.booking_id) {
       console.error("Missing booking_id in response:", data);
       throw new Error("Thiếu thông tin mã đặt chỗ");
     }
-    
+
     // Create the booking object to return
     const booking = {
       bookingCode: data.data.pnr_code,
@@ -134,13 +136,16 @@ export async function validateCheckin(
       airlineName: data.data.airline_name,
       flightClass: firstPassenger?.flight_class_name || "economy",
       bookingId: data.data.booking_id, // Make sure to include the booking_id
-      bookingDetailId: firstPassenger?.booking_detail_id // Include booking_detail_id
+      bookingDetailId: firstPassenger?.booking_detail_id, // Include booking_detail_id
     };
-    
+
     console.log("Created booking object:", booking);
     return booking;
   } catch (error) {
-    console.error("Error processing API response data:", error);
+    console.error(
+      "Error processing API response data:",
+      error instanceof Error ? error.message : String(error)
+    );
     throw new Error("Lỗi khi xử lý dữ liệu từ máy chủ");
   }
 }
@@ -191,7 +196,7 @@ export async function submitCheckin(
       },
     ],
   };
-  
+
   console.log("Submitting check-in with payload:", JSON.stringify(payload));
 
   const res = await fetch(`/api/v1/checkin/online`, {
@@ -209,17 +214,23 @@ export async function submitCheckin(
     // Try to parse the response directly as JSON
     responseData = await res.json();
     console.log("Check-in API response:", responseData);
-  } catch (error) {
+  } catch {
     // If JSON parsing fails, try to get the raw text
     const rawText = await res.text().catch(() => "");
     console.error("Failed to parse check-in response as JSON:", rawText);
     throw new Error(`Invalid check-in response format: ${rawText}`);
   }
-  
+
   if (!res.ok) {
-    console.error("Check-in API returned non-OK status:", res.status, res.statusText);
+    console.error(
+      "Check-in API returned non-OK status:",
+      res.status,
+      res.statusText
+    );
     throw new Error(
-      `Check-in failed (${res.status}): ${JSON.stringify(responseData) || res.statusText}`
+      `Check-in failed (${res.status}): ${
+        JSON.stringify(responseData) || res.statusText
+      }`
     );
   }
 
@@ -229,7 +240,7 @@ export async function submitCheckin(
       console.log("Passenger already checked in:", responseData);
       throw new Error("ALREADY_CHECKED_IN");
     }
-    
+
     console.error("Check-in API response indicates failure:", responseData);
     throw new Error(responseData?.errorMessage || "Check-in failed");
   }

@@ -1,4 +1,5 @@
 import type { FlightSearchApiResult } from "../shared/types/search-api.types";
+import { normalizeAirlineSlug } from "./searchUtils";
 
 export interface FlightFilterCriteria {
   priceRange: string;
@@ -47,8 +48,7 @@ export const filterAndSortFlights = ({
   const filtered = safeFlights.filter((flight) => {
     if (selectedAirlines.length > 0) {
       const airlineMatch = selectedAirlines.some(
-        (selectedId) =>
-          flight.airline_name.toLowerCase().replace(/\s+/g, "-") === selectedId
+        (selectedId) => normalizeAirlineSlug(flight.airline_name) === selectedId
       );
       if (!airlineMatch) return false;
     }
