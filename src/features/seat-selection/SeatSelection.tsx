@@ -4,6 +4,7 @@ import SeatLegend from "./SeatLegend";
 import ForbiddenItemsPanel from "../../components/common/ForbiddenItemsPanel";
 import SeatSelectionSummary from "../../components/booking/SeatSelectionSummary";
 import { toast } from "../../components/ui/toast";
+import { buildApiUrl } from "../../shared/constants/apiConfig";
 
 interface SeatSelectionProps {
   onComplete: (seats: string[]) => void;
@@ -31,7 +32,7 @@ const SeatSelection: React.FC<SeatSelectionProps> = ({
       setLoading(true);
       setError(null);
       const token = localStorage.getItem("auth_token");
-      const res = await fetch(`/api/v1/checkin/${flightId}`, {
+      const res = await fetch(buildApiUrl(`/checkin/${flightId}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 

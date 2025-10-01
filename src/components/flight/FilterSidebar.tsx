@@ -3,6 +3,7 @@ import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Filter, ChevronDown, ChevronUp, Plane } from "lucide-react";
 import { filterAndSortFlights } from "../../lib/flightFilters";
+import { normalizeAirlineSlug } from "../../lib/searchUtils";
 import type { FlightSearchApiResult } from "../../shared/types/search-api.types";
 
 interface FilterSidebarProps {
@@ -33,6 +34,7 @@ interface FilterSidebarProps {
     logo: string;
   }>;
   onAirlineToggle: (airlineId: string) => void;
+  dimUnavailableOptions?: boolean;
 }
 
 type TimeOptionKey = "morning" | "afternoon" | "evening" | "night";
@@ -129,6 +131,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   filteredFlights,
   vietnameseAirlines,
   onAirlineToggle,
+  dimUnavailableOptions = false,
 }) => {
   const [expandedSections, setExpandedSections] = useState({
     departureTime: true,
@@ -249,9 +252,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   const airlineCounts = useMemo(() => {
     return flightsForAirlineCounts.reduce<Record<string, number>>(
       (acc, flight) => {
-        const slug = (flight.airline_name || "")
-          .toLowerCase()
-          .replace(/\s+/g, "-");
+        const slug = normalizeAirlineSlug(flight.airline_name);
         if (!slug) return acc;
         acc[slug] = (acc[slug] ?? 0) + 1;
         return acc;
@@ -380,7 +381,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   const isChecked = filters.departureTime.includes(
                     option.value
                   );
-                  const disabled = count === 0 && !isChecked;
+                  const shouldDim = dimUnavailableOptions && count === 0;
                   return (
                     <label
                       key={option.value}
@@ -389,7 +390,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                           ? "border-blue-500 bg-blue-50"
                           : "border-slate-200 hover:border-blue-300"
                       } ${
-                        disabled
+                        shouldDim && !isChecked
                           ? "opacity-40 cursor-not-allowed"
                           : "cursor-pointer"
                       }`}>
@@ -398,7 +399,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                           type="checkbox"
                           className="h-4 w-4 accent-blue-600"
                           checked={isChecked}
-                          disabled={disabled && !isChecked}
+                          disabled={shouldDim && !isChecked}
                           onChange={() =>
                             toggleDepartureTimeFilter(option.value)
                           }
@@ -458,7 +459,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                 {vietnameseAirlines.map((airline) => {
                   const count = airlineCounts[airline.id] ?? 0;
                   const isChecked = selectedAirlineSet.has(airline.id);
-                  const disabled = count === 0 && !isChecked;
+                  const shouldDim = dimUnavailableOptions && count === 0;
                   return (
                     <label
                       key={airline.id}
@@ -467,7 +468,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                           ? "border-blue-500 bg-blue-50"
                           : "border-slate-200 hover:border-blue-300"
                       } ${
-                        disabled
+                        shouldDim && !isChecked
                           ? "opacity-40 cursor-not-allowed"
                           : "cursor-pointer"
                       }`}>
@@ -476,7 +477,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                           type="checkbox"
                           className="h-4 w-4 accent-blue-600"
                           checked={isChecked}
-                          disabled={disabled && !isChecked}
+                          disabled={shouldDim && !isChecked}
                           onChange={() => onAirlineToggle(airline.id)}
                         />
                         <img
@@ -532,7 +533,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                 {DURATION_OPTIONS.map((option) => {
                   const count = durationCounts[option.value] ?? 0;
                   const isChecked = filters.duration.includes(option.value);
-                  const disabled = count === 0 && !isChecked;
+                  const shouldDim = dimUnavailableOptions && count === 0;
                   return (
                     <label
                       key={option.value}
@@ -541,7 +542,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                           ? "border-blue-500 bg-blue-50"
                           : "border-slate-200 hover:border-blue-300"
                       } ${
-                        disabled
+                        shouldDim && !isChecked
                           ? "opacity-40 cursor-not-allowed"
                           : "cursor-pointer"
                       }`}>
@@ -550,7 +551,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                           type="checkbox"
                           className="h-4 w-4 accent-blue-600"
                           checked={isChecked}
-                          disabled={disabled && !isChecked}
+                          disabled={shouldDim && !isChecked}
                           onChange={() => toggleDurationFilter(option.value)}
                         />
                         <div className="min-w-0">

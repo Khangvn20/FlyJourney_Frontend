@@ -1,3 +1,5 @@
+import { buildApiUrl } from "../shared/constants/apiConfig";
+
 export interface CheckinBooking {
   bookingCode: string;
   flightId: number;
@@ -50,7 +52,7 @@ export async function validateCheckin(
   payload: CheckinValidatePayload
 ): Promise<CheckinBooking> {
   const token = localStorage.getItem("auth_token");
-  const res = await fetch(`/api/v1/checkin/validate`, {
+  const res = await fetch(buildApiUrl("/checkin/validate"), {
     method: "POST",
     headers: {
       Accept: "application/json",

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { SearchFormData, PassengerCounts } from "../shared/types";
 import type { FlightClass } from "../shared/types/flight-api.types";
 import { DEV_CONFIG, shouldShowDevControls } from "../shared/config/devConfig";
+import { buildApiUrl } from "../shared/constants/apiConfig";
 import type { FlightSearchApiResponse } from "../shared/types/search-api.types";
 import { toFlightClass } from "../lib/searchUtils";
 
@@ -95,7 +96,7 @@ const callApiDirectly = async (
   isRoundTrip: boolean = false,
   signal?: AbortSignal
 ) => {
-  const baseUrl = "http://localhost:3000/api/v1/flights/search";
+  const baseUrl = buildApiUrl("/flights/search");
   const url = isRoundTrip ? `${baseUrl}/roundtrip` : baseUrl;
 
   if (DEV_CONFIG.ENABLE_CONSOLE_LOGS && shouldShowDevControls()) {

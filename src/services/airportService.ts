@@ -37,10 +37,9 @@ export async function getAirportInfo(
 
   try {
     // Strategy 1: Try to get from flights search API (might have airport info)
+    const today = new Date().toISOString().split("T")[0];
     const searchResponse = (await apiClient.get(
-      `/api/v1/flights/search?departure_airport=${airportCode}&arrival_airport=${airportCode}&departure_date=${
-        new Date().toISOString().split("T")[0]
-      }`,
+      `${apiClient.endpoints.flights.search}?departure_airport=${airportCode}&arrival_airport=${airportCode}&departure_date=${today}`,
       token ? { Authorization: `Bearer ${token}` } : undefined
     )) as ApiResponse<FlightSearchResponseData>;
 
@@ -58,7 +57,7 @@ export async function getAirportInfo(
       // Strategy 2: Try dedicated airports API if exists
       try {
         const airportResponse = (await apiClient.get(
-          `/api/v1/airports/${airportCode}`,
+          `${apiClient.endpoints.flights.airports}/${airportCode}`,
           token ? { Authorization: `Bearer ${token}` } : undefined
         )) as ApiResponse<AirportInfo>;
 
@@ -84,7 +83,7 @@ export async function getAirportInfo(
       // Strategy 3: Try to get from any flight that has this airport
       try {
         const flightResponse = (await apiClient.get(
-          `/api/v1/flights?departure_airport_code=${airportCode}`,
+          `${apiClient.endpoints.flights.search}?departure_airport_code=${airportCode}`,
           token ? { Authorization: `Bearer ${token}` } : undefined
         )) as ApiResponse<FlightSearchApiResult[]>;
 

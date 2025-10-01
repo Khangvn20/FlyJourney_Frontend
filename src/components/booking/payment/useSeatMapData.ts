@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { buildApiUrl } from "../../../shared/constants/apiConfig";
 
 export type RowAttr = "exit" | "extra" | "business";
 
@@ -8,7 +9,7 @@ export function useSeatMapData(flightId?: number, token?: string | null) {
   const [occupiedSeats, setOccupiedSeats] = useState<string[]>([]);
   const [seatPrices, setSeatPrices] = useState<Record<string, number>>({});
   const [rowAttributes, setRowAttributes] = useState<Record<number, RowAttr[]>>(
-    {},
+    {}
   );
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export function useSeatMapData(flightId?: number, token?: string | null) {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`/api/v1/checkin/${flightId}`, {
+        const res = await fetch(buildApiUrl(`/checkin/${flightId}`), {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         if (!res.ok) throw new Error("failed");
@@ -27,7 +28,7 @@ export function useSeatMapData(flightId?: number, token?: string | null) {
         // Occupied seats
         const occupied =
           data?.data?.confirmed_seats?.map(
-            (s: { seat_number: string }) => s.seat_number,
+            (s: { seat_number: string }) => s.seat_number
           ) || [];
         if (!cancelled) setOccupiedSeats(occupied);
 
@@ -40,20 +41,26 @@ export function useSeatMapData(flightId?: number, token?: string | null) {
             (s.seatId as string) ||
             (s.id as string);
           const price = Number(
-            (s.price as number) ?? (s.seat_price as number) ?? (s.fare as number) ?? NaN,
+            (s.price as number) ??
+              (s.seat_price as number) ??
+              (s.fare as number) ??
+              NaN
           );
           if (id && !Number.isNaN(price)) priceMap[id] = price;
         });
         if (!cancelled) setSeatPrices(priceMap);
 
         // Row attributes
-        const mapFromApi = data?.data?.seat_map || data?.data?.row_type_map || {};
+        const mapFromApi =
+          data?.data?.seat_map || data?.data?.row_type_map || {};
         const parsed: Record<number, RowAttr[]> = {};
         Object.entries(mapFromApi).forEach(([row, attrs]) => {
           if (Array.isArray(attrs)) {
             parsed[Number(row)] = (attrs as unknown[])
               .map((a) => String(a))
-              .filter((a) => ["exit", "extra", "business"].includes(a)) as RowAttr[];
+              .filter((a) =>
+                ["exit", "extra", "business"].includes(a)
+              ) as RowAttr[];
           }
         });
         if (!cancelled) setRowAttributes(parsed);
@@ -71,4 +78,3 @@ export function useSeatMapData(flightId?: number, token?: string | null) {
 
   return { loading, error, occupiedSeats, seatPrices, rowAttributes } as const;
 }
-

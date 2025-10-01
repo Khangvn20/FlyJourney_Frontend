@@ -32,6 +32,7 @@ import {
   isMonthAggregatedWrapper,
   isDirectFlightData,
   extractNestedRoundTrip,
+  normalizeAirlineSlug,
   type PerDayFlightsGroup,
   type MonthBucketSummary,
   type MonthAggregatedWrapper,
@@ -359,13 +360,29 @@ export const useFlightSearch = () => {
   const vietnameseAirlines = useMemo(
     () =>
       airlines.map((airline) => ({
-        id: airline.name.toLowerCase().replace(/\s+/g, "-"),
+        id: normalizeAirlineSlug(airline.name),
         name: airline.name,
         logo: airline.logo,
         code: airline.name.substring(0, 2).toUpperCase(),
       })),
     []
   );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "selectedAirlines",
+        JSON.stringify(selectedAirlines)
+      );
+    } catch (err) {
+      if (import.meta.env?.DEV) {
+        console.debug(
+          "(debug) Unable to persist selectedAirlines to localStorage",
+          err
+        );
+      }
+    }
+  }, [selectedAirlines]);
 
   // Initialize selectedAirlines from localStorage (so FE filters apply immediately after search)
   useEffect(() => {
@@ -697,7 +714,7 @@ export const useFlightSearch = () => {
             all
               .map((f) => ({
                 id: f.airline_id,
-                slug: (f.airline_name || "").toLowerCase().replace(/\s+/g, "-"),
+                slug: normalizeAirlineSlug(f.airline_name),
               }))
               .filter((x) => x.slug && !selectedSlugSet.has(x.slug))
               .map((x) => x.id)
@@ -734,18 +751,14 @@ export const useFlightSearch = () => {
             others.length > 0
               ? others
               : all.filter((f) => {
-                  const slug = (f.airline_name || "")
-                    .toLowerCase()
-                    .replace(/\s+/g, "-");
+                  const slug = normalizeAirlineSlug(f.airline_name);
                   return !selectedSlugSet.has(slug);
                 })
           );
         } else {
           setSuggestionFlights(
             all.filter((f) => {
-              const slug = (f.airline_name || "")
-                .toLowerCase()
-                .replace(/\s+/g, "-");
+              const slug = normalizeAirlineSlug(f.airline_name);
               return !selectedSlugSet.has(slug);
             })
           );

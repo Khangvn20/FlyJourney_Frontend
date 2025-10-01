@@ -5,8 +5,12 @@ import { Button } from "../../ui/button";
 import { ArrowLeft, Plane, CreditCard } from "lucide-react";
 import { notification } from "antd";
 import { loadBookings, saveBookings } from "../../../services/bookingStorage";
-import type { BookingRecord, PaymentMethod } from "../../../shared/types/passenger.types";
+import type {
+  BookingRecord,
+  PaymentMethod,
+} from "../../../shared/types/passenger.types";
 import { formatPrice } from "../../../shared/utils/format";
+import { buildApiUrl } from "../../../shared/constants/apiConfig";
 
 interface PaymentMethodStepProps {
   booking: BookingRecord;
@@ -24,9 +28,8 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
   token,
 }) => {
   const navigate = useNavigate();
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(
-    "vnpay",
-  );
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState<PaymentMethod>("vnpay");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // When return from payment gateway (MoMo/VNPAY)
@@ -57,7 +60,7 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
                   holdExpiresAt: undefined,
                   paymentDate: new Date().toISOString(),
                 }
-              : b,
+              : b
           );
           saveBookings(updated);
           navigate("/my-bookings");
@@ -98,7 +101,9 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
           return;
         }
 
-        const randomOrderId = `FJ${Date.now()}${Math.floor(Math.random() * 10000)}`;
+        const randomOrderId = `FJ${Date.now()}${Math.floor(
+          Math.random() * 10000
+        )}`;
         const payload = {
           booking_id: booking.bookingId,
           partnerCode: "MOMO",
@@ -107,14 +112,13 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
           amount: `${Math.round(booking.totalPrice)}`,
           orderId: randomOrderId,
           orderInfo: `Thanh toan ve may bay FlyJourney - ${booking.bookingId}`,
-          redirectUrl: "http://localhost:3030/my-bookings",
+          redirectUrl: `${window.location.origin}/my-bookings`,
           ipnUrl:
             "https://235e616b3e67.ngrok-free.app/api/v1/payment/momo/callback",
           extraData: "",
           requestType: "captureWallet",
         };
-
-        const response = await fetch("http://localhost:3000/api/v1/payment/momo", {
+        const response = await fetch(buildApiUrl("/payment/momo"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -130,12 +134,15 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
 
         const result = await response.json();
         let paymentUrl: string | null = null;
-        if (result.data?.momoResponse?.payUrl) paymentUrl = result.data.momoResponse.payUrl;
+        if (result.data?.momoResponse?.payUrl)
+          paymentUrl = result.data.momoResponse.payUrl;
         else if (result.payUrl) paymentUrl = result.payUrl;
         else if (result.data?.payUrl) paymentUrl = result.data.payUrl;
         else if (result.qrCodeUrl) paymentUrl = result.qrCodeUrl;
-        else if (result.data?.momoResponse?.qrCodeUrl) paymentUrl = result.data.momoResponse.qrCodeUrl;
-        else if (result.data?.momoResponse?.deeplink) paymentUrl = result.data.momoResponse.deeplink;
+        else if (result.data?.momoResponse?.qrCodeUrl)
+          paymentUrl = result.data.momoResponse.qrCodeUrl;
+        else if (result.data?.momoResponse?.deeplink)
+          paymentUrl = result.data.momoResponse.deeplink;
 
         if (!paymentUrl) {
           notification.error({
@@ -148,7 +155,10 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
 
         sessionStorage.setItem(
           "pendingMomoPayment",
-          JSON.stringify({ bookingId: booking.bookingId, timestamp: Date.now() }),
+          JSON.stringify({
+            bookingId: booking.bookingId,
+            timestamp: Date.now(),
+          })
         );
         window.location.href = paymentUrl as string;
         return;
@@ -166,7 +176,7 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
               selectedSeats,
               holdExpiresAt: undefined,
             }
-          : b,
+          : b
       );
       saveBookings(updated);
       notification.success({ message: "Thanh Toán Thành Công" });
@@ -185,14 +195,16 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
       <div className="mb-6">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4"
-        >
+          className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4">
           <ArrowLeft className="w-4 h-4" /> {backLabel}
         </button>
 
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Thanh toán và xác nhận</h1>
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">
+          Thanh toán và xác nhận
+        </h1>
         <p className="text-gray-600">
-          Xác nhận thông tin và hoàn tất thanh toán cho booking {booking.bookingId}
+          Xác nhận thông tin và hoàn tất thanh toán cho booking{" "}
+          {booking.bookingId}
         </p>
       </div>
 
@@ -206,8 +218,7 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
               {selectedSeats.map((seatId) => (
                 <span
                   key={seatId}
-                  className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg font-medium"
-                >
+                  className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg font-medium">
                   {seatId}
                 </span>
               ))}
@@ -219,7 +230,8 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
 
           <div className="bg-white rounded-lg border p-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-blue-600" /> Chọn phương thức thanh toán
+              <CreditCard className="w-5 h-5 text-blue-600" /> Chọn phương thức
+              thanh toán
             </h3>
 
             <div className="space-y-4">
@@ -228,8 +240,7 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
                   selectedPaymentMethod === "vnpay"
                     ? "border-pink-400 bg-pink-50"
                     : "border-gray-200"
-                }`}
-              >
+                }`}>
                 <input
                   type="radio"
                   name="payment"
@@ -246,7 +257,9 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
                       M
                     </div>
                     <div>
-                      <p className="font-semibold text-pink-900">Thanh toán qua MoMo</p>
+                      <p className="font-semibold text-pink-900">
+                        Thanh toán qua MoMo
+                      </p>
                       <p className="text-xs text-pink-700">Ví điện tử MoMo</p>
                     </div>
                   </div>
@@ -262,8 +275,7 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
                   selectedPaymentMethod === "card"
                     ? "border-blue-400 bg-blue-50"
                     : "border-gray-200"
-                }`}
-              >
+                }`}>
                 <input
                   type="radio"
                   name="payment"
@@ -280,8 +292,12 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
                       💳
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">Thẻ tín dụng/Ghi nợ</p>
-                      <p className="text-xs text-gray-600">Visa, MasterCard, JCB...</p>
+                      <p className="font-semibold text-gray-900">
+                        Thẻ tín dụng/Ghi nợ
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Visa, MasterCard, JCB...
+                      </p>
                     </div>
                   </div>
                   <p className="text-xs text-gray-600 ml-10">
@@ -296,8 +312,7 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
                   selectedPaymentMethod === "office"
                     ? "border-purple-400 bg-purple-50"
                     : "border-gray-200"
-                }`}
-              >
+                }`}>
                 <input
                   type="radio"
                   name="payment"
@@ -314,19 +329,26 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
                       🏢
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">Thanh toán tại văn phòng</p>
-                      <p className="text-xs text-gray-600">Tiền mặt hoặc chuyển khoản trực tiếp</p>
+                      <p className="font-semibold text-gray-900">
+                        Thanh toán tại văn phòng
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Tiền mặt hoặc chuyển khoản trực tiếp
+                      </p>
                     </div>
                   </div>
                   <div className="text-xs text-gray-600 ml-10 space-y-1">
                     <p>
-                      📍 <span className="font-medium">Địa chỉ:</span> 123 Đường Lê Lợi, Q1, TP.HCM
+                      📍 <span className="font-medium">Địa chỉ:</span> 123 Đường
+                      Lê Lợi, Q1, TP.HCM
                     </p>
                     <p>
-                      🕒 <span className="font-medium">Giờ làm việc:</span> 8:00 - 17:30 (T2-T7)
+                      🕒 <span className="font-medium">Giờ làm việc:</span> 8:00
+                      - 17:30 (T2-T7)
                     </p>
                     <p>
-                      📞 <span className="font-medium">Hotline:</span> 1900-FLYJOURNEY
+                      📞 <span className="font-medium">Hotline:</span>{" "}
+                      1900-FLYJOURNEY
                     </p>
                   </div>
                 </div>
@@ -334,7 +356,10 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
             </div>
 
             <div className="mt-6">
-              <Button onClick={handlePayment} disabled={isProcessing} className="w-full">
+              <Button
+                onClick={handlePayment}
+                disabled={isProcessing}
+                className="w-full">
                 {isProcessing ? "Đang xử lý..." : "Thanh toán"}
               </Button>
             </div>
@@ -345,7 +370,9 @@ const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({
           <div className="bg-gray-50 rounded-lg p-6 space-y-4">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Tổng tiền vé</span>
-              <span className="font-medium">{formatPrice(booking.totalPrice)}</span>
+              <span className="font-medium">
+                {formatPrice(booking.totalPrice)}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Phụ thu ghế</span>
