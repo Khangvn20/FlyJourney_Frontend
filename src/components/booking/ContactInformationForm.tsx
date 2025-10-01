@@ -27,7 +27,6 @@ const ContactInformationForm: React.FC<ContactInformationFormProps> = ({
   onContactAddressChange,
 }) => {
   const { user } = useAuth();
-  // Inline validation state & helpers
   const [touched, setTouched] = React.useState({
     name: false,
     email: false,
@@ -67,17 +66,17 @@ const ContactInformationForm: React.FC<ContactInformationFormProps> = ({
       : "";
 
   return (
-    <Card className="relative overflow-hidden border border-blue-100 bg-white shadow-sm">
-      <div className="pointer-events-none absolute inset-0 opacity-70 bg-[radial-gradient(circle_at_15%_20%,rgba(59,130,246,0.08),transparent_60%)]" />
-      <div className="pointer-events-none absolute -top-12 -right-12 w-48 h-48 rounded-full bg-indigo-100/40 blur-3xl" />
-      <CardHeader className="pb-4 relative z-10">
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-lg text-gray-900 font-semibold flex items-center gap-2">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-white shadow">
-              <User className="h-4 w-4" />
+    <Card className="relative overflow-hidden border-2 border-blue-100 bg-white shadow-xl hover:shadow-2xl transition-shadow duration-300">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_25%,rgba(59,130,246,0.12),transparent_55%),radial-gradient(circle_at_80%_75%,rgba(99,102,241,0.10),transparent_55%)]" />
+      <div className="pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full bg-gradient-to-br from-indigo-200/40 to-blue-200/30 blur-3xl" />
+      <CardHeader className="pb-5 relative z-10">
+        <div className="flex items-center justify-between gap-4">
+          <CardTitle className="text-xl text-gray-900 font-bold flex items-center gap-3">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/40">
+              <User className="h-5 w-5" />
             </span>
             Thông tin liên hệ
-            <span className="ml-2 text-xs font-medium text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+            <span className="ml-2 text-xs font-bold text-blue-700 bg-gradient-to-r from-blue-100 to-indigo-100 px-3 py-1.5 rounded-full border-2 border-blue-200 shadow-sm">
               Người đặt vé
             </span>
           </CardTitle>
@@ -89,30 +88,29 @@ const ContactInformationForm: React.FC<ContactInformationFormProps> = ({
                 if (user.email) onContactEmailChange(user.email);
                 if (user.phone) onContactPhoneChange(user.phone);
               }}
-              className="text-xs text-blue-700 hover:text-blue-800 bg-blue-50/90 border border-blue-200 px-3 py-1 rounded-md shadow-sm">
+              className="text-xs text-blue-700 hover:text-blue-800 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-2 border-blue-200 hover:border-blue-300 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-semibold">
               Dùng thông tin tài khoản
             </button>
           )}
         </div>
-        <div className="mt-2 text-xs text-gray-500">
+        <div className="mt-3 text-xs text-gray-600 font-medium bg-blue-50/50 px-3 py-2 rounded-lg border border-blue-100">
           Dùng thông tin tài khoản để điền nhanh, bạn vẫn có thể chỉnh sửa.
         </div>
       </CardHeader>
 
       <CardContent className="space-y-6 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Contact Name */}
           <div className="space-y-2">
             <Label
               htmlFor="contact-name"
-              className="text-sm font-medium text-gray-700">
+              className="text-sm font-bold text-gray-700">
               Họ và tên người liên hệ *
               {user && (
                 <span className="text-xs text-gray-500 font-normal ml-2"></span>
               )}
             </Label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+            <div className="relative group">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 group-focus-within:text-blue-500 transition-colors">
                 <User className="h-4 w-4" />
               </div>
               <Input
@@ -125,25 +123,30 @@ const ContactInformationForm: React.FC<ContactInformationFormProps> = ({
                 placeholder="Nguyễn Văn An"
                 aria-invalid={touched.name && !!errors.name}
                 aria-describedby="contact-name-error"
-                className={`h-11 pl-9 ${inputErrorClass(touched.name, errors.name)}`}
+                className={`h-12 pl-11 bg-gray-50 hover:bg-white focus:bg-white border-2 transition-all duration-200 font-medium ${inputErrorClass(
+                  touched.name,
+                  errors.name
+                )}`}
               />
             </div>
             {touched.name && errors.name && (
-              <p id="contact-name-error" className="text-xs text-red-600 mt-1">
+              <p
+                id="contact-name-error"
+                className="text-xs text-red-600 mt-1.5 font-semibold flex items-center gap-1">
+                <span className="inline-block w-1 h-1 rounded-full bg-red-600"></span>
                 {errors.name}
               </p>
             )}
           </div>
 
-          {/* Contact Phone */}
           <div className="space-y-2">
             <Label
               htmlFor="contact-phone"
-              className="text-sm font-medium text-gray-700">
+              className="text-sm font-bold text-gray-700">
               Số điện thoại *
             </Label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+            <div className="relative group">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 group-focus-within:text-blue-500 transition-colors">
                 <Phone className="h-4 w-4" />
               </div>
               <Input
@@ -157,20 +160,27 @@ const ContactInformationForm: React.FC<ContactInformationFormProps> = ({
                 placeholder="0912345678"
                 aria-invalid={touched.phone && !!errors.phone}
                 aria-describedby="contact-phone-error"
-                className={`h-11 pl-9 ${inputErrorClass(touched.phone, errors.phone)}`}
+                className={`h-12 pl-11 bg-gray-50 hover:bg-white focus:bg-white border-2 transition-all duration-200 font-medium ${inputErrorClass(
+                  touched.phone,
+                  errors.phone
+                )}`}
               />
             </div>
             {touched.phone && errors.phone && (
-              <p id="contact-phone-error" className="text-xs text-red-600 mt-1">
+              <p
+                id="contact-phone-error"
+                className="text-xs text-red-600 mt-1.5 font-semibold flex items-center gap-1">
+                <span className="inline-block w-1 h-1 rounded-full bg-red-600"></span>
                 {errors.phone}
               </p>
             )}
           </div>
         </div>
 
-        {/* Contact Email */}
         <div className="space-y-2">
-          <Label htmlFor="contact-email" className="text-sm font-medium text-gray-700">
+          <Label
+            htmlFor="contact-email"
+            className="text-sm font-bold text-gray-700">
             Email liên hệ *
             {user?.email && (
               <span className="text-xs text-gray-500 font-normal ml-2">
@@ -178,8 +188,8 @@ const ContactInformationForm: React.FC<ContactInformationFormProps> = ({
               </span>
             )}
           </Label>
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+          <div className="relative group">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 group-focus-within:text-blue-500 transition-colors">
               <Mail className="h-4 w-4" />
             </div>
             <Input
@@ -193,28 +203,33 @@ const ContactInformationForm: React.FC<ContactInformationFormProps> = ({
               placeholder="example@email.com"
               aria-invalid={touched.email && !!errors.email}
               aria-describedby="contact-email-error"
-              className={`h-11 pl-9 ${inputErrorClass(touched.email, errors.email)}`}
+              className={`h-12 pl-11 bg-gray-50 hover:bg-white focus:bg-white border-2 transition-all duration-200 font-medium ${inputErrorClass(
+                touched.email,
+                errors.email
+              )}`}
             />
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-600 font-medium bg-blue-50/50 px-3 py-2 rounded-lg border border-blue-100">
             Email này sẽ nhận thông tin xác nhận vé và thông báo quan trọng
           </p>
           {touched.email && errors.email && (
-            <p id="contact-email-error" className="text-xs text-red-600 mt-1">
+            <p
+              id="contact-email-error"
+              className="text-xs text-red-600 mt-1.5 font-semibold flex items-center gap-1">
+              <span className="inline-block w-1 h-1 rounded-full bg-red-600"></span>
               {errors.email}
             </p>
           )}
         </div>
 
-        {/* Contact Address */}
         <div className="space-y-2">
           <Label
             htmlFor="contact-address"
-            className="text-sm font-medium text-gray-700">
+            className="text-sm font-bold text-gray-700">
             Địa chỉ liên hệ *
           </Label>
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+          <div className="relative group">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 group-focus-within:text-blue-500 transition-colors">
               <MapPin className="h-4 w-4" />
             </div>
             <Input
@@ -227,14 +242,20 @@ const ContactInformationForm: React.FC<ContactInformationFormProps> = ({
               placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố"
               aria-invalid={touched.address && !!errors.address}
               aria-describedby="contact-address-error"
-              className={`h-11 pl-9 ${inputErrorClass(touched.address, errors.address)}`}
+              className={`h-12 pl-11 bg-gray-50 hover:bg-white focus:bg-white border-2 transition-all duration-200 font-medium ${inputErrorClass(
+                touched.address,
+                errors.address
+              )}`}
             />
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-600 font-medium bg-blue-50/50 px-3 py-2 rounded-lg border border-blue-100">
             Địa chỉ để gửi thông tin xác nhận booking và liên hệ khi cần thiết
           </p>
           {touched.address && errors.address && (
-            <p id="contact-address-error" className="text-xs text-red-600 mt-1">
+            <p
+              id="contact-address-error"
+              className="text-xs text-red-600 mt-1.5 font-semibold flex items-center gap-1">
+              <span className="inline-block w-1 h-1 rounded-full bg-red-600"></span>
               {errors.address}
             </p>
           )}
